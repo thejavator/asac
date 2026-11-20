@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision Room · ASAC</title>
+  <link rel="stylesheet" href="decision-room.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail" aria-label="Main navigation">
+    <div class="brand">ASAC <small>governance</small></div>
+
+    <div class="scope">
+      <b>payments-service</b>
+      <span>Acme · team payments</span>
+    </div>
+
+    <nav>
+      <ul class="nav">
+        <li><a href="#">Runs</a></li>
+        <li><a href="#" aria-current="page">Decision Room <span class="count">3</span></a></li>
+        <li><a href="#">Errors <span class="count">1</span></a></li>
+        <li><a href="#">Pipeline</a></li>
+        <li><a href="#">Variables</a></li>
+      </ul>
+      <ul class="nav">
+        <li><h2>Organisation</h2></li>
+        <li><a href="#">All projects</a></li>
+        <li><a href="#">Audit trail</a></li>
+        <li><a href="#">Administration</a></li>
+      </ul>
+    </nav>
+
+    <div class="who">
+      <b>Camille Laurent</b>
+      <span>product_owner · payments</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <p class="crumbs"><a href="#">All projects</a> / <a href="#">payments-service</a> / Decision Room</p>
+
+    <div class="page-head">
+      <div>
+        <h1>Decision Room</h1>
+        <p>Decisions that wait for a person. Each one shows what was built, what was checked and who signed before you.</p>
+      </div>
+      <form class="quiet-form" aria-label="Filter decisions">
+        <label class="soft" for="role">Role</label>
+        <select class="field" id="role">
+          <option>All my roles</option>
+          <option>product_owner</option>
+          <option>qa_engineer</option>
+        </select>
+      </form>
+    </div>
+
+    <div class="workspace">
+
+      <!-- Queue -->
+      <section class="queue" aria-labelledby="queue-h">
+        <header>
+          <h2 id="queue-h">Waiting for you</h2>
+          <span class="faint">3 decisions</span>
+        </header>
+        <ol>
+          <li>
+            <a class="item" href="#" aria-current="true" data-urgency="soon">
+              <span class="title">Approve requirements</span>
+              <span class="meta">
+                <span class="mono">PAY-142</span>
+                <span>feature</span>
+                <span class="due">due in 3 h</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="item" href="#" data-urgency="late">
+              <span class="title">Release to production</span>
+              <span class="meta">
+                <span class="mono">PAY-131</span>
+                <span>hotfix</span>
+                <span class="due">1 h late</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="item" href="#" data-urgency="none">
+              <span class="title">Approve test plan</span>
+              <span class="meta">
+                <span class="mono">PAY-150</span>
+                <span>feature</span>
+                <span>due tomorrow</span>
+              </span>
+            </a>
+          </li>
+        </ol>
+      </section>
+
+      <!-- Decision sheet -->
+      <article class="sheet" aria-labelledby="decision-h">
+        <header>
+          <span class="chip" data-state="wait">Waiting for product_owner</span>
+          <h2 id="decision-h">Approve requirements for PAY-142</h2>
+          <dl class="facts">
+            <div><dt>Run</dt><dd class="mono">run_feature_0042</dd></div>
+            <div><dt>Pipeline</dt><dd>feature</dd></div>
+            <div><dt>Trigger</dt><dd><a href="#">PAY-142 in Jira</a></dd></div>
+            <div><dt>Started</dt><dd>today 09:14</dd></div>
+            <div><dt>Cost so far</dt><dd>$0.42</dd></div>
+          </dl>
+        </header>
+
+        <div class="section">
+          <h3>What you are asked to approve</h3>
+          <p class="ask">
+            Refund requests above 500 EUR need a second approval before the payout is sent.
+            The agent wrote 6 acceptance criteria from the ticket and the linked spec.
+          </p>
+          <p class="soft">
+            <a href="#">requirements.md</a> (4 pages) ·
+            <a href="#">Merge request !218</a> ·
+            <a href="#">Confluence: Refund policy</a>
+          </p>
+        </div>
+
+        <div class="section">
+          <h3>Checks made before this decision</h3>
+          <ul class="checks">
+            <li data-state="ok">
+              <span class="sym" aria-hidden="true">&#10003;</span>
+              <span class="what"><b>Policy: no secrets in output</b><span>Open Policy Agent, rule <span class="mono">no_secret_leak</span></span></span>
+              <span class="chip" data-state="ok">Passed</span>
+            </li>
+            <li data-state="ok">
+              <span class="sym" aria-hidden="true">&#10003;</span>
+              <span class="what"><b>Every criterion is testable</b><span>Hook <span class="mono">criteria-lint</span></span></span>
+              <span class="chip" data-state="ok">Passed</span>
+            </li>
+            <li data-state="wait">
+              <span class="sym" aria-hidden="true">!</span>
+              <span class="what"><b>Budget</b><span>$0.42 of $2.00 for this step</span></span>
+              <span class="chip" data-state="wait">21% used</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>Where this run stands</h3>
+          <svg class="graph" viewBox="0 0 640 110" role="img"
+               aria-label="Pipeline: intake done, requirements waiting for decision, design, build and release not started">
+            <path class="edge" d="M118 55 H148"/>
+            <path class="edge" d="M268 55 H298"/>
+            <path class="edge" d="M418 55 H448"/>
+            <path class="edge" d="M568 55 H598"/>
+            <g class="node" data-state="ok">
+              <rect x="8" y="30" width="110" height="50"/>
+              <text x="20" y="52">intake</text><text class="sub" x="20" y="68">&#10003; done</text>
+            </g>
+            <g class="node" data-state="wait">
+              <rect x="148" y="30" width="120" height="50"/>
+              <text x="160" y="52">requirements</text><text class="sub" x="160" y="68">&#9684; your decision</text>
+            </g>
+            <g class="node" data-state="idle">
+              <rect x="298" y="30" width="120" height="50"/>
+              <text x="310" y="52">design</text><text class="sub" x="310" y="68">&#9675; not started</text>
+            </g>
+            <g class="node" data-state="idle">
+              <rect x="448" y="30" width="120" height="50"/>
+              <text x="460" y="52">build</text><text class="sub" x="460" y="68">&#9675; not started</text>
+            </g>
+            <g class="node" data-state="idle">
+              <rect x="598" y="30" width="34" height="50"/>
+              <text x="607" y="60">&#8230;</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="section">
+          <h3>Evidence chain</h3>
+          <ol class="ledger">
+            <li class="entry" data-kind="agent">
+              <div class="line"><b>ticket_parsed</b><span class="kind">produced by agent · intake</span></div>
+              <div class="produced">Ticket PAY-142 read, 3 linked pages fetched. 09:14</div>
+              <span class="digest">sha256:9f2c4e1a7b30</span>
+            </li>
+            <li class="entry" data-kind="agent">
+              <div class="line"><b>requirements_drafted</b><span class="kind">produced by agent · requirements</span></div>
+              <div class="produced">6 acceptance criteria, 2 open questions. 09:21</div>
+              <span class="digest">sha256:b81d05c9e664</span>
+            </li>
+            <li class="entry" data-kind="boot">
+              <div class="line"><b>threat_model</b><span class="kind">bootstrapped · imported by Malik B. on 12 Nov</span></div>
+              <div class="produced">Not produced by an agent. Imported from the security review.</div>
+              <span class="digest">sha256:07aa3f5d2c18</span>
+            </li>
+            <li class="entry" data-kind="pending">
+              <div class="line"><b>requirements_approved</b><span class="kind">waiting for product_owner</span></div>
+              <div class="produced">Your signature produces this evidence.</div>
+            </li>
+          </ol>
+        </div>
+
+        <div class="section decide">
+          <h3>Your decision</h3>
+          <form>
+            <label for="comment">Comment</label>
+            <textarea id="comment" name="comment"></textarea>
+            <p class="hint">Required if you reject. Kept in the audit trail with your name.</p>
+            <div class="actions">
+              <button class="btn btn-primary" type="submit">Approve</button>
+              <button class="btn btn-danger" type="button">Reject</button>
+              <button class="btn" type="button">Ask for changes</button>
+              <span class="alone">Signed as Camille Laurent</span>
+            </div>
+          </form>
+          <p class="notice">
+            <span aria-hidden="true">&#9888;</span>
+            <span>Separation of duties: you cannot approve a run you started. This run was started by the daemon from Jira.</span>
+          </p>
+        </div>
+      </article>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

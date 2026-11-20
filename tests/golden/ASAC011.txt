@@ -1,0 +1,3 @@
+error ASAC011 hooks.definitions.secret-scan.run: path '../evil.sh' is outside the repository
+1 error(s), 4 warning(s)
+exit=1

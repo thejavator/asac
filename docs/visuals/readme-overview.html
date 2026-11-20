@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASAC — Agentic SDLC as Code</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --ink:#e6edf3;--muted:#8b949e;
+  --blue:#58a6ff;--blue-soft:#1f6feb;--blue-bg:rgba(31,111,235,.1);
+  --green:#3fb950;--green-soft:#238636;
+  --orange:#ffa657;--violet:#d2a8ff;
+  --paper-bg:#f6f8fa;--paper:#fff;--paper-border:#d0d7de;
+  --paper-ink:#1f2328;--paper-muted:#656d76;
+  --mono:"SF Mono","Fira Code","Cascadia Code",monospace;
+  --radius:6px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.6;color:var(--paper-ink);background:var(--paper-bg)}
+a{color:var(--blue-soft);text-decoration:none}
+
+/* TOPBAR */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.topbar .inner{max-width:1200px;margin:auto;padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;color:var(--ink)}
+.logo{background:linear-gradient(135deg,var(--blue),var(--violet));
+  width:28px;height:28px;border-radius:6px;display:grid;place-items:center;
+  font-weight:900;font-size:12px;color:white}
+.nav{display:flex;gap:4px}
+.nav a{font-size:12px;color:var(--muted);padding:5px 10px;border-radius:6px;border:1px solid transparent}
+.nav a:hover{background:var(--surface2);color:var(--ink);border-color:var(--border)}
+
+/* HERO */
+.hero{background:var(--bg);color:var(--ink);padding:56px 0 44px;border-bottom:1px solid var(--border)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.hero-inner{display:grid;grid-template-columns:1fr 420px;gap:48px;align-items:center}
+.hero-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--blue);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.hero-eyebrow::before{content:'';width:24px;height:2px;background:var(--blue);display:block}
+.hero h1{font-size:clamp(32px,5vw,52px);font-weight:900;line-height:.95;letter-spacing:-.04em;margin-bottom:18px}
+.hero h1 .accent{color:var(--blue)}
+.hero h1 .sub{display:block;font-size:clamp(16px,2.5vw,24px);font-weight:500;
+  color:var(--muted);letter-spacing:-.01em;margin-top:6px}
+.hero-desc{font-size:15px;color:var(--muted);line-height:1.65;margin-bottom:24px;max-width:540px}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:28px}
+.badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;
+  border:1px solid var(--border);color:var(--muted);background:var(--surface);font-family:var(--mono)}
+.badge.g{background:rgba(35,134,54,.15);color:var(--green);border-color:rgba(35,134,54,.4)}
+.badge.b{background:var(--blue-bg);color:var(--blue);border-color:rgba(31,111,235,.4)}
+.badge.o{background:rgba(255,166,87,.1);color:var(--orange);border-color:rgba(255,166,87,.4)}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{padding:9px 18px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;border:none;
+  display:inline-flex;align-items:center;gap:7px}
+.btn-primary{background:var(--green-soft);color:white}
+.btn-secondary{background:var(--surface2);color:var(--ink);border:1px solid var(--border)}
+
+/* HERO CODE */
+.hero-code{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.hc-bar{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border)}
+.hc-dots{display:flex;gap:6px}
+.hc-dots span{width:11px;height:11px;border-radius:50%}
+.hc-dots .r{background:#ff5f57}.hc-dots .y{background:#febc2e}.hc-dots .g{background:#28c840}
+.hc-label{font-size:11px;font-weight:600;color:var(--muted);font-family:var(--mono)}
+.hc-body{padding:16px 20px;font-family:var(--mono);font-size:12px;line-height:1.75;color:#a8b2c0}
+
+/* ANALOGY */
+.analogy{background:var(--bg);padding:32px 0;border-bottom:1px solid var(--border)}
+.analogy-row{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap}
+.an-item{padding:16px 28px;text-align:center}
+.an-item .label{font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+.an-item .name{font-size:18px;font-weight:900;color:var(--ink)}
+.an-item .desc{font-size:12px;color:var(--muted);margin-top:3px}
+.an-arrow{color:var(--blue);font-size:22px;font-weight:300;padding:0 8px;
+  display:flex;align-items:center;color:var(--muted)}
+.an-item.current .name{color:var(--blue)}
+.an-item.current .desc{color:var(--blue-soft)}
+
+/* SECTIONS */
+section{padding:40px 0;border-bottom:1px solid var(--paper-border)}
+section:last-of-type{border-bottom:none}
+.sh{margin-bottom:28px}
+.sh .ey{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--blue-soft);margin-bottom:6px}
+.sh h2{font-size:clamp(20px,3vw,30px);font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
+.sh p{color:var(--paper-muted);font-size:13.5px;max-width:720px}
+
+/* PERSONAS */
+.personas{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.persona{background:white;border:1px solid var(--paper-border);border-radius:10px;overflow:hidden}
+.persona-header{padding:16px 18px 12px;border-bottom:1px solid var(--paper-border)}
+.persona-icon{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;
+  font-size:16px;margin-bottom:10px}
+.persona-name{font-size:15px;font-weight:800;margin-bottom:2px}
+.persona-role{font-size:12px;color:var(--paper-muted)}
+.persona-body{padding:14px 18px}
+.touchpoints{display:flex;flex-direction:column;gap:8px}
+.tp{font-size:13px;display:flex;gap:10px;align-items:flex-start}
+.tp-icon{width:20px;height:20px;border-radius:4px;display:grid;place-items:center;
+  font-size:10px;flex-shrink:0;margin-top:1px;font-weight:800}
+.tp-text{line-height:1.45}
+.tp-text strong{font-weight:700;display:block;font-size:12.5px}
+.tp-text span{font-size:12px;color:var(--paper-muted)}
+
+/* PERSONA colors */
+.dev .persona-icon{background:#ddf4ff;color:#0969da}
+.dev .persona-header{border-top:3px solid #0969da}
+.tech .persona-icon{background:#fbefff;color:#8250df}
+.tech .persona-header{border-top:3px solid #8250df}
+.ba .persona-icon{background:#dafbe1;color:#1a7f37}
+.ba .persona-header{border-top:3px solid #1a7f37}
+.po .persona-icon{background:#fff8c5;color:#9a6700}
+.po .persona-header{border-top:3px solid #d4a72c}
+.mgr .persona-icon{background:#ffebe9;color:#cf222e}
+.mgr .persona-header{border-top:3px solid #cf222e}
+.sec .persona-icon{background:#f6f8fa;color:#57606a}
+.sec .persona-header{border-top:3px solid #57606a}
+
+/* TP icon colors by persona */
+.dev .tp-icon{background:#ddf4ff;color:#0969da}
+.tech .tp-icon{background:#fbefff;color:#8250df}
+.ba .tp-icon{background:#dafbe1;color:#1a7f37}
+.po .tp-icon{background:#fff8c5;color:#9a6700}
+.mgr .tp-icon{background:#ffebe9;color:#cf222e}
+.sec .tp-icon{background:#f6f8fa;color:#57606a}
+
+/* JOURNEY */
+.journey{display:flex;gap:0;overflow-x:auto;padding-bottom:8px}
+.jstep{min-width:160px;padding:14px 16px;border-right:1px solid var(--paper-border);
+  position:relative}
+.jstep:last-child{border-right:none}
+.jstep-stage{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  margin-bottom:6px}
+.jstep-who{font-size:11px;font-weight:700;margin-bottom:4px}
+.jstep-action{font-size:12px;color:var(--paper-muted);line-height:1.4;margin-bottom:6px}
+.jstep-gate{font-size:11px;padding:2px 7px;border-radius:4px;font-weight:600;
+  display:inline-block;margin-bottom:4px}
+.gate-human{background:#fff8c5;color:#9a6700;border:1px solid #d4a72c}
+.gate-auto{background:#ddf4ff;color:#0969da;border:1px solid #54aeff}
+.gate-quality{background:#dafbe1;color:#1a7f37;border:1px solid #4ac26b}
+.jstep-ev{font-size:10px;color:var(--paper-muted)}
+.jstep-ev code{font-family:var(--mono);font-size:9.5px;background:var(--paper-bg);
+  padding:1px 4px;border-radius:3px;border:1px solid var(--paper-border)}
+
+/* FLOW ARROW */
+.jarrow{display:flex;align-items:center;color:var(--paper-muted);font-size:16px;flex-shrink:0;
+  padding:0 2px;margin-top:30px}
+
+/* CODE */
+pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 20px;font-family:var(--mono);font-size:12px;line-height:1.7;
+  color:#e6edf3;overflow-x:auto;margin:0}
+.ph{background:var(--surface2);border:1px solid var(--border);
+  border-bottom:none;border-radius:var(--radius) var(--radius) 0 0;
+  padding:8px 14px;display:flex;align-items:center;justify-content:space-between}
+.ph .pt{font-size:11px;font-weight:600;color:var(--muted);font-family:var(--mono)}
+.ph .pl{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
+  background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.ph+pre{border-radius:0 0 var(--radius) var(--radius)}
+.cw{margin-bottom:20px}
+
+/* Syntax */
+.kw{color:#ff7b72}.str{color:#a5d6ff}.cm{color:#8b949e;font-style:italic}
+.key{color:#79c0ff}.bool{color:#ff7b72}.num{color:#79c0ff}.fn{color:#d2a8ff}.var{color:#3fb950}
+
+/* CALLOUT */
+.co{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13px;line-height:1.5}
+.co-blue{background:#f0f7ff;border:1px solid #54aeff;border-left:4px solid #0969da}
+.co-green{background:#dafbe1;border:1px solid #4ac26b;border-left:4px solid #1a7f37}
+.co strong{font-weight:800}
+
+/* ROADMAP */
+.rm{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.rm-card{background:white;border:1px solid var(--paper-border);border-radius:8px;padding:18px}
+.rm-version{font-family:var(--mono);font-size:11px;font-weight:800;padding:3px 9px;
+  border-radius:4px;display:inline-block;margin-bottom:10px}
+.rm-current{background:#ddf4ff;color:#0969da;border:1px solid #54aeff}
+.rm-next{background:#dafbe1;color:#1a7f37;border:1px solid #4ac26b}
+.rm-future{background:var(--paper-bg);color:var(--paper-muted);border:1px solid var(--paper-border)}
+.rm-card h3{font-size:14px;font-weight:800;margin-bottom:4px}
+.rm-card .focus{font-size:12px;color:var(--paper-muted);margin-bottom:10px;font-style:italic}
+.rm-items{display:flex;flex-direction:column;gap:4px}
+.rm-item{font-size:12.5px;display:flex;gap:7px;align-items:flex-start}
+.rm-item::before{content:'—';color:var(--paper-muted);flex-shrink:0}
+
+/* CONTRIBUTING */
+.contrib-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.contrib-card{background:white;border:1px solid var(--paper-border);border-radius:8px;
+  padding:14px 16px}
+.contrib-card h4{font-size:13px;font-weight:800;margin-bottom:4px}
+.contrib-card p{font-size:12px;color:var(--paper-muted);line-height:1.5}
+
+footer{padding:28px 0 48px;color:var(--paper-muted);font-size:12px;border-top:1px solid var(--paper-border)}
+.fi{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+
+@media(max-width:1024px){
+  .hero-inner{grid-template-columns:1fr}
+  .hero-code{display:none}
+  .personas{grid-template-columns:1fr 1fr}
+}
+@media(max-width:640px){
+  .wrap,.topbar .inner{padding-left:14px;padding-right:14px}
+  .personas,.rm,.contrib-grid{grid-template-columns:1fr}
+  .nav{display:none}
+  .analogy-row{flex-direction:column;gap:0}
+  .an-arrow{transform:rotate(90deg)}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo">A</div>
+      ASAC
+    </div>
+    <div class="nav">
+      <a href="#why">Why ASAC</a>
+      <a href="#personas">Who Uses It</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#adoption">Existing Projects</a>
+      <a href="#how">How It Works</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#contributing">Contributing</a>
+    </div>
+  </div>
+</div>
+
+<div style="background:#fff8c5;border-bottom:1px solid #d4a72c;color:#9a6700;font-size:13px;font-weight:600;padding:10px 24px;text-align:center">
+  Status: the CLI, portal, Docker runner and Claude Code harness work; the registry shown on this page is not implemented yet.
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-eyebrow">Open Source · Apache 2.0</div>
+        <h1>
+          <span class="accent">ASAC</span>
+          <span class="sub">Agentic SDLC as Code</span>
+        </h1>
+        <p class="hero-desc">
+          Declare your entire software delivery lifecycle as code — agents, skills, pipelines, policies, gates.
+          Execute it across any AI coding assistant.
+          Govern it with evidence.
+        </p>
+        <div class="badges">
+          <span class="badge g">spec v0.4 (frozen)</span>
+          <span class="badge b">Apache 2.0</span>
+          <span class="badge o">MCP-native</span>
+          <span class="badge">OPA-governed</span>
+        </div>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://github.com/asac-dev/asac" style="color:white">Get Started →</a>
+          <a class="btn btn-secondary" href="../index.html">Read the Spec</a>
+        </div>
+      </div>
+
+      <div class="hero-code">
+        <div class="hc-bar">
+          <div class="hc-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="hc-label">asac.yaml</div>
+        </div>
+        <div class="hc-body">
+<span style="color:#484f58"># Declare your SDLC</span>
+<span style="color:#79c0ff">capabilities</span>:
+  <span style="color:#79c0ff">implementation</span>:
+    <span style="color:#79c0ff">inputs</span>:  [<span style="color:#a5d6ff">structured_spec</span>]
+    <span style="color:#79c0ff">evidence</span>: [<span style="color:#a5d6ff">tests_green</span>]
+
+<span style="color:#79c0ff">agents</span>:
+  <span style="color:#79c0ff">dev</span>:
+    <span style="color:#79c0ff">skill</span>:    <span style="color:#a5d6ff">java-impl</span>
+    <span style="color:#79c0ff">harness</span>:  <span style="color:#3fb950">var.dev_harness</span>
+    <span style="color:#79c0ff">provider</span>: <span style="color:#a5d6ff">llm</span>
+
+<span style="color:#79c0ff">pipelines</span>:
+  <span style="color:#79c0ff">feature</span>:
+    <span style="color:#79c0ff">trigger</span>:
+      <span style="color:#79c0ff">event</span>: <span style="color:#a5d6ff">jira:issue_created</span>
+    <span style="color:#79c0ff">steps</span>:
+      <span style="color:#79c0ff">development</span>:
+        <span style="color:#79c0ff">capability</span>: <span style="color:#a5d6ff">implementation</span>
+        <span style="color:#79c0ff">agent</span>:      <span style="color:#a5d6ff">dev</span>
+        <span style="color:#79c0ff">mode</span>:       <span style="color:#a5d6ff">delegate</span>
+        <span style="color:#79c0ff">gate</span>:
+          <span style="color:#79c0ff">type</span>:  <span style="color:#a5d6ff">human</span>
+          <span style="color:#79c0ff">role</span>:  <span style="color:#a5d6ff">product_owner</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALOGY -->
+<div class="analogy">
+  <div class="wrap">
+    <div class="analogy-row">
+      <div class="an-item">
+        <div class="label">Infrastructure</div>
+        <div class="name">Terraform</div>
+        <div class="desc">Declare, plan, apply</div>
+      </div>
+      <div class="an-arrow">→</div>
+      <div class="an-item">
+        <div class="label">Containers</div>
+        <div class="name">Kubernetes</div>
+        <div class="desc">Desired state, reconcile</div>
+      </div>
+      <div class="an-arrow">→</div>
+      <div class="an-item current">
+        <div class="label">Software Delivery</div>
+        <div class="name">ASAC</div>
+        <div class="desc">Declare your SDLC, agents execute</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- WHY -->
+  <section id="why">
+    <div class="sh">
+      <div class="ey">The Problem</div>
+      <h2>AI is in every IDE. Your SDLC isn't ready for it.</h2>
+      <p>Teams adopt AI coding tools one by one — Copilot here, Claude Code there — with no shared conventions, no governance, no way to verify what agents actually did.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:20px">
+        <p style="font-size:13px;font-weight:800;color:#cf222e;margin-bottom:12px">Without ASAC</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#cf222e;flex-shrink:0">✗</span>
+            <span>Each developer has their own AI workflow — no consistency</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#cf222e;flex-shrink:0">✗</span>
+            <span>BA and QA don't know an agent touched the code</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#cf222e;flex-shrink:0">✗</span>
+            <span>No audit trail — "the agent wrote it" isn't a compliance answer</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#cf222e;flex-shrink:0">✗</span>
+            <span>Context lost between sessions — agents start over every time</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#cf222e;flex-shrink:0">✗</span>
+            <span>No way to enforce "QA agent ≠ dev agent" or "no push to main"</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#cf222e;flex-shrink:0">✗</span>
+            <span>Switching harnesses (Copilot → Claude) breaks everything</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:20px">
+        <p style="font-size:13px;font-weight:800;color:#1a7f37;margin-bottom:12px">With ASAC</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#1a7f37;flex-shrink:0">✓</span>
+            <span><code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">asac.yaml</code> — one source of truth for the team's SDLC</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#1a7f37;flex-shrink:0">✓</span>
+            <span>BA and PO approve gates in the portal — no YAML required</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#1a7f37;flex-shrink:0">✓</span>
+            <span>Every agent action produces evidence — <code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">asac audit</code> tells the full story</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#1a7f37;flex-shrink:0">✓</span>
+            <span>Shared memory between sessions — agents resume where they left off</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#1a7f37;flex-shrink:0">✓</span>
+            <span>OPA policies enforce separation of concerns at runtime</span>
+          </div>
+          <div style="font-size:13px;display:flex;gap:8px">
+            <span style="color:#1a7f37;flex-shrink:0">✓</span>
+            <span>Change <code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">var.dev_harness</code> — pipeline unchanged</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERSONAS -->
+  <section id="personas">
+    <div class="sh">
+      <div class="ey">Who Uses ASAC</div>
+      <h2>Six personas, one shared SDLC</h2>
+      <p>ASAC is not a tool for developers only. Each role has its own entry point — CLI, web portal, or dashboard — without ever needing to understand the other layers.</p>
+    </div>
+
+    <div class="personas">
+
+      <!-- DEV -->
+      <div class="persona dev">
+        <div class="persona-header">
+          <div class="persona-icon">⌨</div>
+          <div class="persona-name">Developer</div>
+          <div class="persona-role">Writes code, works with agents daily</div>
+        </div>
+        <div class="persona-body">
+          <div class="touchpoints">
+            <div class="tp">
+              <div class="tp-icon">CLI</div>
+              <div class="tp-text">
+                <strong>asac init</strong>
+                <span>Bootstrap ASAC in your repo — automatic stack detection</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">CLI</div>
+              <div class="tp-text">
+                <strong>asac plan → asac apply</strong>
+                <span>Preview what the agent will do, then run the pipeline on your Jira story</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">CLI</div>
+              <div class="tp-text">
+                <strong>asac logs / asac status</strong>
+                <span>Follow the agent's progress in real time, see errors</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">IDE</div>
+              <div class="tp-text">
+                <strong>Agent in your preferred harness</strong>
+                <span>Claude Code, Copilot, Cursor — the harness is configured in layer 2, not in the manifest</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TECH LEAD -->
+      <div class="persona tech">
+        <div class="persona-header">
+          <div class="persona-icon">⚙</div>
+          <div class="persona-name">Tech Lead / Architect</div>
+          <div class="persona-role">Owns the SDLC definition</div>
+        </div>
+        <div class="persona-body">
+          <div class="touchpoints">
+            <div class="tp">
+              <div class="tp-icon">YAML</div>
+              <div class="tp-text">
+                <strong>Writes asac.yaml</strong>
+                <span>Defines capabilities, skills from the registry, agents, pipelines, gates</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">CLI</div>
+              <div class="tp-text">
+                <strong>asac validate in CI</strong>
+                <span>Validates all 3 layers — manifest, vars, policies — on every PR touching asac.yaml</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">REG</div>
+              <div class="tp-text">
+                <strong>registry.asac.dev</strong>
+                <span>Searches and installs versioned skills. Publishes reusable internal modules.</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">SDK</div>
+              <div class="tp-text">
+                <strong>Writes custom providers</strong>
+                <span>Via the TypeScript/Go Provider SDK for internal systems not covered</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BA -->
+      <div class="persona ba">
+        <div class="persona-header">
+          <div class="persona-icon">📋</div>
+          <div class="persona-name">Business Analyst</div>
+          <div class="persona-role">Collaborates on specs with agents</div>
+        </div>
+        <div class="persona-body">
+          <div class="touchpoints">
+            <div class="tp">
+              <div class="tp-icon">WEB</div>
+              <div class="tp-text">
+                <strong>ASAC Portal — Validation Center</strong>
+                <span>Receives a notification when the BA agent has produced a spec — reviews it and approves or requests changes</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">JIRA</div>
+              <div class="tp-text">
+                <strong>Approval gate in Jira</strong>
+                <span>Automatic comment on the story with a link to the generated spec. Approve in one click.</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">EV</div>
+              <div class="tp-text">
+                <strong>Produces the spec_reviewed evidence</strong>
+                <span>Their approval unblocks the next pipeline step — the spec becomes immutable proof</span>
+              </div>
+            </div>
+          </div>
+          <div class="co co-green" style="margin-top:10px;font-size:12px">
+            <strong>Zero YAML.</strong> The BA only interacts with the portal or Jira.
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCT OWNER -->
+      <div class="persona po">
+        <div class="persona-header">
+          <div class="persona-icon">✅</div>
+          <div class="persona-name">Product Owner</div>
+          <div class="persona-role">Owns requirements & release decisions</div>
+        </div>
+        <div class="persona-body">
+          <div class="touchpoints">
+            <div class="tp">
+              <div class="tp-icon">WEB</div>
+              <div class="tp-text">
+                <strong>Requirements approval gate</strong>
+                <span>Validates the user stories generated by the BA agent before development starts</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">WEB</div>
+              <div class="tp-text">
+                <strong>Release approval gate</strong>
+                <span>Before the staging deployment, sees the summary: spec ✓ · tests ✓ · coverage 87% ✓ · SAST clean ✓</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">NOT</div>
+              <div class="tp-text">
+                <strong>Slack / email notifications</strong>
+                <span>Receives an evidence summary at each gate. Automatic escalation if no response within 24h.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MANAGER / BUSINESS -->
+      <div class="persona mgr">
+        <div class="persona-header">
+          <div class="persona-icon">📊</div>
+          <div class="persona-name">Manager / Business</div>
+          <div class="persona-role">Governance, delivery metrics, AI spend</div>
+        </div>
+        <div class="persona-body">
+          <div class="touchpoints">
+            <div class="tp">
+              <div class="tp-icon">WEB</div>
+              <div class="tp-text">
+                <strong>Governance Dashboard</strong>
+                <span>DORA metrics per team, autonomy level (L0→L4), failed gate rate</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">$</div>
+              <div class="tp-text">
+                <strong>FinOps — token budget</strong>
+                <span>Token consumption per team / sprint / pipeline. Configurable budget per agent.</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">AUD</div>
+              <div class="tp-text">
+                <strong>Complete audit trail</strong>
+                <span>Who approved what, when, with which evidence. CSV export for compliance.</span>
+              </div>
+            </div>
+          </div>
+          <div class="co co-blue" style="margin-top:10px;font-size:12px">
+            <strong>Read-only.</strong> The manager configures nothing — they observe and govern.
+          </div>
+        </div>
+      </div>
+
+      <!-- SECURITY -->
+      <div class="persona sec">
+        <div class="persona-header">
+          <div class="persona-icon">🔒</div>
+          <div class="persona-name">Security / Compliance</div>
+          <div class="persona-role">Defines what agents can and cannot do</div>
+        </div>
+        <div class="persona-body">
+          <div class="touchpoints">
+            <div class="tp">
+              <div class="tp-icon">OPA</div>
+              <div class="tp-text">
+                <strong>Writes Rego policies</strong>
+                <span>Files <code style="font-family:var(--mono);font-size:10px">.asac/policies/*.rego</code> — rules independently testable with <code style="font-family:var(--mono);font-size:10px">opa test</code></span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">REG</div>
+              <div class="tp-text">
+                <strong>Centralized policies</strong>
+                <span>Publishes policies to the enterprise registry — all teams reference them automatically</span>
+              </div>
+            </div>
+            <div class="tp">
+              <div class="tp-icon">CLI</div>
+              <div class="tp-text">
+                <strong>asac audit --format csv</strong>
+                <span>Compliance export — every agent action traced, every approved gate timestamped</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- JOURNEY -->
+  <section>
+    <div class="sh">
+      <div class="ey">Feature Lifecycle</div>
+      <h2>A Jira story — from ticket to deployment</h2>
+      <p>What each persona sees and does at each step of an ASAC <code>feature</code> pipeline.</p>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden">
+      <div style="display:flex;overflow-x:auto">
+
+        <div class="jstep">
+          <div class="jstep-stage" style="color:#0969da">Trigger</div>
+          <div class="jstep-who">📋 Jira</div>
+          <div class="jstep-action">Story created with label <code style="font-size:10px;font-family:var(--mono)">asac-enabled</code></div>
+          <div class="jstep-gate gate-auto">auto-trigger</div>
+        </div>
+        <div class="jarrow">→</div>
+
+        <div class="jstep">
+          <div class="jstep-stage" style="color:#8250df">Requirements</div>
+          <div class="jstep-who">🤖 Agent BA</div>
+          <div class="jstep-action">Analyzes the story, generates user stories and acceptance criteria</div>
+          <div class="jstep-gate gate-human">⏸ PO approves</div>
+          <div class="jstep-ev">evidence → <code>spec_reviewed</code></div>
+        </div>
+        <div class="jarrow">→</div>
+
+        <div class="jstep">
+          <div class="jstep-stage" style="color:#1a7f37">Specification</div>
+          <div class="jstep-who">🤖 Agent Spec</div>
+          <div class="jstep-action">Turns the AC into a structured technical spec</div>
+          <div class="jstep-gate gate-auto">auto — DOR check</div>
+          <div class="jstep-ev">input → <code>spec_reviewed</code></div>
+        </div>
+        <div class="jarrow">→</div>
+
+        <div class="jstep">
+          <div class="jstep-stage" style="color:#9a6700">Development</div>
+          <div class="jstep-who">🤖 Agent Dev</div>
+          <div class="jstep-action">Implements the code, creates a branch, opens an MR</div>
+          <div class="jstep-gate gate-auto">auto — CI pass</div>
+          <div class="jstep-ev">evidence → <code>tests_green</code>, <code>mr_created</code></div>
+        </div>
+        <div class="jarrow">→</div>
+
+        <div class="jstep">
+          <div class="jstep-stage" style="color:#1a7f37">Verification</div>
+          <div class="jstep-who">🤖 Agent QA</div>
+          <div class="jstep-action">Code review, coverage, SAST — distinct from the Dev agent</div>
+          <div class="jstep-gate gate-quality">⏸ quality gate</div>
+          <div class="jstep-ev">evidence → <code>coverage_passed</code>, <code>sast_clean</code>, <code>qa_approved</code></div>
+        </div>
+        <div class="jarrow">→</div>
+
+        <div class="jstep">
+          <div class="jstep-stage" style="color:#cf222e">Release</div>
+          <div class="jstep-who">🤖 Agent DevOps</div>
+          <div class="jstep-action">Merge MR, tag, deploy staging</div>
+          <div class="jstep-gate gate-human">⏸ PO approves</div>
+          <div class="jstep-ev">evidence → <code>deployed</code></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="co co-blue" style="margin-top:12px">
+      <strong>Key principle:</strong> a step can only start if all <code>requiresEvidence</code> evidences are satisfied.
+      If an evidence is missing or fails, the pipeline stops — no deployment without proof.
+    </div>
+  </section>
+
+  <!-- QUICK START -->
+  <section id="quickstart">
+    <div class="sh">
+      <div class="ey">Quick Start</div>
+      <h2>From zero to an SDLC pipeline in 3 commands</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <p style="font-size:13px;font-weight:700;margin-bottom:8px">1. Initialize ASAC in your project</p>
+        <div class="cw">
+          <pre><span style="color:#8b949e"># Automatically detects the stack</span>
+$ asac init
+
+<span style="color:#3fb950">✓ Stack detected: Java (Maven)</span>
+<span style="color:#3fb950">✓ Generated asac.yaml</span>
+<span style="color:#3fb950">✓ Generated asac.vars.yaml.example</span>
+<span style="color:#3fb950">✓ Created .asac/policies/</span>
+
+<span style="color:#8b949e"># Fill in the variables</span>
+$ cp asac.vars.yaml.example asac.vars.yaml
+$ asac vars check
+
+<span style="color:#3fb950">✓ All 9 variables resolved</span></pre>
+        </div>
+
+        <p style="font-size:13px;font-weight:700;margin-bottom:8px;margin-top:16px">2. Preview the pipeline (without running it)</p>
+        <div class="cw">
+          <pre>$ asac plan --pipeline feature \
+           --trigger jira:STORY-1234
+
+<span style="color:#58a6ff">Plan: pipeline "feature" for STORY-1234</span>
+
+  <span style="color:#8b949e">Step 1</span> requirements  → agent: ba  (assist)
+  <span style="color:#8b949e">Step 2</span> development   → agent: dev (delegate)
+  <span style="color:#8b949e">Step 3</span> verification  → agent: qa  (assist)
+  <span style="color:#8b949e">Step 4</span> release       → agent: dev (delegate)
+
+  <span style="color:#8b949e">Gates:</span>  2 human  ·  1 quality
+  <span style="color:#8b949e">Cost:</span>   ~38,000 tokens estimated
+  <span style="color:#8b949e">Time:</span>   ~4h (excl. human gates)
+
+Apply? [y/N]</pre>
+        </div>
+
+        <p style="font-size:13px;font-weight:700;margin-bottom:8px;margin-top:16px">3. Run</p>
+        <div class="cw">
+          <pre>$ asac apply --pipeline feature \
+            --trigger jira:STORY-1234
+
+<span style="color:#3fb950">▶ requirements</span>  running...
+<span style="color:#3fb950">  ✓</span> spec produced
+<span style="color:#d29922">  ⏸ gate: waiting for product_owner</span>
+<span style="color:#8b949e">  → alice@example.com notified via portal</span>
+
+<span style="color:#8b949e">...</span>
+
+<span style="color:#3fb950">✓ Pipeline complete</span>
+<span style="color:#8b949e">  Evidence: spec_reviewed ✓ · tests_green ✓</span>
+<span style="color:#8b949e">            coverage_passed ✓ · sast_clean ✓</span>
+<span style="color:#8b949e">            qa_approved ✓ · deployed ✓</span></pre>
+        </div>
+      </div>
+
+      <div>
+        <p style="font-size:13px;font-weight:700;margin-bottom:8px">asac.yaml generated by <code>asac init</code></p>
+        <div class="cw">
+          <div class="ph"><span class="pt">asac.yaml — minimal (java stack)</span><span class="pl">yaml</span></div>
+          <pre style="font-size:11.5px"><span class="key">asac</span>:
+  <span class="key">spec</span>: <span class="str">"0.4"</span>
+  <span class="key">workspace</span>: <span class="str">my-service</span>
+
+<span class="key">variables</span>:
+  <span class="key">gitlab_url</span>:   <span class="key">type</span>: <span class="str">string</span>
+  <span class="key">gitlab_token</span>: <span class="key">type</span>: <span class="str">string</span>  <span class="key">sensitive</span>: <span class="bool">true</span>
+  <span class="key">llm_api_key</span>:  <span class="key">type</span>: <span class="str">string</span>  <span class="key">sensitive</span>: <span class="bool">true</span>
+  <span class="key">dev_harness</span>:  <span class="key">type</span>: <span class="str">harness</span>
+
+<span class="key">providers</span>:
+  <span class="key">gitlab</span>:
+    <span class="key">source</span>:  <span class="str">asac/gitlab</span>
+    <span class="key">version</span>: <span class="str">"~> 2.0"</span>
+    <span class="key">config</span>:
+      <span class="key">url</span>:   <span class="var">var.gitlab_url</span>
+      <span class="key">token</span>: <span class="var">var.gitlab_token</span>
+  <span class="key">llm</span>:
+    <span class="key">source</span>:  <span class="str">asac/claude</span>
+    <span class="key">version</span>: <span class="str">"~> 1.0"</span>
+    <span class="key">config</span>:
+      <span class="key">api_key</span>: <span class="var">var.llm_api_key</span>
+
+<span class="key">skills</span>:
+  <span class="key">java-impl</span>:
+    <span class="key">ref</span>:     <span class="str">registry.asac.dev/java/implementation@3.0</span>
+    <span class="key">fulfils</span>: <span class="str">implementation</span>
+    <span class="key">params</span>:
+      <span class="key">build_tool</span>: <span class="str">maven</span>
+
+<span class="key">agents</span>:
+  <span class="key">dev</span>:
+    <span class="key">skill</span>:    <span class="str">java-impl</span>
+    <span class="key">provider</span>: <span class="str">llm</span>
+    <span class="key">harness</span>:  <span class="var">var.dev_harness</span>
+    <span class="key">tools</span>:    [<span class="str">gitlab</span>]
+
+<span class="cm"># Use a quickstart module for everything else</span>
+<span class="key">module</span> <span class="str">"feature-pipeline"</span>:
+  <span class="key">source</span>:  <span class="str">registry.asac.dev/quickstart/java-microservice</span>
+  <span class="key">version</span>: <span class="str">"~> 2.0"</span>
+  <span class="key">variables</span>:
+    <span class="key">dev_agent</span>: <span class="str">dev</span></pre>
+        </div>
+        <div class="co co-blue" style="font-size:12px">
+          The <code>quickstart/java-microservice</code> module automatically configures the standard capabilities, evidenceTypes, and pipelines. You only write them if you want to customize them.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXISTING PROJECT ADOPTION -->
+  <section id="adoption">
+    <div class="sh">
+      <div class="ey">Existing Projects</div>
+      <h2>ASAC on a project already in production</h2>
+      <p>90% of teams have an existing codebase. ASAC is adopted progressively — one step at a time, without breaking what works.</p>
+    </div>
+
+    <!-- COMPARE NEW VS EXISTING -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px">
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:20px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+          color:#1a7f37;margin-bottom:12px">New project</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#1a7f37">✓</span><span><code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">asac init --template java</code> — full pipeline in 5 min</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#1a7f37">✓</span><span>Clean evidence chain — everything starts from scratch</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#1a7f37">✓</span><span>Maturity L2-L3 possible from the first sprint</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#1a7f37">✓</span><span>No existing conventions to respect</span></div>
+        </div>
+      </div>
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:20px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+          color:#9a6700;margin-bottom:12px">Existing project</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span><code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">asac init --mode observe</code> — analyze first</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span>Evidence bootstrapped from existing tests</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span>L1 required at entry, progressive ramp-up</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span>Legacy and feature pipelines coexist</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 PHASES -->
+    <p style="font-size:13.5px;font-weight:800;margin-bottom:14px">The 4 adoption phases on an existing project</p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px">
+
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;display:grid;grid-template-columns:140px 1fr">
+        <div style="background:#f0f7ff;padding:14px 16px;border-right:1px solid var(--paper-border);display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#0969da;margin-bottom:4px">Phase 1</div>
+          <div style="font-size:14px;font-weight:800">Observer</div>
+          <div style="font-size:11px;color:var(--paper-muted);margin-top:2px">Week 1-2</div>
+        </div>
+        <div style="padding:14px 18px">
+          <div style="font-size:12.5px;margin-bottom:8px">ASAC analyzes the repo — stack, conventions, current coverage. Generates a descriptive <code style="font-family:var(--mono);font-size:11px">asac.yaml</code> . <strong>No agent runs.</strong></div>
+          <div class="cw" style="margin:0"><pre style="font-size:11px;padding:10px 14px">$ asac init --mode observe
+
+<span style="color:#3fb950">✓ Stack detected: Java / Maven / Spring Boot</span>
+<span style="color:#3fb950">✓ CI: GitLab CI</span>
+<span style="color:#3fb950">✓ Coverage baseline: 61%  (target: 85%)</span>
+<span style="color:#3fb950">✓ Generated asac.yaml (observe mode — no execution)</span></pre></div>
+        </div>
+      </div>
+
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;display:grid;grid-template-columns:140px 1fr">
+        <div style="background:#dafbe1;padding:14px 16px;border-right:1px solid var(--paper-border);display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1a7f37;margin-bottom:4px">Phase 2</div>
+          <div style="font-size:14px;font-weight:800">Assist</div>
+          <div style="font-size:11px;color:var(--paper-muted);margin-top:2px">Month 1</div>
+        </div>
+        <div style="padding:14px 18px">
+          <div style="font-size:12.5px;margin-bottom:8px">Enable a single step in <code style="font-family:var(--mono);font-size:11px">mode: assist</code> — the agent proposes, the human validates everything. Start with the least risky capability: spec or code review.</div>
+          <div style="font-size:12px;color:var(--paper-muted)">Example: the BA agent generates the user stories, the PO approves them. The dev agent does not touch anything yet.</div>
+        </div>
+      </div>
+
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;display:grid;grid-template-columns:140px 1fr">
+        <div style="background:#fbefff;padding:14px 16px;border-right:1px solid var(--paper-border);display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#8250df;margin-bottom:4px">Phase 3</div>
+          <div style="font-size:14px;font-weight:800">Bootstrap</div>
+          <div style="font-size:11px;color:var(--paper-muted);margin-top:2px">Month 2</div>
+        </div>
+        <div style="padding:14px 18px">
+          <div style="font-size:12.5px;margin-bottom:8px">Produces baseline evidence for the modules you want to cover. Bootstrapped evidences are marked differently — the dashboard distinguishes them from evidences produced by agents.</div>
+          <div class="cw" style="margin:0"><pre style="font-size:11px;padding:10px 14px">$ asac evidence bootstrap --scope payments/core
+
+<span style="color:#3fb950">✓ tests_green:     bootstrapped (coverage: 61%)</span>
+<span style="color:#ffa657">⚠ sast_clean:      bootstrapped with 3 warnings</span>
+<span style="color:#8b949e">  Target 85% coverage tracked as improvement goal</span></pre></div>
+        </div>
+      </div>
+
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;display:grid;grid-template-columns:140px 1fr">
+        <div style="background:#fff8c5;padding:14px 16px;border-right:1px solid var(--paper-border);display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#9a6700;margin-bottom:4px">Phase 4</div>
+          <div style="font-size:14px;font-weight:800">Delegate</div>
+          <div style="font-size:11px;color:var(--paper-muted);margin-top:2px">Month 3-6</div>
+        </div>
+        <div style="padding:14px 18px">
+          <div style="font-size:12.5px;margin-bottom:8px">New features move to <code style="font-family:var(--mono);font-size:11px">mode: delegate</code> with automatic gates. Legacy code stays in <code style="font-family:var(--mono);font-size:11px">mode: assist</code>. Both pipelines coexist.</div>
+          <div class="cw" style="margin:0"><pre style="font-size:11px;padding:10px 14px"><span style="color:#8b949e">pipelines:</span>
+  <span style="color:#79c0ff">feature</span>:       <span style="color:#8b949e"># new stories → L3, full gates</span>
+    <span style="color:#79c0ff">steps</span>:
+      <span style="color:#79c0ff">development</span>: <span style="color:#79c0ff">mode</span>: <span style="color:#a5d6ff">delegate</span>
+  <span style="color:#79c0ff">legacy-refactor</span>: <span style="color:#8b949e"># existing code → L1, all in assist</span>
+    <span style="color:#79c0ff">steps</span>:
+      <span style="color:#79c0ff">development</span>: <span style="color:#79c0ff">mode</span>: <span style="color:#a5d6ff">assist</span>
+  <span style="color:#79c0ff">hotfix</span>:        <span style="color:#8b949e"># urgent → minimal, SAST only</span></pre></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MATURITY PROGRESSION -->
+    <p style="font-size:13.5px;font-weight:800;margin-bottom:10px">Fundamental rule</p>
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px 20px">
+      <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
+        <div style="padding:12px 16px;text-align:center;min-width:120px">
+          <div style="font-size:22px;font-weight:900;color:#57606a">L0</div>
+          <div style="font-size:11px;font-weight:700;margin-bottom:2px">Human only</div>
+          <div style="font-size:11px;color:var(--paper-muted)">Observe mode</div>
+        </div>
+        <div style="color:var(--paper-muted);font-size:18px;padding:0 4px">→</div>
+        <div style="padding:12px 16px;text-align:center;min-width:120px;background:#f0f7ff;border-radius:6px">
+          <div style="font-size:22px;font-weight:900;color:#0969da">L1</div>
+          <div style="font-size:11px;font-weight:700;margin-bottom:2px">AI assisted</div>
+          <div style="font-size:11px;color:#0969da">mode: assist</div>
+        </div>
+        <div style="color:var(--paper-muted);font-size:18px;padding:0 4px">→</div>
+        <div style="padding:12px 16px;text-align:center;min-width:120px;background:#dafbe1;border-radius:6px">
+          <div style="font-size:22px;font-weight:900;color:#1a7f37">L2</div>
+          <div style="font-size:11px;font-weight:700;margin-bottom:2px">Human directed</div>
+          <div style="font-size:11px;color:#1a7f37">assist + gates</div>
+        </div>
+        <div style="color:var(--paper-muted);font-size:18px;padding:0 4px">→</div>
+        <div style="padding:12px 16px;text-align:center;min-width:120px;background:#fbefff;border-radius:6px">
+          <div style="font-size:22px;font-weight:900;color:#8250df">L3</div>
+          <div style="font-size:11px;font-weight:700;margin-bottom:2px">Agent executed</div>
+          <div style="font-size:11px;color:#8250df">mode: delegate</div>
+        </div>
+        <div style="color:var(--paper-muted);font-size:18px;padding:0 4px">→</div>
+        <div style="padding:12px 16px;text-align:center;min-width:120px;background:#1f2328;border-radius:6px">
+          <div style="font-size:22px;font-weight:900;color:#d2a8ff">L4</div>
+          <div style="font-size:11px;font-weight:700;color:#e6edf3;margin-bottom:2px">Policy governed</div>
+          <div style="font-size:11px;color:#8b949e">full autonomy</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px;color:var(--paper-muted);margin-top:12px;padding-top:12px;
+        border-top:1px solid var(--paper-border)">
+        <strong style="color:var(--paper-ink)">Never delegate before having proven you can assist.</strong>
+        Maturity is per capability — a project can be L3 on spec and L1 on deploy.
+      </div>
+    </div>
+
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="sh">
+      <div class="ey">How It Works</div>
+      <h2>Plan → Apply → Evidence</h2>
+      <p>ASAC follows Terraform's declarative cycle — preview before acting, persisted state, immutable proof.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">📝</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px">Declare</div>
+        <div style="font-size:12px;color:var(--paper-muted)">Write <code style="font-size:10px;font-family:var(--mono)">asac.yaml</code> — what the SDLC must do, not how.</div>
+      </div>
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🔍</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px">Plan</div>
+        <div style="font-size:12px;color:var(--paper-muted)">Preview agent actions — who does what, estimated cost, human gates.</div>
+      </div>
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">▶</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px">Apply</div>
+        <div style="font-size:12px;color:var(--paper-muted)">Agents execute. Each step blocks on gates and produces its evidences.</div>
+      </div>
+      <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🔒</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px">Evidence</div>
+        <div style="font-size:12px;color:var(--paper-muted)">Immutable proof in the state. The complete audit trail is available for compliance.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <div class="sh">
+      <div class="ey">Roadmap</div>
+      <h2>What is coming</h2>
+    </div>
+
+    <div class="rm">
+      <div class="rm-card">
+        <span class="rm-version rm-current">Spec v0.4 — frozen, now</span>
+        <h3>Language Specification</h3>
+        <div class="focus">Frozen language spec</div>
+        <div class="rm-items">
+          <div class="rm-item">9 core primitives</div>
+          <div class="rm-item">4 governance primitives</div>
+        </div>
+      </div>
+      <div class="rm-card">
+        <span class="rm-version rm-next">Spec v0.5 — planned</span>
+        <h3>Language Specification</h3>
+        <div class="focus">Planned spec additions</div>
+        <div class="rm-items">
+          <div class="rm-item">Routing</div>
+          <div class="rm-item">Critic pattern</div>
+          <div class="rm-item">Extra evidence types</div>
+          <div class="rm-item">Knowledge index provider</div>
+          <div class="rm-item">scope.paths</div>
+          <div class="rm-item">Golden Path templates</div>
+        </div>
+      </div>
+      <div class="rm-card">
+        <span class="rm-version rm-future">Reference implementation — no dates</span>
+        <h3>Reference implementation</h3>
+        <div class="focus">Not released, no dates</div>
+        <div class="rm-items">
+          <div class="rm-item">Parser + validate</div>
+          <div class="rm-item">plan / apply</div>
+          <div class="rm-item">MCP gateway + runner</div>
+          <div class="rm-item">Portal</div>
+          <div class="rm-item">Public registry</div>
+          <div class="rm-item">Multi-team / SSO</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTRIBUTING -->
+  <section id="contributing">
+    <div class="sh">
+      <div class="ey">Contributing</div>
+      <h2>Build the standard together</h2>
+      <p>ASAC is designed to be an open standard, not a closed product. The most useful contributions today:</p>
+    </div>
+
+    <div class="contrib-grid">
+      <div class="contrib-card">
+        <h4>Skills & Modules</h4>
+        <p>Publish skills for your favorite tech stack (Go, Rust, PHP…) or modules for specific SDLC patterns.</p>
+      </div>
+      <div class="contrib-card">
+        <h4>Providers</h4>
+        <p>Implement a provider for an uncovered tool — Linear, Azure DevOps, Notion, Bitbucket, ServiceNow…</p>
+      </div>
+      <div class="contrib-card">
+        <h4>Harness Extensions</h4>
+        <p>Adapt ASAC to a new AI harness — LangChain, CrewAI, LlamaIndex, AutoGen…</p>
+      </div>
+      <div class="contrib-card">
+        <h4>Policy Library</h4>
+        <p>Contribute reusable Rego policies — OWASP compliance, sector-specific rules (finance, healthcare…).</p>
+      </div>
+      <div class="contrib-card">
+        <h4>Language Spec</h4>
+        <p>Propose RFCs for new resource types, composition patterns, gate model extensions.</p>
+      </div>
+      <div class="contrib-card">
+        <h4>Runtime Engine</h4>
+        <p>Implement the YAML parser, the plan/apply engine, state management — this is the core of the project.</p>
+      </div>
+    </div>
+
+    <div class="co co-blue" style="margin-top:20px">
+      <strong>Principle:</strong> ASAC must remain an open standard, like HTTP or OpenAPI — not a platform controlled by a single vendor. The spec lives in this repo, the reference implementation is Apache 2.0, and anyone can implement their own compatible runtime.
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="fi">
+      <div>
+        <p style="font-weight:800;margin-bottom:4px">ASAC — Agentic SDLC as Code</p>
+        <p>Apache 2.0 · registry.asac.dev · <a href="https://github.com/asac-dev/asac">github.com/asac-dev/asac</a></p>
+      </div>
+      <div style="text-align:right;color:var(--paper-muted);font-size:12px">
+        <p>Language Spec v0.4 (frozen) · Reference implementation: not released</p>
+        <p>"Declare your software delivery. Let agents execute it."</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

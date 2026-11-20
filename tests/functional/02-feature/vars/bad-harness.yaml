@@ -1,0 +1,11 @@
+# Couche 2 : valeurs seulement. Copier vers asac.vars.yaml (ignoré par git).
+state_backend: s3://asac-state/payments
+gitlab_url: https://gitlab.example.com
+gitlab_token: ${vault.gitlab/deploy-token}
+jira_url: https://jira.example.com
+jira_token: ${vault.jira/api-key}
+llm_model: claude-opus-5-5
+ba_harness: no-such-tool
+dev_harness: claude-code
+qa_harness: claude-code
+data_residency: eu

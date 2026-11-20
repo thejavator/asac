@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASAC — User Interaction Scenarios</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --ink:#e6edf3;--muted:#8b949e;
+  --blue:#58a6ff;--blue-soft:#1f6feb;--blue-bg:rgba(31,111,235,.1);
+  --green:#3fb950;--green-soft:#238636;
+  --orange:#ffa657;--violet:#d2a8ff;--violet-soft:#8957e5;
+  --red:#ff7b72;--yellow:#e3b341;
+  --paper-bg:#f6f8fa;--paper:#fff;--paper-border:#d0d7de;
+  --paper-ink:#1f2328;--paper-muted:#656d76;
+  --mono:"SF Mono","Fira Code","Cascadia Code",monospace;
+  --radius:6px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.6;color:var(--paper-ink);background:var(--paper-bg)}
+
+/* TOPBAR */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.topbar .inner{max-width:1200px;margin:auto;padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;color:var(--ink)}
+.logo{background:linear-gradient(135deg,var(--blue),var(--violet));
+  width:28px;height:28px;border-radius:6px;display:grid;place-items:center;
+  font-weight:900;font-size:12px;color:white}
+.brand-sub{font-size:12px;color:var(--muted);font-weight:400}
+
+/* SCENARIO TABS */
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.tabs-inner{max-width:1200px;margin:auto;padding:0 24px;display:flex;gap:0}
+.tab{padding:12px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-num{font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;
+  background:var(--surface2);margin-right:6px;font-family:var(--mono)}
+
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* SCENARIO PANELS */
+.scenario{display:none;padding:32px 0}
+.scenario.active{display:block}
+
+/* SCENARIO HEADER */
+.sc-header{margin-bottom:28px}
+.sc-tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  padding:3px 10px;border-radius:4px;display:inline-block;margin-bottom:10px;font-family:var(--mono)}
+.sc-tag-feature{background:#ddf4ff;color:#0969da;border:1px solid #54aeff}
+.sc-tag-new{background:#dafbe1;color:#1a7f37;border:1px solid #4ac26b}
+.sc-tag-bug{background:#ffebe9;color:#cf222e;border:1px solid #ff8182}
+.sc-tag-onboard{background:#fbefff;color:#8250df;border:1px solid #c297ff}
+.sc-header h1{font-size:clamp(22px,3vw,32px);font-weight:900;letter-spacing:-.03em;margin-bottom:6px}
+.sc-header p{font-size:14px;color:var(--paper-muted);max-width:700px}
+.sc-meta{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+.sc-meta-item{font-size:12px;color:var(--paper-muted);display:flex;gap:6px;align-items:center}
+.sc-meta-item strong{color:var(--paper-ink);font-weight:700}
+
+/* TIMELINE */
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-step{display:grid;grid-template-columns:200px 1fr;gap:0;
+  border-bottom:1px solid var(--paper-border)}
+.tl-step:last-child{border-bottom:none}
+.tl-left{padding:20px 16px 20px 0;border-right:1px solid var(--paper-border);
+  display:flex;flex-direction:column;gap:6px;position:relative}
+.tl-left::after{content:'';position:absolute;right:-5px;top:24px;
+  width:9px;height:9px;border-radius:50%;background:var(--paper-border);border:2px solid var(--paper-bg)}
+.tl-step.done .tl-left::after{background:var(--green-soft);border-color:white}
+.tl-step.gate .tl-left::after{background:#d4a72c;border-color:white}
+.tl-step.agent .tl-left::after{background:#0969da;border-color:white}
+.tl-step.human .tl-left::after{background:#8250df;border-color:white}
+.tl-who{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.tl-who-dev{color:#0969da}
+.tl-who-agent{color:#1a7f37}
+.tl-who-po{color:#9a6700}
+.tl-who-qa{color:#8250df}
+.tl-who-ba{color:#1a7f37}
+.tl-who-mgr{color:#cf222e}
+.tl-who-sys{color:var(--paper-muted)}
+.tl-time{font-size:11px;color:var(--paper-muted);font-family:var(--mono)}
+.tl-channel{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;
+  display:inline-block;margin-top:2px}
+.ch-cli{background:#f0f7ff;color:#0969da;border:1px solid #54aeff}
+.ch-portal{background:#fbefff;color:#8250df;border:1px solid #c297ff}
+.ch-jira{background:#ddf4ff;color:#1b7a8b;border:1px solid #39c5cf}
+.ch-slack{background:#fff8c5;color:#9a6700;border:1px solid #d4a72c}
+.ch-agent{background:#dafbe1;color:#1a7f37;border:1px solid #4ac26b}
+.ch-auto{background:var(--paper-bg);color:var(--paper-muted);border:1px solid var(--paper-border)}
+
+.tl-right{padding:20px 0 20px 24px}
+.tl-title{font-size:14px;font-weight:800;margin-bottom:6px}
+.tl-desc{font-size:13px;color:var(--paper-muted);margin-bottom:10px;line-height:1.5}
+
+/* TERMINAL */
+.term{background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.term-bar{background:var(--surface2);padding:8px 14px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border)}
+.term-dots{display:flex;gap:5px}
+.td{width:10px;height:10px;border-radius:50%}
+.tr{background:#ff5f57}.ty{background:#febc2e}.tg{background:#28c840}
+.term-title{font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:4px}
+.term-body{padding:12px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.8;color:#a8b2c0}
+.t-cmd{color:#e6edf3}
+.t-ok{color:#3fb950}
+.t-warn{color:#e3b341}
+.t-info{color:#58a6ff}
+.t-err{color:#ff7b72}
+.t-dim{color:#484f58}
+.t-wait{color:#d29922}
+.t-prompt{color:#3fb950;font-weight:700}
+
+/* PORTAL CARD */
+.portal-card{background:white;border:1px solid var(--paper-border);border-radius:8px;
+  overflow:hidden;margin-bottom:10px;max-width:520px}
+.pc-header{padding:12px 16px;border-bottom:1px solid var(--paper-border);
+  display:flex;align-items:center;justify-content:space-between}
+.pc-title{font-size:13px;font-weight:800}
+.pc-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px}
+.pc-pending{background:#fff8c5;color:#9a6700;border:1px solid #d4a72c}
+.pc-done{background:#dafbe1;color:#1a7f37;border:1px solid #4ac26b}
+.pc-body{padding:14px 16px}
+.pc-field{font-size:12.5px;margin-bottom:6px;display:flex;gap:8px}
+.pc-field .label{color:var(--paper-muted);min-width:80px;flex-shrink:0;font-size:12px}
+.pc-field .value{font-weight:600}
+.pc-evidence{margin-top:10px;padding-top:10px;border-top:1px solid var(--paper-border)}
+.ev-row{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px}
+.ev-check{font-size:13px}
+.pc-actions{padding:12px 16px;border-top:1px solid var(--paper-border);
+  display:flex;gap:8px}
+.btn{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none}
+.btn-approve{background:#238636;color:white}
+.btn-reject{background:white;color:#cf222e;border:1px solid #ff8182}
+.btn-comment{background:white;color:var(--paper-ink);border:1px solid var(--paper-border)}
+
+/* SLACK NOTIF */
+.slack-notif{background:white;border:1px solid var(--paper-border);border-radius:8px;
+  padding:12px 16px;max-width:460px;margin-bottom:10px}
+.sn-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sn-icon{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#611f69,#4a154b);
+  display:grid;place-items:center;color:white;font-size:13px;font-weight:800;flex-shrink:0}
+.sn-from{font-size:12px;font-weight:800}
+.sn-time{font-size:11px;color:var(--paper-muted)}
+.sn-msg{font-size:12.5px;line-height:1.5}
+.sn-link{color:#0969da;text-decoration:underline;font-size:12px}
+.sn-bold{font-weight:700}
+
+/* EVIDENCE TRAIL */
+.ev-trail{background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px 20px}
+.ev-trail h4{font-size:13px;font-weight:800;margin-bottom:12px}
+.ev-items{display:flex;flex-direction:column;gap:6px}
+.ev-item{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.ev-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.ev-name{font-family:var(--mono);font-size:11px;min-width:160px;color:#0969da}
+.ev-status{font-size:11px;font-weight:700;padding:1px 7px;border-radius:4px}
+.ev-ok{background:#dafbe1;color:#1a7f37}
+.ev-boot{background:#fff8c5;color:#9a6700}
+.ev-skip{background:var(--paper-bg);color:var(--paper-muted)}
+.ev-meta{font-size:11px;color:var(--paper-muted)}
+
+/* CALLOUT */
+.co{border-radius:8px;padding:12px 16px;margin:10px 0;font-size:13px;line-height:1.5}
+.co-blue{background:#f0f7ff;border:1px solid #54aeff;border-left:4px solid #0969da}
+.co-green{background:#dafbe1;border:1px solid #4ac26b;border-left:4px solid #1a7f37}
+.co-orange{background:#fff8c5;border:1px solid #d4a72c;border-left:4px solid #9a6700}
+.co strong{font-weight:800}
+
+/* SUMMARY BOX */
+.summary{background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px 20px;margin-top:20px}
+.summary h4{font-size:13px;font-weight:800;margin-bottom:10px}
+.sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.sum-item{text-align:center}
+.sum-num{font-size:22px;font-weight:900}
+.sum-label{font-size:11px;color:var(--paper-muted);margin-top:2px}
+.sum-blue{color:#0969da}
+.sum-green{color:#1a7f37}
+.sum-orange{color:#9a6700}
+.sum-violet{color:#8250df}
+
+footer{padding:24px 0 40px;color:var(--paper-muted);font-size:12px;
+  border-top:1px solid var(--paper-border);margin-top:20px}
+
+@media(max-width:768px){
+  .tl-step{grid-template-columns:1fr}
+  .tl-left{border-right:none;border-bottom:1px solid var(--paper-border);padding:12px 0}
+  .tl-right{padding:12px 0}
+  .sum-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo">A</div>
+      ASAC
+      <span class="brand-sub">— Interaction Scenarios</span>
+    </div>
+  </div>
+</div>
+<div style="background:#fff8c5;border-bottom:1px solid #d4a72c;color:#1f2328;font-size:13px;padding:8px 24px;text-align:center">Illustrative scenarios for spec v0.4. The CLI and portal work; the registry steps are not implemented yet. Output shown is illustrative.</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tabs-inner">
+    <div class="tab active" onclick="show('s1',this)"><span class="tab-num">01</span>New feature</div>
+    <div class="tab" onclick="show('s2',this)"><span class="tab-num">02</span>New project</div>
+    <div class="tab" onclick="show('s3',this)"><span class="tab-num">03</span>Bug fix</div>
+    <div class="tab" onclick="show('s4',this)"><span class="tab-num">04</span>New developer</div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- ──────────────────────────────────────────────────────── -->
+  <!-- SCENARIO 1 — NOUVELLE FEATURE -->
+  <!-- ──────────────────────────────────────────────────────── -->
+  <div class="scenario active" id="s1">
+    <div class="sc-header">
+      <span class="sc-tag sc-tag-feature">Feature</span>
+      <h1>New feature — from Jira story to staging</h1>
+      <p>A story is created in Jira. ASAC automatically orchestrates 5 agents and 4 gates and produces a complete evidence chain — without the team changing its existing Jira workflow.</p>
+      <div class="sc-meta">
+        <div class="sc-meta-item"><strong>Pipeline :</strong> feature</div>
+        <div class="sc-meta-item"><strong>Maturity :</strong> L3</div>
+        <div class="sc-meta-item"><strong>Estimated duration:</strong> 4-6h (excluding human gates)</div>
+        <div class="sc-meta-item"><strong>Estimated tokens:</strong> ~42,000</div>
+      </div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden">
+      <div class="timeline">
+
+        <!-- STEP 1 -->
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-po">Product Owner</span>
+            <span class="tl-time">09:00</span>
+            <span class="tl-channel ch-jira">Jira</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Jira story creation</div>
+            <div class="tl-desc">Alice creates story PAY-1234 "As a user, I want to receive an email notification when an international transfer is made" and adds the label <code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 4px;border-radius:3px">asac-enabled</code>.</div>
+            <div class="co co-blue" style="margin:0;font-size:12px">
+              The <strong>asac-enabled</strong> label is the opt-in. Without this label, ASAC does not intercept the story — teams keep control over what they hand to agents.
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-sys">ASAC Daemon</span>
+            <span class="tl-time">09:00</span>
+            <span class="tl-channel ch-auto">webhook</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Receiving the Jira trigger</div>
+            <div class="tl-desc">The ASAC daemon receives the Jira webhook, detects the label <code style="font-family:var(--mono);font-size:11px">asac-enabled</code>, starts the <code style="font-family:var(--mono);font-size:11px">feature</code> pipeline for PAY-1234.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">asac daemon — log</span></div>
+              <div class="term-body">
+<span class="t-info">[09:00:03]</span> Webhook received: jira.issue_created<br>
+<span class="t-info">[09:00:03]</span> issue_key: PAY-1234, type: Story<br>
+<span class="t-info">[09:00:03]</span> label asac-enabled ✓ — triggering pipeline<br>
+<span class="t-ok">[09:00:03]</span> Run started: <span class="t-cmd">run_PAY-1234_20261020</span><br>
+<span class="t-ok">[09:00:03]</span> Step: requirements → agent: ba → mode: assist
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">BA Agent</span>
+            <span class="tl-time">09:00–09:04</span>
+            <span class="tl-channel ch-agent">server</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Generating user stories and acceptance criteria</div>
+            <div class="tl-desc">The BA agent analyses the Jira story, looks up similar stories in memory, and produces detailed user stories and ACs in structured English.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">agent ba — output</span></div>
+              <div class="term-body">
+<span class="t-info">Reading Jira issue PAY-1234...</span><br>
+<span class="t-info">Searching memory for similar stories...</span><br>
+<span class="t-info">  Found: PAY-1198 (SMS notification), PAY-1067 (email receipts)</span><br>
+<br>
+<span class="t-ok">User Stories generated:</span><br>
+<span class="t-dim">  US-1: As a user, when a SWIFT transfer > €500 is completed,</span><br>
+<span class="t-dim">        I receive an email within 2 minutes</span><br>
+<span class="t-dim">  US-2: Email includes: amount, currency, recipient IBAN (masked),</span><br>
+<span class="t-dim">        reference, timestamp</span><br>
+<span class="t-dim">  US-3: Email respects user language preference (FR/EN/AR)</span><br>
+<br>
+<span class="t-ok">Acceptance Criteria: 7 criteria generated</span><br>
+<span class="t-ok">Spec stored → memory://spec/PAY-1234</span><br>
+<span class="t-wait">⏸ Gate: waiting for product_owner approval</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4 — GATE PO -->
+        <div class="tl-step gate">
+          <div class="tl-left">
+            <span class="tl-who tl-who-po">Product Owner</span>
+            <span class="tl-time">09:45</span>
+            <span class="tl-channel ch-portal">portal</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Gate 1 — Spec approval (PO)</div>
+            <div class="tl-desc">Alice receives a notification in the ASAC portal with a link to the generated user stories.</div>
+            <div class="portal-card">
+              <div class="pc-header">
+                <span class="pc-title">📋 Spec review — PAY-1234</span>
+                <span class="pc-badge pc-pending">Pending</span>
+              </div>
+              <div class="pc-body">
+                <div class="pc-field"><span class="label">Story</span><span class="value">PAY-1234 — International transfer email notification</span></div>
+                <div class="pc-field"><span class="label">Agent</span><span class="value">ba · mode: assist · 09:04</span></div>
+                <div class="pc-field"><span class="label">Generated USs</span><span class="value">3 user stories · 7 acceptance criteria</span></div>
+                <div class="pc-field"><span class="label">Based on</span><span class="value">PAY-1198, PAY-1067 (similar stories)</span></div>
+                <div class="pc-evidence">
+                  <div class="ev-row"><span class="ev-check">📎</span><span>user_stories.md — 3 stories</span></div>
+                  <div class="ev-row"><span class="ev-check">📎</span><span>acceptance_criteria.md — 7 AC</span></div>
+                </div>
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-approve">✓ Approve</button>
+                <button class="btn btn-reject">✗ Reject</button>
+                <button class="btn btn-comment">💬 Comment</button>
+              </div>
+            </div>
+            <div class="co co-green" style="margin:0;font-size:12px">
+              Alice approves at 09:47. The <strong>spec_reviewed</strong> evidence is produced and timestamped. The pipeline continues.
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5 — AGENT DEV -->
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">Dev Agent</span>
+            <span class="tl-time">09:47–11:23</span>
+            <span class="tl-channel ch-agent">dev harness</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Implementation — branch feat/PAY-1234</div>
+            <div class="tl-desc">The dev agent receives the spec from shared memory, creates a branch, implements the Java feature, writes the tests, and opens an MR. The developer Ben can follow progress in his harness (Claude Code) or via <code style="font-family:var(--mono);font-size:11px">asac logs</code>.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac logs run_PAY-1234_20261020 --step development</span></div>
+              <div class="term-body">
+<span class="t-info">Reading spec from memory://spec/PAY-1234</span><br>
+<span class="t-info">Creating branch: feat/PAY-1234</span><br>
+<span class="t-ok">  ✓ Branch created: feat/PAY-1234</span><br>
+<br>
+<span class="t-info">Implementing: EmailNotificationService.java</span><br>
+<span class="t-info">Implementing: TransferEventListener.java</span><br>
+<span class="t-info">Implementing: NotificationTemplateService.java</span><br>
+<span class="t-info">Writing tests: EmailNotificationServiceTest.java</span><br>
+<span class="t-info">Writing tests: TransferEventListenerTest.java</span><br>
+<br>
+<span class="t-ok">  ✓ Maven build: SUCCESS</span><br>
+<span class="t-ok">  ✓ Tests: 14 passed, 0 failed</span><br>
+<span class="t-ok">  ✓ Coverage: 89% (+4% vs baseline)</span><br>
+<span class="t-ok">  ✓ MR created: gitlab.example.com/mr/847</span><br>
+<span class="t-ok">Evidence produced: tests_green, mr_created</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 6 — AGENT QA -->
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">QA Agent</span>
+            <span class="tl-time">11:23–11:51</span>
+            <span class="tl-channel ch-agent">server</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Quality verification — MR 847</div>
+            <div class="tl-desc">The QA agent (different from the dev agent — OPA guarantees this) analyses the MR: coverage, SAST, spec compliance, code review.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">agent qa — quality report</span></div>
+              <div class="term-body">
+<span class="t-info">Analyzing MR 847 against spec memory://spec/PAY-1234</span><br>
+<br>
+<span class="t-ok">Coverage:         89% ✓  (min: 85%)</span><br>
+<span class="t-ok">SAST high:        0 ✓</span><br>
+<span class="t-warn">SAST medium:      2 ⚠  (acceptable)</span><br>
+<span class="t-ok">Spec compliance:  94% ✓  (7/7 AC covered)</span><br>
+<br>
+<span class="t-warn">Findings (2 medium):</span><br>
+<span class="t-dim">  [M1] EmailNotificationService:47 — raw exception logged</span><br>
+<span class="t-dim">       → log.error(e) should be log.error(e.getMessage())</span><br>
+<span class="t-dim">  [M2] NotificationTemplateService:89 — template cached forever</span><br>
+<span class="t-dim">       → add TTL or invalidation mechanism</span><br>
+<br>
+<span class="t-wait">⏸ Gate: 2 findings — waiting qa_engineer approval</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 7 — GATE QA -->
+        <div class="tl-step gate">
+          <div class="tl-left">
+            <span class="tl-who tl-who-qa">QA Engineer</span>
+            <span class="tl-time">12:10</span>
+            <span class="tl-channel ch-portal">portal</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Gate 2 — Quality review (QA Engineer)</div>
+            <div class="tl-desc">Carlos receives the quality report in the portal. He sees the 2 medium findings and decides to accept them for this story (non-blocking).</div>
+            <div class="portal-card">
+              <div class="pc-header">
+                <span class="pc-title">🔍 Quality review — MR 847</span>
+                <span class="pc-badge pc-pending">2 findings</span>
+              </div>
+              <div class="pc-body">
+                <div class="pc-field"><span class="label">Coverage</span><span class="value" style="color:#1a7f37">89% ✓</span></div>
+                <div class="pc-field"><span class="label">SAST high</span><span class="value" style="color:#1a7f37">0 ✓</span></div>
+                <div class="pc-field"><span class="label">SAST medium</span><span class="value" style="color:#9a6700">2 ⚠</span></div>
+                <div class="pc-field"><span class="label">Spec</span><span class="value" style="color:#1a7f37">94% ✓</span></div>
+                <div class="pc-evidence">
+                  <div class="ev-row"><span class="ev-check">⚠</span><span style="font-size:12px">M1: raw exception logged (line 47)</span></div>
+                  <div class="ev-row"><span class="ev-check">⚠</span><span style="font-size:12px">M2: template cached forever (line 89)</span></div>
+                </div>
+              </div>
+              <div class="pc-actions">
+                <button class="btn btn-approve">✓ Approve despite findings</button>
+                <button class="btn btn-reject">↩ Send back to dev</button>
+              </div>
+            </div>
+            <div class="co co-green" style="margin:0;font-size:12px">
+              Carlos approves at 12:14 with the comment "M1/M2 to be fixed as tech debt — non-blocking for PAY-1234". Evidence <strong>qa_approved</strong>, <strong>coverage_passed</strong>, <strong>sast_clean</strong> produced.
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 8 — AGENT DEVOPS -->
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">DevOps Agent</span>
+            <span class="tl-time">12:14–12:22</span>
+            <span class="tl-channel ch-agent">server</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Merge + staging deployment</div>
+            <div class="tl-desc">The DevOps agent verifies that all required evidence is present, merges the MR, triggers the CI/CD pipeline, and deploys to staging.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">agent devops</span></div>
+              <div class="term-body">
+<span class="t-info">Verifying evidence chain...</span><br>
+<span class="t-ok">  spec_reviewed:    ✓ alice@example.com 09:47</span><br>
+<span class="t-ok">  tests_green:      ✓ agent dev 11:23</span><br>
+<span class="t-ok">  coverage_passed:  ✓ 89% 11:23</span><br>
+<span class="t-ok">  sast_clean:       ✓ 0 high 11:51</span><br>
+<span class="t-ok">  qa_approved:      ✓ carlos@example.com 12:14</span><br>
+<br>
+<span class="t-ok">All required evidence satisfied ✓</span><br>
+<span class="t-info">Merging MR 847 → main...</span><br>
+<span class="t-ok">  ✓ Merged</span><br>
+<span class="t-info">Triggering deploy to staging...</span><br>
+<span class="t-ok">  ✓ Deployed: payments-service:2.8.1 → staging</span><br>
+<span class="t-wait">⏸ Gate: waiting for product_owner release approval</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 9 — GATE RELEASE -->
+        <div class="tl-step gate">
+          <div class="tl-left">
+            <span class="tl-who tl-who-po">Product Owner</span>
+            <span class="tl-time">14:30</span>
+            <span class="tl-channel ch-slack">Slack</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Gate 3 — Release approval (PO)</div>
+            <div class="tl-desc">Alice receives the Slack notification with the full summary — she can approve directly from Slack or from the portal.</div>
+            <div class="slack-notif">
+              <div class="sn-header">
+                <div class="sn-icon">A</div>
+                <div>
+                  <div class="sn-from">ASAC Bot <span style="color:var(--paper-muted);font-weight:400">— #team-payments</span></div>
+                  <div class="sn-time">14:30</div>
+                </div>
+              </div>
+              <div class="sn-msg">
+                <span class="sn-bold">🚀 PAY-1234 ready for release approval</span><br>
+                Feature "International transfer email notification" deployed to staging.<br><br>
+                ✅ spec_reviewed · ✅ tests_green · ✅ coverage 89% · ✅ sast_clean · ✅ qa_approved<br><br>
+                <a class="sn-link" href="#">Approve in the portal →</a>
+              </div>
+            </div>
+            <div class="co co-green" style="margin:0;font-size:12px">
+              Alice approves at 15:02. <strong>deployed</strong> evidence produced. <strong>feature</strong> pipeline for PAY-1234 complete.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- EVIDENCE TRAIL -->
+    <div class="ev-trail" style="margin-top:16px">
+      <h4>Complete evidence chain — PAY-1234</h4>
+      <div class="ev-items">
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">spec_reviewed</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">alice@example.com · 09:47 · gate: human</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">tests_green</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent dev · 11:23 · 14 tests passed</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">mr_created</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent dev · 11:23 · MR 847</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">coverage_passed</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent qa · 11:51 · 89% ≥ 85%</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">sast_clean</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent qa · 11:51 · 0 high findings</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">qa_approved</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">carlos@example.com · 12:14 · 2 medium findings accepted</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">deployed</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent devops · 12:22 · staging · alice approved 15:02</span></div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <h4>Summary — New feature PAY-1234</h4>
+      <div class="sum-grid">
+        <div class="sum-item"><div class="sum-num sum-blue">5</div><div class="sum-label">Agents involved</div></div>
+        <div class="sum-item"><div class="sum-num sum-orange">3</div><div class="sum-label">Human gates</div></div>
+        <div class="sum-item"><div class="sum-num sum-green">7</div><div class="sum-label">Evidence produced</div></div>
+        <div class="sum-item"><div class="sum-num sum-violet">6h02</div><div class="sum-label">Total duration</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────── -->
+  <!-- SCENARIO 2 — NOUVEAU PROJET -->
+  <!-- ──────────────────────────────────────────────────────── -->
+  <div class="scenario" id="s2">
+    <div class="sc-header">
+      <span class="sc-tag sc-tag-new">New project</span>
+      <h1>New project from scratch — bootstrap in 20 minutes</h1>
+      <p>David is the tech lead of a new team starting a payments service. He sets up ASAC from scratch for the whole team before the first sprint.</p>
+      <div class="sc-meta">
+        <div class="sc-meta-item"><strong>Stack :</strong> Java / Maven / Spring Boot</div>
+        <div class="sc-meta-item"><strong>Dev harness:</strong> Claude Code</div>
+        <div class="sc-meta-item"><strong>Setup time:</strong> ~20 min</div>
+      </div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden">
+      <div class="timeline">
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Tech Lead</span>
+            <span class="tl-time">Jour 1 · 10:00</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">asac init — automatic stack detection</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">terminal — payments-service/</span></div>
+              <div class="term-body">
+<span class="t-prompt">$</span> <span class="t-cmd">asac init --template java-microservice</span><br>
+<br>
+<span class="t-info">Detecting project...</span><br>
+<span class="t-ok">  ✓ Stack: Java 21 / Maven / Spring Boot 3.2</span><br>
+<span class="t-ok">  ✓ CI: GitLab CI detected</span><br>
+<span class="t-ok">  ✓ Issue tracker: Jira (from .gitconfig)</span><br>
+<br>
+<span class="t-ok">Generated: asac.yaml</span><br>
+<span class="t-ok">Generated: asac.vars.yaml.example</span><br>
+<span class="t-ok">Generated: .asac/policies/default.rego</span><br>
+<span class="t-ok">Generated: .gitignore entry for asac.vars.yaml</span><br>
+<br>
+<span class="t-info">Next: fill in asac.vars.yaml then run asac validate</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Tech Lead</span>
+            <span class="tl-time">10:05</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Fill in asac.vars.yaml — the runtime values</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">asac.vars.yaml</span></div>
+              <div class="term-body">
+<span class="t-dim"># Copied from .example, filled in with the real values</span><br>
+<span class="t-cmd">gitlab_url:   https://gitlab.example.com</span><br>
+<span class="t-cmd">gitlab_token: ${vault.gitlab/deploy-token}</span><br>
+<span class="t-cmd">jira_url:     https://jira.example.com</span><br>
+<span class="t-cmd">jira_token:   ${vault.jira/api-key}</span><br>
+<span class="t-cmd">llm_api_key:  ${vault.anthropic/api-key}</span><br>
+<span class="t-cmd">llm_model:    claude-opus-5-5</span><br>
+<span class="t-cmd">dev_harness:  claude-code</span><br>
+<span class="t-cmd">ba_harness:   copilot</span><br>
+<span class="t-cmd">qa_harness:   copilot</span><br>
+<span class="t-cmd">state_backend: s3://asac-state/payments</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Tech Lead</span>
+            <span class="tl-time">10:08</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Validating the 3 layers</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac validate</span></div>
+              <div class="term-body">
+<span class="t-info">Validating manifest (asac.yaml)...</span><br>
+<span class="t-ok">  ✓ Syntax valid</span><br>
+<span class="t-ok">  ✓ All resource references resolved</span><br>
+<span class="t-ok">  ✓ Capability / skill links consistent</span><br>
+<br>
+<span class="t-info">Validating vars (asac.vars.yaml)...</span><br>
+<span class="t-ok">  ✓ All 9 declared variables resolved</span><br>
+<span class="t-ok">  ✓ Vault references reachable</span><br>
+<br>
+<span class="t-info">Validating policies (.asac/policies/)...</span><br>
+<span class="t-ok">  ✓ default.rego: opa eval passed (3 rules)</span><br>
+<br>
+<span class="t-info">Validating providers...</span><br>
+<span class="t-ok">  ✓ gitlab 2.1.0 — connected</span><br>
+<span class="t-ok">  ✓ jira 1.4.0  — connected</span><br>
+<span class="t-ok">  ✓ claude 1.2.0 — connected</span><br>
+<br>
+<span class="t-ok">✓ ASAC configuration valid — ready to run</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Tech Lead</span>
+            <span class="tl-time">10:12</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Preview of the first pipeline — before executing anything</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac plan --pipeline feature --trigger jira:PAY-1001</span></div>
+              <div class="term-body">
+<span class="t-info">Plan: pipeline "feature" for PAY-1001</span><br>
+<br>
+<span class="t-cmd">Step 1</span> requirements         agent: ba    mode: assist<br>
+<span class="t-dim">         capability: specification_engineering</span><br>
+<span class="t-dim">         gate: human_approval(product_owner, 24h)</span><br>
+<span class="t-dim">         → produces: spec_reviewed</span><br>
+<br>
+<span class="t-cmd">Step 2</span> development          agent: dev   mode: delegate<br>
+<span class="t-dim">         requires: spec_reviewed</span><br>
+<span class="t-dim">         → produces: tests_green, mr_created</span><br>
+<br>
+<span class="t-cmd">Step 3</span> verification         agent: qa    mode: assist<br>
+<span class="t-dim">         requires: tests_green, mr_created</span><br>
+<span class="t-dim">         gate: quality + human_approval(qa_engineer)</span><br>
+<span class="t-dim">         → produces: coverage_passed, sast_clean, qa_approved</span><br>
+<br>
+<span class="t-cmd">Step 4</span> release              agent: devops mode: delegate<br>
+<span class="t-dim">         requires: coverage_passed, sast_clean, qa_approved</span><br>
+<span class="t-dim">         gate: human_approval(product_owner, 48h)</span><br>
+<span class="t-dim">         → produces: deployed</span><br>
+<br>
+<span class="t-info">Gates:  3 human · 1 quality</span><br>
+<span class="t-info">Cost:   ~38,000 tokens estimated</span><br>
+<span class="t-info">Time:   ~4h agent time (excl. human gates)</span><br>
+<br>
+<span class="t-wait">Apply this plan? [y/N]</span>
+              </div>
+            </div>
+            <div class="co co-blue" style="margin:0;font-size:12px">
+              David approves the plan and commits <code style="font-family:var(--mono);font-size:10px">asac.yaml</code> to the repo. The whole team now shares the same configuration.
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Tech Lead</span>
+            <span class="tl-time">10:20</span>
+            <span class="tl-channel ch-portal">portal</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Launching the portal — access for PO, QA, Manager</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac portal</span></div>
+              <div class="term-body">
+<span class="t-ok">ASAC Portal started</span><br>
+<span class="t-info">Local:   http://localhost:4000</span><br>
+<span class="t-info">Team:    http://asac.payments.internal:4000</span><br>
+<br>
+<span class="t-dim">Personas configured:</span><br>
+<span class="t-ok">  ✓ product_owner  → alice@example.com</span><br>
+<span class="t-ok">  ✓ qa_engineer    → carlos@example.com</span><br>
+<span class="t-ok">  ✓ manager        → sarah@example.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="summary">
+      <h4>Summary — New project bootstrap</h4>
+      <div class="sum-grid">
+        <div class="sum-item"><div class="sum-num sum-blue">20</div><div class="sum-label">Setup minutes</div></div>
+        <div class="sum-item"><div class="sum-num sum-green">3</div><div class="sum-label">CLI commands</div></div>
+        <div class="sum-item"><div class="sum-num sum-orange">0</div><div class="sum-label">Rego lines to write</div></div>
+        <div class="sum-item"><div class="sum-num sum-violet">1</div><div class="sum-label">File to commit</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────── -->
+  <!-- SCENARIO 3 — BUG FIX -->
+  <!-- ──────────────────────────────────────────────────────── -->
+  <div class="scenario" id="s3">
+    <div class="sc-header">
+      <span class="sc-tag sc-tag-bug">Bug fix</span>
+      <h1>Urgent bug fix — accelerated hotfix pipeline</h1>
+      <p>A bug in production: email notifications are not sent for USD transfers. The team triggers the <code style="font-family:var(--mono);font-size:12px">hotfix</code> pipeline — shorter, but SAST is still mandatory.</p>
+      <div class="sc-meta">
+        <div class="sc-meta-item"><strong>Pipeline :</strong> hotfix</div>
+        <div class="sc-meta-item"><strong>Priority:</strong> P1</div>
+        <div class="sc-meta-item"><strong>SLA :</strong> fix deployed &lt; 2h</div>
+        <div class="sc-meta-item"><strong>Reduced gates:</strong> SAST only (no coverage gate)</div>
+      </div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden">
+      <div class="timeline">
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Developer</span>
+            <span class="tl-time">14:00</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Manual trigger of the hotfix pipeline</div>
+            <div class="tl-desc">Ben detects the bug via Datadog alerts. He creates a Jira ticket PAY-BUG-89 and triggers the hotfix pipeline manually — there is no automatic trigger for hotfixes.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac apply --pipeline hotfix --trigger jira:PAY-BUG-89</span></div>
+              <div class="term-body">
+<span class="t-info">Pipeline: hotfix (manual trigger)</span><br>
+<span class="t-info">Issue: PAY-BUG-89 — P1 · Notifications USD missing</span><br>
+<span class="t-info">Timeout: 4h (vs 72h for feature)</span><br>
+<br>
+<span class="t-warn">⚠ Hotfix mode: spec step skipped</span><br>
+<span class="t-warn">⚠ Hotfix mode: coverage gate disabled</span><br>
+<span class="t-ok">✓ SAST gate: active (non-negotiable)</span><br>
+<br>
+<span class="t-ok">▶ Step: development → agent: dev → mode: assist</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">Dev Agent</span>
+            <span class="tl-time">14:01–14:28</span>
+            <span class="tl-channel ch-agent">dev harness</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Bug analysis + fix implementation</div>
+            <div class="tl-desc">The dev agent analyses the logs, identifies the cause (missing currency code check in the event filter), and proposes the fix. In <code style="font-family:var(--mono);font-size:11px">assist</code> mode — Ben approves each change before it is applied.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">agent dev — hotfix analysis</span></div>
+              <div class="term-body">
+<span class="t-info">Analyzing PAY-BUG-89...</span><br>
+<span class="t-info">Reading logs: payments-service prod 2026-10-20</span><br>
+<span class="t-info">Correlating with git history...</span><br>
+<br>
+<span class="t-ok">Root cause identified:</span><br>
+<span class="t-dim">  TransferEventListener:34 — currency filter</span><br>
+<span class="t-dim">  only triggers for EUR, CHF, GBP — USD missing</span><br>
+<span class="t-dim">  introduced in: commit a7f3c21 (PAY-1234)</span><br>
+<br>
+<span class="t-warn">Proposed fix (mode: assist — human approval required):</span><br>
+<span class="t-dim">  TransferEventListener.java line 34:</span><br>
+<span class="t-dim">  - if (currency in [EUR, CHF, GBP])</span><br>
+<span class="t-dim">  + if (currency in [EUR, CHF, GBP, USD])</span><br>
+<br>
+<span class="t-wait">⏸ Waiting for developer approval of change...</span>
+              </div>
+            </div>
+            <div class="co co-orange" style="margin:0;font-size:12px">
+              Ben approves the proposed fix. The agent applies the change, writes a regression test, and creates the MR hotfix/PAY-BUG-89.
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">QA Agent</span>
+            <span class="tl-time">14:28–14:35</span>
+            <span class="tl-channel ch-agent">server</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">SAST verification — minimal but non-negotiable gate</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">agent qa — hotfix mode</span></div>
+              <div class="term-body">
+<span class="t-info">Hotfix QA mode — SAST only (coverage gate disabled)</span><br>
+<br>
+<span class="t-ok">SAST high:   0 ✓</span><br>
+<span class="t-ok">SAST medium: 0 ✓</span><br>
+<span class="t-ok">Regression test: 1 new test added ✓</span><br>
+<span class="t-ok">Build: SUCCESS</span><br>
+<br>
+<span class="t-ok">Evidence: sast_clean, tests_green ✓</span><br>
+<span class="t-ok">Gate passed automatically (no human required)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step agent">
+          <div class="tl-left">
+            <span class="tl-who tl-who-agent">DevOps Agent</span>
+            <span class="tl-time">14:35–14:42</span>
+            <span class="tl-channel ch-agent">server</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Merge + direct production deployment</div>
+            <div class="tl-desc">The hotfix pipeline deploys directly to production (not staging) — configured this way in the hotfix pipeline of asac.yaml. OPA verifies that the Jira ticket is of type Bug P1.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">agent devops — hotfix deploy</span></div>
+              <div class="term-body">
+<span class="t-info">Policy check (OPA)...</span><br>
+<span class="t-ok">  ✓ Issue type: Bug (required for hotfix)</span><br>
+<span class="t-ok">  ✓ Priority: P1 (required for prod direct)</span><br>
+<span class="t-ok">  ✓ Jira issue attached ✓</span><br>
+<br>
+<span class="t-info">Merging hotfix/PAY-BUG-89 → main...</span><br>
+<span class="t-ok">  ✓ Merged</span><br>
+<span class="t-info">Deploying to PRODUCTION...</span><br>
+<span class="t-ok">  ✓ payments-service:2.8.2 → production</span><br>
+<span class="t-ok">  ✓ Deployed at 14:42 — 42 minutes after trigger</span><br>
+<br>
+<span class="t-ok">Jira PAY-BUG-89 updated: Resolved</span><br>
+<span class="t-ok">Slack #alerts: Bug fix deployed ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="ev-trail" style="margin-top:16px">
+      <h4>Evidence chain — Hotfix PAY-BUG-89</h4>
+      <div class="ev-items">
+        <div class="ev-item"><span class="ev-icon">⏭</span><span class="ev-name">spec_reviewed</span><span class="ev-status ev-skip">skipped</span><span class="ev-meta">hotfix pipeline — no spec step</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">tests_green</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent qa · 14:35 · regression test added</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">sast_clean</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent qa · 14:35 · 0 findings</span></div>
+        <div class="ev-item"><span class="ev-icon">⏭</span><span class="ev-name">coverage_passed</span><span class="ev-status ev-skip">skipped</span><span class="ev-meta">hotfix mode — coverage gate disabled</span></div>
+        <div class="ev-item"><span class="ev-icon">⏭</span><span class="ev-name">qa_approved</span><span class="ev-status ev-skip">skipped</span><span class="ev-meta">hotfix mode — auto gate</span></div>
+        <div class="ev-item"><span class="ev-icon">✅</span><span class="ev-name">deployed</span><span class="ev-status ev-ok">produced</span><span class="ev-meta">agent devops · 14:42 · production</span></div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <h4>Summary — Bug fix PAY-BUG-89</h4>
+      <div class="sum-grid">
+        <div class="sum-item"><div class="sum-num sum-blue">42</div><div class="sum-label">Minutes trigger→prod</div></div>
+        <div class="sum-item"><div class="sum-num sum-green">1</div><div class="sum-label">Human gate (dev approval)</div></div>
+        <div class="sum-item"><div class="sum-num sum-orange">0</div><div class="sum-label">SAST findings</div></div>
+        <div class="sum-item"><div class="sum-num sum-violet">1</div><div class="sum-label">Regression test added</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────────────────────────────────────────────────── -->
+  <!-- SCENARIO 4 — NOUVEAU DÉVELOPPEUR -->
+  <!-- ──────────────────────────────────────────────────────── -->
+  <div class="scenario" id="s4">
+    <div class="sc-header">
+      <span class="sc-tag sc-tag-onboard">Onboarding</span>
+      <h1>New developer — productive in 30 minutes</h1>
+      <p>Sara joins the payments team today. She has never used ASAC. She is autonomous on her first story before the end of the morning — without needing to know the team's SDLC.</p>
+      <div class="sc-meta">
+        <div class="sc-meta-item"><strong>Profile:</strong> Senior Java dev, first time with ASAC</div>
+        <div class="sc-meta-item"><strong>Access:</strong> GitLab repo + Jira + ASAC portal</div>
+      </div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden">
+      <div class="timeline">
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Sara (new dev)</span>
+            <span class="tl-time">09:00</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Cloning the repo — the SDLC is already there</div>
+            <div class="tl-desc">Sara clones the repo and sees <code style="font-family:var(--mono);font-size:11px">asac.yaml</code>. She does not need documentation about the process — the file describes exactly how the team delivers.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">terminal</span></div>
+              <div class="term-body">
+<span class="t-prompt">$</span> <span class="t-cmd">git clone gitlab.example.com/payments/payments-service</span><br>
+<span class="t-prompt">$</span> <span class="t-cmd">ls</span><br>
+<span class="t-ok">asac.yaml</span>  src/  pom.xml  .asac/  ...<br>
+<br>
+<span class="t-prompt">$</span> <span class="t-cmd">cat asac.yaml</span><br>
+<span class="t-dim"># asac spec 0.4, workspace: payments-service</span><br>
+<span class="t-dim"># 4 agents: ba, dev, qa-agent, devops</span><br>
+<span class="t-dim"># 2 pipelines: feature, hotfix</span><br>
+<span class="t-dim"># maturity: L3 features, L1 legacy</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Sara</span>
+            <span class="tl-time">09:10</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Configuring her environment — vars only</div>
+            <div class="tl-desc">Sara does not need to touch <code style="font-family:var(--mono);font-size:11px">asac.yaml</code>. She just copies the vars file and configures her tokens. She chooses her preferred harness.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">setup</span></div>
+              <div class="term-body">
+<span class="t-prompt">$</span> <span class="t-cmd">cp asac.vars.yaml.example asac.vars.yaml</span><br>
+<span class="t-dim"># Fill in with her tokens (provided by ops)</span><br>
+<span class="t-dim"># Change her preferred harness:</span><br>
+<span class="t-cmd">dev_harness: cursor  # Sara prefers Cursor</span><br>
+<br>
+<span class="t-prompt">$</span> <span class="t-cmd">asac validate</span><br>
+<span class="t-ok">✓ All variables resolved</span><br>
+<span class="t-ok">✓ cursor harness extension found (v1.1.0)</span><br>
+<span class="t-ok">✓ Configuration valid — ready to run</span>
+              </div>
+            </div>
+            <div class="co co-green" style="margin:0;font-size:12px">
+              Sara chooses Cursor as her harness — the team's <code style="font-family:var(--mono);font-size:11px">asac.yaml</code> manifest does not change. It is her local <code style="font-family:var(--mono);font-size:11px">asac.vars.yaml</code> (gitignored) that carries this choice.
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Sara</span>
+            <span class="tl-time">09:20</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Exploring the current state of the project</div>
+            <div class="tl-desc">Sara looks at what is in progress, what has been delivered, and which gates are pending — without having to ask the team.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac status</span></div>
+              <div class="term-body">
+<span class="t-info">Workspace: payments-service</span><br>
+<br>
+<span class="t-info">Active runs:</span><br>
+<span class="t-cmd">  run_PAY-1235  feature  step: development  agent: dev</span><br>
+<span class="t-dim">                → feat/PAY-1235 in progress since 08:30</span><br>
+<br>
+<span class="t-warn">Pending gates (1):</span><br>
+<span class="t-wait">  PAY-1233: release gate — waiting alice@example.com since 2h</span><br>
+<br>
+<span class="t-info">Recent completed:</span><br>
+<span class="t-ok">  PAY-1231  feature  deployed staging  yesterday 16:42</span><br>
+<span class="t-ok">  PAY-BUG-88 hotfix  deployed prod    yesterday 11:15</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Sara</span>
+            <span class="tl-time">09:30</span>
+            <span class="tl-channel ch-cli">CLI</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Her first story — preview first</div>
+            <div class="tl-desc">The tech lead assigns her PAY-1240. Sara starts with <code style="font-family:var(--mono);font-size:11px">asac plan</code> to see exactly what will happen — without executing anything.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac plan --pipeline feature --trigger jira:PAY-1240</span></div>
+              <div class="term-body">
+<span class="t-info">Plan for PAY-1240 — "Add configurable notification timeout"</span><br>
+<br>
+<span class="t-cmd">Step 1</span> requirements  agent:ba     <span class="t-dim">→ runs on server, you'll be notified</span><br>
+<span class="t-cmd">Step 2</span> development   agent:dev    <span class="t-dim">→ runs in YOUR Cursor harness</span><br>
+<span class="t-cmd">Step 3</span> verification  agent:qa     <span class="t-dim">→ runs on server after your MR</span><br>
+<span class="t-cmd">Step 4</span> release       agent:devops <span class="t-dim">→ runs on server after qa gate</span><br>
+<br>
+<span class="t-info">Your role:</span><br>
+<span class="t-ok">  → You will see the agent work in your Cursor IDE</span><br>
+<span class="t-ok">  → Review and approve each agent change before it's committed</span><br>
+<span class="t-ok">  → You can intervene or override at any time</span><br>
+<br>
+<span class="t-wait">Apply? [y/N]</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Sara</span>
+            <span class="tl-time">09:45</span>
+            <span class="tl-channel ch-cli">CLI + IDE</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Execution — the agent works in her Cursor IDE</div>
+            <div class="tl-desc">Sara launches the pipeline. The dev agent runs directly in Cursor. She sees the changes in real time and approves them one by one — exactly as if a colleague were working in her IDE.</div>
+            <div class="co co-blue" style="margin:0;font-size:12px">
+              <strong>First contact with ASAC:</strong> Sara did not need to read any documentation, ask about the team's process, or configure anything beyond her tokens. The agent knows the project conventions (from shared memory), the existing code style, and the test patterns in use.
+            </div>
+          </div>
+        </div>
+
+        <div class="tl-step done">
+          <div class="tl-left">
+            <span class="tl-who tl-who-dev">Sara</span>
+            <span class="tl-time">10:30</span>
+            <span class="tl-channel ch-portal">portal</span>
+          </div>
+          <div class="tl-right">
+            <div class="tl-title">Portal access — she sees the team's governance</div>
+            <div class="tl-desc">Sara opens the ASAC portal to see the team dashboard — DORA metrics, runs in progress, pending gates. She understands the team's maturity level and her role in governance.</div>
+            <div class="term">
+              <div class="term-bar"><div class="term-dots"><div class="td tr"></div><div class="td ty"></div><div class="td tg"></div></div><span class="term-title">$ asac portal</span></div>
+              <div class="term-body">
+<span class="t-ok">ASAC Portal → http://localhost:4000</span><br>
+<br>
+<span class="t-info">Team metrics (last 30 days):</span><br>
+<span class="t-ok">  Deploy frequency:  4.2/week</span><br>
+<span class="t-ok">  Lead time:         6.8h avg</span><br>
+<span class="t-ok">  MTTR:              38min</span><br>
+<span class="t-ok">  Change fail rate:  3.1%</span><br>
+<br>
+<span class="t-info">Current maturity by capability:</span><br>
+<span class="t-ok">  specification:    L3 (delegate)</span><br>
+<span class="t-ok">  implementation:   L3 (delegate, assist for legacy)</span><br>
+<span class="t-ok">  verification:     L2 (human directed)</span><br>
+<span class="t-ok">  release:          L3 (delegate)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="summary">
+      <h4>Summary — New developer onboarding</h4>
+      <div class="sum-grid">
+        <div class="sum-item"><div class="sum-num sum-blue">30</div><div class="sum-label">Minutes to become productive</div></div>
+        <div class="sum-item"><div class="sum-num sum-green">0</div><div class="sum-label">Doc pages to read</div></div>
+        <div class="sum-item"><div class="sum-num sum-orange">1</div><div class="sum-label">File to configure (vars)</div></div>
+        <div class="sum-item"><div class="sum-num sum-violet">Cursor</div><div class="sum-label">Her harness, not the team's</div></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <p style="font-weight:800;margin-bottom:2px">ASAC — Interaction Scenarios</p>
+        <p style="color:var(--paper-muted)">4 scenarios · feature · new project · bug fix · onboarding</p>
+      </div>
+      <p style="color:var(--paper-muted);font-size:12px">See also: <a href="architecture-map.html">architecture-map.html</a> · <a href="six-pillars.html">six-pillars.html</a> · <a href="scenarios.html">scenarios.html</a> · <a href="readme-overview.html">readme-overview.html</a></p>
+    </div>
+  </div>
+</footer>
+
+<script>
+function show(id, tab) {
+  document.querySelectorAll('.scenario').forEach(s => s.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+  tab.classList.add('active')
+}
+</script>
+</body>
+</html>

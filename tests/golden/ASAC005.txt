@@ -1,0 +1,4 @@
+error ASAC005 skills.spec.fulfils: unknown capability 'nope'
+error ASAC006 pipelines.feature.steps.requirements.agent: agent 'ba' fulfils 'nope', step needs 'specification_engineering'
+2 error(s), 4 warning(s)
+exit=1

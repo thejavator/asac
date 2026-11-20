@@ -1,0 +1,4 @@
+error ASAC001 pipelines.feature.steps.release.capability: unknown capability 'nope'
+error ASAC006 pipelines.feature.steps.release.agent: agent 'devops' fulfils 'release', step needs 'nope'
+2 error(s), 4 warning(s)
+exit=1

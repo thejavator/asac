@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run run_feature_0041 · ASAC</title>
+  <link rel="stylesheet" href="decision-room.css">
+  <link rel="stylesheet" href="run-detail.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail" aria-label="Main navigation">
+    <div class="brand">ASAC <small>governance</small></div>
+
+    <div class="scope">
+      <b>payments-service</b>
+      <span>Acme · team payments</span>
+    </div>
+
+    <nav>
+      <ul class="nav">
+        <li><a href="#" aria-current="page">Runs</a></li>
+        <li><a href="#">Decision Room <span class="count">3</span></a></li>
+        <li><a href="#">Errors <span class="count">1</span></a></li>
+        <li><a href="#">Pipeline</a></li>
+        <li><a href="#">Variables</a></li>
+      </ul>
+      <ul class="nav">
+        <li><h2>Organisation</h2></li>
+        <li><a href="#">All projects</a></li>
+        <li><a href="#">Audit trail</a></li>
+        <li><a href="#">Administration</a></li>
+      </ul>
+    </nav>
+
+    <div class="who">
+      <b>Malik Benali</b>
+      <span>developer · payments</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <p class="crumbs"><a href="#">All projects</a> / <a href="#">payments-service</a> / <a href="#">Runs</a> / <span class="mono">run_feature_0041</span></p>
+
+    <article class="sheet" aria-labelledby="run-h">
+
+      <header class="run-head">
+        <span class="chip" data-state="bad">Failed at build</span>
+        <h1 id="run-h">Feature PAY-139: split refund and chargeback flows</h1>
+        <dl class="facts">
+          <div><dt>Run</dt><dd class="mono">run_feature_0041</dd></div>
+          <div><dt>Pipeline</dt><dd>feature</dd></div>
+          <div><dt>Trigger</dt><dd><a href="#">PAY-139 in Jira</a></dd></div>
+          <div><dt>Pipeline version</dt><dd><a class="mono" href="#">3e1f9a7</a></dd></div>
+          <div><dt>Started</dt><dd>yesterday 16:02 by daemon</dd></div>
+        </dl>
+
+        <dl class="metrics">
+          <div><dt>Duration</dt><dd>18 min</dd></div>
+          <div>
+            <dt>Cost</dt>
+            <dd>$1.87 <small>of $6.00</small></dd>
+            <meter class="meter" min="0" max="6" value="1.87" aria-label="Budget used: $1.87 of $6.00"></meter>
+          </div>
+          <div><dt>Tokens</dt><dd>214 k <small>in 41 k out</small></dd></div>
+          <div><dt>Steps</dt><dd>3 <small>of 5 done</small></dd></div>
+          <div><dt>Decisions</dt><dd>1 <small>approved</small></dd></div>
+        </dl>
+      </header>
+
+      <ul class="tabs" aria-label="Run sections">
+        <li><a href="#" aria-current="page">Steps</a></li>
+        <li><a href="#">Deliverables <span class="n">4</span></a></li>
+        <li><a href="#">Evidence <span class="n">5</span></a></li>
+        <li><a href="#">Hooks <span class="n" data-state="bad">1</span></a></li>
+        <li><a href="#">Audit</a></li>
+        <li><a href="#">Log</a></li>
+      </ul>
+
+      <div class="banner" role="alert">
+        <span class="mark" aria-hidden="true">&#10005;</span>
+        <div>
+          <b>Blocked by hook secret-scan</b>
+          <p>The agent wrote an API key into <span class="mono">src/refunds/client.py</span>. The step stopped before anything was committed.</p>
+          <p class="cause">Category: hook · Rule: on_fail = block · Exit code 1 · 17 min after start</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Pipeline</h3>
+        <div class="scroll-x">
+        <svg class="graph" viewBox="0 0 700 110" role="img"
+             aria-label="Pipeline: intake, requirements and design done; build failed; test not started">
+          <path class="edge" d="M118 55 H148"/>
+          <path class="edge" d="M268 55 H298"/>
+          <path class="edge" d="M418 55 H448"/>
+          <path class="edge" d="M568 55 H578"/>
+          <g class="node" data-state="ok">
+            <rect x="8" y="30" width="110" height="50"/>
+            <text x="20" y="52">intake</text><text class="sub" x="20" y="68">&#10003; 1 min</text>
+          </g>
+          <g class="node" data-state="ok">
+            <rect x="148" y="30" width="120" height="50"/>
+            <text x="160" y="52">requirements</text><text class="sub" x="160" y="68">&#10003; approved</text>
+          </g>
+          <g class="node" data-state="ok">
+            <rect x="298" y="30" width="120" height="50"/>
+            <text x="310" y="52">design</text><text class="sub" x="310" y="68">&#10003; 4 min</text>
+          </g>
+          <g class="node" data-state="bad">
+            <rect x="448" y="30" width="120" height="50"/>
+            <text x="460" y="52">build</text><text class="sub" x="460" y="68">&#10005; blocked</text>
+          </g>
+          <g class="node" data-state="idle">
+            <rect x="578" y="30" width="114" height="50"/>
+            <text x="590" y="52">test</text><text class="sub" x="590" y="68">&#9675; not started</text>
+          </g>
+        </svg>
+        </div>
+      </div>
+
+      <div class="steps-layout">
+
+        <ol class="timeline" aria-label="Steps">
+          <li><a href="#" data-state="ok"><span class="sym" aria-hidden="true">&#10003;</span><b>intake</b><span class="sub">agent · 1 min · $0.04</span></a></li>
+          <li><a href="#" data-state="ok"><span class="sym" aria-hidden="true">&#10003;</span><b>requirements</b><span class="sub">agent + decision · $0.31</span></a></li>
+          <li><a href="#" data-state="ok"><span class="sym" aria-hidden="true">&#10003;</span><b>design</b><span class="sub">agent · 4 min · $0.52</span></a></li>
+          <li><a href="#" data-state="bad" aria-current="step"><span class="sym" aria-hidden="true">&#10005;</span><b>build</b><span class="sub">agent · 12 min · $1.00</span></a></li>
+          <li><a href="#" data-state="idle"><span class="sym" aria-hidden="true">&#9675;</span><b>test</b><span class="sub">waiting for build</span></a></li>
+        </ol>
+
+        <div class="detail">
+          <h2>build</h2>
+          <p class="by">Harness <span class="mono">claude-code</span> · autonomy <span class="mono">delegate</span> · runner <span class="mono">container</span> · 3 tool calls</p>
+
+          <div class="block">
+            <h3>Conversation</h3>
+            <pre class="trace" data-role="user"><span class="who-label">Task given to the agent</span>Implement the refund and chargeback split described in design.md.
+Follow instructions/python-style.md. Do not touch the ledger module.</pre>
+            <pre class="trace" data-role="agent"><span class="who-label">Agent response (excerpt)</span>I created src/refunds/client.py and wired the gateway call. To test it
+against the sandbox I set <mark>API_KEY = [redacted: api key]</mark> as a default
+in the client, then ran the unit tests.</pre>
+            <p class="faint">Secrets are redacted before they are stored, so they never appear in this portal, the log or the audit trail.</p>
+          </div>
+
+          <div class="block">
+            <h3>Tool calls</h3>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead><tr><th class="hide-sm">Time</th><th>Tool</th><th>Target</th><th>Result</th><th class="num hide-sm">Duration</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono hide-sm">16:15:02</td><td>fs.write</td><td class="mono">src/refunds/client.py</td><td><span class="chip" data-state="ok">Allowed</span></td><td class="num hide-sm">0.1 s</td></tr>
+                  <tr><td class="mono hide-sm">16:15:40</td><td>fs.write</td><td class="mono">src/refunds/split.py</td><td><span class="chip" data-state="ok">Allowed</span></td><td class="num hide-sm">0.1 s</td></tr>
+                  <tr data-state="bad"><td class="mono hide-sm">16:19:55</td><td>vcs.commit</td><td class="mono">2 files</td><td><span class="chip" data-state="bad">Blocked by hook</span></td><td class="num hide-sm">0.4 s</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Hooks</h3>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead><tr><th>Hook</th><th>Attached to</th><th>Result</th><th>Output</th></tr></thead>
+                <tbody>
+                  <tr data-state="bad">
+                    <td class="mono">secret-scan</td><td>pre_tool vcs.commit</td>
+                    <td><span class="chip" data-state="bad">Failed, blocks</span></td>
+                    <td class="mono output">src/refunds/client.py:12 high-entropy token (rule: generic-api-key)</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">deps-verify</td><td>post_step</td>
+                    <td><span class="chip" data-state="idle">Not run</span></td>
+                    <td class="faint output">Skipped: step stopped earlier.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Deliverables from this step</h3>
+            <ul class="files">
+              <li>
+                <span class="name">src/refunds/split.py</span><span class="size">2.1 KB</span>
+                <span class="digest">sha256:6c0d19be4a72 · kept in the workspace, not committed</span>
+              </li>
+              <li data-state="missing">
+                <span class="name">src/refunds/client.py</span><span class="size">discarded</span>
+                <span class="digest">Withheld by the policy: contains a secret.</span>
+              </li>
+              <li data-state="missing">
+                <span class="name">build_report.md</span><span class="size">not produced</span>
+                <span class="digest">Required by the next step (test).</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="recover">
+            <h3>Fix and continue</h3>
+            <p>
+              Retry runs the step again with the same input. Resume continues from this step
+              and keeps the work done before it. Both are written to the audit trail.
+            </p>
+            <div class="actions">
+              <button class="btn btn-primary" type="button">Retry step</button>
+              <button class="btn" type="button">Resume from build</button>
+              <button class="btn btn-danger" type="button">Stop run</button>
+              <span class="alone">Allowed for developer and owner</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </article>
+  </main>
+</div>
+</body>
+</html>

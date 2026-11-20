@@ -1,0 +1,17 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: open-policy-agent/setup-opa@v2
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest -n auto
+      - run: opa check --strict examples/payments-service/.asac/policies
+      - run: opa test examples/payments-service/.asac/policies
+      - run: uv run --with zensical zensical build --strict

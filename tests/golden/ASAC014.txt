@@ -1,0 +1,3 @@
+error ASAC014 agents.ba.harness: variable 'nope' is not declared in 'variables'
+1 error(s), 4 warning(s)
+exit=1

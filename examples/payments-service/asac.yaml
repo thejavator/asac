@@ -1,0 +1,169 @@
+asac:
+  spec: "0.4"
+  workspace: payments-service
+  team: payments
+
+# ── Variables: the interface to layer 2 ─────────────────────────
+variables:
+  gitlab_url:   { type: string, description: GitLab instance URL }
+  gitlab_token: { type: string, sensitive: true }
+  jira_url:     { type: string }
+  jira_token:   { type: string, sensitive: true }
+  llm_model:    { type: string, default: claude-opus-5-5 }
+  llm_api_key:  { type: string, sensitive: true }
+  ba_harness:   { type: harness, description: Harness for the BA agent }
+  dev_harness:  { type: harness }
+  qa_harness:   { type: harness }
+
+# ── Providers: structure only, values come from layer 2 ─────────
+providers:
+  gitlab:
+    source: asac/gitlab
+    version: "~> 2.0"
+    config: { url: var.gitlab_url, token: var.gitlab_token }
+  jira:
+    source: asac/jira
+    version: "~> 1.2"
+    config: { url: var.jira_url, token: var.jira_token }
+  llm:
+    source: asac/claude
+    version: "~> 1.0"
+    config: { model: var.llm_model, api_key: var.llm_api_key }
+
+# ── Capabilities: WHAT, vendor-agnostic ─────────────────────────
+capabilities:
+  specification_engineering:
+    description: Transform business intent into an executable spec
+    inputs: [business_intent, requirement_ticket]
+    outputs: [structured_spec, acceptance_criteria]
+    evidence: [spec_reviewed]
+  implementation:
+    description: Produce working code from a specification
+    inputs: [structured_spec]
+    outputs: [git_branch, merge_request]
+    evidence: [tests_green, mr_created, deps_verified]
+  verification:
+    description: Validate the implementation against spec and quality standards
+    inputs: [merge_request, structured_spec]
+    outputs: [quality_report]
+    evidence: [coverage_passed, sast_clean, qa_approved]
+  release:
+    description: Deploy the verified implementation to the target environment
+    inputs: [merge_request]
+    evidence: [deployed]
+
+# ── Evidence types ──────────────────────────────────────────────
+evidenceTypes:
+  spec_reviewed:   { description: Spec reviewed and approved by the product owner }
+  tests_green:     { description: All required tests pass }
+  mr_created:      { description: Merge request created with a description }
+  deps_verified:   { description: Every dependency exists in an allowed registry }
+  coverage_passed: { description: Coverage meets the configured minimum }
+  sast_clean:      { description: No high-severity SAST finding }
+  qa_approved:     { description: QA engineer sign-off }
+  deployed:        { description: Successfully deployed to the target environment }
+
+# ── Skills: HOW, versioned modules from a registry ──────────────
+skills:
+  spec:
+    ref: registry.asac.dev/core/specification@2.1.0
+    fulfils: specification_engineering
+  java-impl:
+    ref: registry.asac.dev/java/implementation@3.0.0
+    fulfils: implementation
+    params: { build_tool: maven, test_framework: junit5 }
+  qa:
+    ref: registry.asac.dev/core/quality-assurance@2.5.0
+    fulfils: verification
+    params: { coverage_min: 85 }
+  release:
+    ref: registry.asac.dev/core/release@1.8.0
+    fulfils: release
+
+# ── Agents: skill + provider + harness + tools ──────────────────
+agents:
+  ba:
+    skill: spec
+    provider: llm
+    harness: var.ba_harness
+    tools: [jira, gitlab]
+  dev:
+    skill: java-impl
+    provider: llm
+    harness: var.dev_harness
+    tools: [gitlab]
+  qa-agent:
+    skill: qa
+    provider: llm
+    harness: var.qa_harness
+    tools: [gitlab]
+  devops:
+    skill: release
+    provider: llm
+    harness: var.dev_harness
+    tools: [gitlab]
+
+# ── v0.4 governance ─────────────────────────────────────────────
+knowledge:
+  project-okf:
+    provider: okf
+    path: .asac/knowledge
+    stale_after: 90d
+    trust_tier: reviewed
+instructions:
+  - ref: .asac/instructions/security.md
+budgets:
+  per_run:  { tokens: 2000000, cost_usd: 15, wall_clock: 2h }
+  per_step: { iterations: 5 }
+hooks:
+  definitions:
+    secret-scan: { run: .asac/hooks/secret-scan.sh, on_fail: block }
+    deps-verify: { run: .asac/hooks/deps-verify.sh, on_fail: block }
+  pre_tool:  [secret-scan]
+  post_step: [deps-verify]
+
+# ── Pipelines ───────────────────────────────────────────────────
+pipelines:
+  feature:
+    description: Full feature lifecycle, from Jira story to staging
+    timeout: 72h
+    specLevel: 3
+    trigger:
+      type: event
+      provider: jira
+      event: issue_created
+      filter: { issuetype: Story, labels: [asac-enabled] }
+    steps:
+      requirements:
+        capability: specification_engineering
+        agent: ba
+        mode: assist
+        autonomy: review
+        producesEvidence: [spec_reviewed]
+        gate: { type: human, role: product_owner, timeout: 24h }
+      development:
+        capability: implementation
+        agent: dev
+        mode: delegate
+        autonomy: review
+        dependsOn: [requirements]
+        requiresEvidence: [spec_reviewed]
+        producesEvidence: [tests_green, mr_created, deps_verified]
+        policies: [no_regression]
+        escalation: { outside_scope: human }
+      verification:
+        capability: verification
+        agent: qa-agent
+        mode: assist
+        dependsOn: [development]
+        requiresEvidence: [tests_green, mr_created]
+        producesEvidence: [coverage_passed, sast_clean, qa_approved]
+        gate: { type: quality, role: qa_engineer, policy: .asac/policies/qa-gate.rego }
+      release:
+        capability: release
+        agent: devops
+        mode: delegate
+        dependsOn: [verification]
+        requiresEvidence: [coverage_passed, sast_clean, qa_approved]
+        producesEvidence: [deployed]
+        gate: { type: human, role: product_owner, timeout: 48h }

@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASAC — Language Specification v0.4</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --ink:#e6edf3;--muted:#8b949e;
+  --blue:#58a6ff;--blue-soft:#1f6feb;--blue-bg:rgba(31,111,235,.1);
+  --green:#3fb950;--green-soft:#238636;--green-bg:#dafbe1;
+  --orange:#d29922;--orange-bg:#fff8c5;
+  --violet:#d2a8ff;--violet-soft:#8957e5;--violet-bg:#fbefff;
+  --teal-bg:#ddf4ff;--red-bg:#ffebe9;
+  --paper-bg:#f6f8fa;--paper:#fff;--paper-border:#d0d7de;
+  --paper-ink:#1f2328;--paper-muted:#656d76;
+  --mono:"SF Mono","Fira Code","Cascadia Code",monospace;
+  --radius:6px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.6;color:var(--paper-ink);background:var(--paper-bg)}
+a{color:var(--blue-soft);text-decoration:none}
+
+/* TOPBAR */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.topbar .inner{max-width:1280px;margin:auto;padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;color:var(--ink)}
+.brand .logo{background:linear-gradient(135deg,var(--blue),var(--violet));
+  width:28px;height:28px;border-radius:6px;display:grid;place-items:center;
+  font-weight:900;font-size:12px;color:white}
+.badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;
+  background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.badge.new{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-soft)}
+.nav{display:flex;gap:4px;flex-wrap:wrap}
+.nav a{font-size:12px;color:var(--muted);padding:5px 10px;border-radius:6px;
+  border:1px solid transparent}
+.nav a:hover{background:var(--surface2);color:var(--ink);border-color:var(--border)}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+
+/* HERO */
+.hero{background:var(--bg);color:var(--ink);padding:48px 0 36px;border-bottom:1px solid var(--border)}
+.eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);margin-bottom:8px}
+.hero h1{font-size:clamp(26px,4vw,44px);font-weight:900;line-height:1;letter-spacing:-.04em;margin-bottom:12px}
+.hero h1 span{color:var(--blue)}
+.hero .lead{font-size:15px;color:var(--muted);max-width:760px;margin-bottom:20px;line-height:1.6}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;
+  border:1px solid var(--border);color:var(--muted);background:var(--surface)}
+.pill.hi{border-color:var(--blue-soft);color:var(--blue);background:var(--blue-bg)}
+.pill.green{border-color:var(--green-soft);color:var(--green);background:rgba(35,134,54,.1)}
+
+/* CHANGELOG BANNER */
+.changelog{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:16px 20px;margin:24px 0;color:var(--ink)}
+.changelog .cl-title{font-size:12px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+.cl-items{display:flex;flex-direction:column;gap:6px}
+.cl-item{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.cl-tag{font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px;flex-shrink:0;margin-top:1px}
+.cl-new{background:rgba(35,134,54,.2);color:#3fb950}
+.cl-changed{background:rgba(31,111,235,.2);color:#58a6ff}
+.cl-removed{background:rgba(248,81,73,.15);color:#ff7b72}
+
+section{padding:40px 0;border-bottom:1px solid var(--paper-border)}
+section:last-of-type{border-bottom:none}
+.sh{margin-bottom:24px}
+.sh .eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--blue-soft);margin-bottom:6px}
+.sh h2{font-size:clamp(18px,3vw,28px);font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
+.sh p{color:var(--paper-muted);font-size:13.5px;max-width:760px}
+
+/* LAYERS */
+.layers{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.layer{padding:20px;border-right:1px solid var(--paper-border)}
+.layer:last-child{border-right:none}
+.layer-num{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--paper-muted);margin-bottom:6px}
+.layer-title{font-size:15px;font-weight:800;margin-bottom:4px}
+.layer-file{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:4px;
+  display:inline-block;margin-bottom:8px}
+.l1 .layer-file{background:#f0f7ff;color:#0969da;border:1px solid #54aeff}
+.l2 .layer-file{background:var(--orange-bg);color:#9a6700;border:1px solid #d4a72c}
+.l3 .layer-file{background:var(--violet-bg);color:#8250df;border:1px solid #c297ff}
+.layer-who{font-size:12px;color:var(--paper-muted);margin-bottom:6px}
+.layer-desc{font-size:12.5px;line-height:1.5}
+.layer-rule{font-size:11.5px;font-style:italic;color:var(--paper-muted);margin-top:8px;
+  padding-top:8px;border-top:1px solid var(--paper-border)}
+
+/* RESOURCE CARDS */
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.rc{border:1px solid var(--paper-border);border-radius:8px;padding:16px;background:white}
+.rt{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;
+  font-family:var(--mono);margin-bottom:8px}
+.rt-blue{background:#ddf4ff;color:#0969da;border:1px solid #54aeff}
+.rt-green{background:var(--green-bg);color:#1a7f37;border:1px solid #4ac26b}
+.rt-orange{background:var(--orange-bg);color:#9a6700;border:1px solid #d4a72c}
+.rt-violet{background:var(--violet-bg);color:#8250df;border:1px solid #c297ff}
+.rt-teal{background:var(--teal-bg);color:#1b7a8b;border:1px solid #39c5cf}
+.rt-red{background:var(--red-bg);color:#cf222e;border:1px solid #ff8182}
+.rt-gray{background:var(--paper-bg);color:#57606a;border:1px solid var(--paper-border)}
+.rc h3{font-size:13.5px;font-weight:800;margin-bottom:4px}
+.rc p{font-size:12.5px;color:var(--paper-muted);line-height:1.5}
+.rc-layer{font-size:10px;font-weight:700;margin-top:8px;padding-top:6px;
+  border-top:1px solid var(--paper-border);color:var(--paper-muted)}
+.rc-layer span{font-weight:800}
+
+/* CODE */
+pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 20px;font-family:var(--mono);font-size:12px;line-height:1.7;
+  color:#e6edf3;overflow-x:auto;margin:0}
+.ph{background:var(--surface2);border:1px solid var(--border);
+  border-bottom:none;border-radius:var(--radius) var(--radius) 0 0;
+  padding:8px 14px;display:flex;align-items:center;justify-content:space-between}
+.ph .pt{font-size:12px;font-weight:600;color:var(--muted);font-family:var(--mono)}
+.ph .pl{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
+  background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.ph+pre{border-radius:0 0 var(--radius) var(--radius)}
+.cw{margin-bottom:20px}
+
+/* Syntax */
+.kw{color:#ff7b72}.str{color:#a5d6ff}.cm{color:#8b949e;font-style:italic}
+.key{color:#79c0ff}.type{color:#ffa657}.num{color:#79c0ff}.bool{color:#ff7b72}
+.fn{color:#d2a8ff}.var{color:#3fb950}
+.g{color:#3fb950}.b{color:#58a6ff}.v{color:#d2a8ff}.o{color:#ffa657}.r{color:#ff7b72}
+
+/* CALLOUT */
+.co{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13px;line-height:1.5}
+.co-blue{background:#f0f7ff;border:1px solid #54aeff;border-left:4px solid #0969da}
+.co-green{background:var(--green-bg);border:1px solid #4ac26b;border-left:4px solid #1a7f37}
+.co-orange{background:var(--orange-bg);border:1px solid #d4a72c;border-left:4px solid #9a6700}
+.co strong{font-weight:800}
+
+/* CLI TABLE */
+.ct{width:100%;border-collapse:separate;border-spacing:0;background:white;
+  border:1px solid var(--paper-border);border-radius:8px;overflow:hidden}
+.ct th,.ct td{padding:9px 13px;text-align:left;border-bottom:1px solid var(--paper-border);
+  font-size:12.5px;vertical-align:top}
+.ct th{background:var(--paper-bg);font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--paper-muted)}
+.ct td:first-child{font-family:var(--mono);font-size:11px;font-weight:700;color:#0969da;white-space:nowrap}
+.ct tr:last-child td{border-bottom:none}
+.cg{background:#f0f7ff !important}
+.cg td{font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--paper-muted);padding:5px 13px}
+
+/* SCHEMA */
+.st{width:100%;border-collapse:separate;border-spacing:0;background:white;
+  border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.st th,.st td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--paper-border);
+  border-right:1px solid var(--paper-border);font-size:12px;vertical-align:top}
+.st th:last-child,.st td:last-child{border-right:none}
+.st tr:last-child td{border-bottom:none}
+.st thead tr{background:var(--paper-bg)}
+.st th{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--paper-muted)}
+.st td:first-child{font-family:var(--mono);font-size:11px;color:#0969da;font-weight:700}
+.st td:nth-child(2){font-family:var(--mono);font-size:11px;color:#8250df}
+
+/* REGISTRY ROWS */
+.rr{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--paper-border)}
+.rr:last-child{border-bottom:none}
+.rn{font-family:var(--mono);font-size:13px;font-weight:700;color:#0969da;min-width:220px}
+.rv{font-size:11px;background:var(--paper-bg);border:1px solid var(--paper-border);
+  padding:2px 7px;border-radius:4px;font-family:var(--mono)}
+.rtype{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.official{background:var(--green-bg);color:#1a7f37}
+.community{background:var(--paper-bg);color:#57606a}
+.rd{font-size:12px;color:var(--paper-muted);flex:1}
+
+/* HARNESS INTERFACE */
+.hi-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* DIVIDER */
+.sep{height:1px;background:var(--paper-border);margin:24px 0}
+
+footer{padding:28px 0 48px;color:var(--paper-muted);font-size:12px;
+  border-top:1px solid var(--paper-border)}
+.fi{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+@media(max-width:960px){.rg,.layers,.hi-grid{grid-template-columns:1fr 1fr}.layers{grid-template-columns:1fr}}
+@media(max-width:640px){.wrap,.topbar .inner{padding-left:14px;padding-right:14px}
+  .rg{grid-template-columns:1fr}.nav{display:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <div class="brand">
+      <div class="logo">A</div>
+      ASAC
+      <span class="badge new">spec v0.4</span>
+    </div>
+    <div class="nav">
+      <a href="#layers">3 Layers</a>
+      <a href="#resources">Resources</a>
+      <a href="#example">Example</a>
+      <a href="#harness">Harness</a>
+      <a href="#v04">v0.4</a>
+      <a href="#v05">Deferred to v0.5</a>
+      <a href="#registry">Registry</a>
+      <a href="#cli">CLI</a>
+      <a href="#state">State</a>
+    </div>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Language Specification v0.4</div>
+    <h1><span>ASAC</span> — Agentic SDLC as Code</h1>
+    <p class="lead">
+      Declare your software delivery. Let agents execute it.
+      v0.2 introduced the 3-layer separation and capability/skill; v0.3 defined the harness as the runtime.
+      v0.4 adds agent governance: knowledge, instructions, budgets, hooks, autonomy level,
+      and the evidence types specific to agentic risks.
+    </p>
+    <div class="co co-orange" style="color:var(--paper-ink)">
+      <strong>Status:</strong> the CLI, runner and portal referenced here work; the registry is specified but not implemented yet.
+    </div>
+    <div class="pills">
+      <div class="pill hi">3-layer model</div>
+      <div class="pill hi">capability ≠ skill</div>
+      <div class="pill hi">harness extension point</div>
+      <div class="pill hi">evidence types</div>
+      <div class="pill green">maps + IDs</div>
+      <div class="pill">Apache 2.0</div>
+      <div class="pill">MCP-native</div>
+      <div class="pill">OPA-governed</div>
+    </div>
+
+    <div class="changelog">
+      <div class="cl-title">What changed in v0.4</div>
+      <div class="cl-items">
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>4 primitives: <code>knowledge</code>, <code>instruction</code>, <code>budget</code>, <code>hook</code> — mapped to the 6 pillars of harness engineering (see <a href="six-pillars.html" style="color:#58a6ff">six-pillars.html</a>)</span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>Step: <code>autonomy</code> (readonly / review / autonomous) and <code>escalation</code>, orthogonal to <code>mode</code></span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>Pipeline: <code>specLevel</code> (1-3); <code>discovery</code> pipeline; evidence types <code>hills_defined</code>, <code>prfaq_approved</code>, <code>tda_signed</code>, <code>outcome_reviewed</code>, <code>deps_verified</code></span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>Registry skills: pinned <code>digest</code> and signature; <code>no_regression</code> policy between iterations</span></div>
+        <div class="cl-item"><span class="cl-tag cl-changed">CHANGED</span><span>Data residency declared in layer 2 (<code>asac.vars.yaml</code>)</span></div>
+      </div>
+    </div>
+
+    <div class="changelog">
+      <div class="cl-title">What changed in v0.3</div>
+      <div class="cl-items">
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>Formal definition of the <code>harness</code>: an agentic runtime, distinct from the provider and the skill</span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>Skill adapters: projection of a portable skill into each harness's native format</span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>Execution model: <code>assist</code> → the persona's machine, <code>delegate</code> → headless ASAC Runner; optional <code>execution</code> block</span></div>
+        <div class="cl-item"><span class="cl-tag cl-changed">CHANGED</span><span>Interface <code>asac/harness-interface@2.0</code>: <code>mount</code> + <code>run</code> + <code>permissions</code> + <code>describe</code></span></div>
+      </div>
+    </div>
+
+    <div class="changelog">
+      <div class="cl-title">What changed in v0.2</div>
+      <div class="cl-items">
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span>3-layer model — SDLC manifest / runtime vars / policies split into separate files</span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span><code>capability</code> as a first-class resource — the WHAT, independent of vendor and technology</span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span><code>evidenceType</code> as a language primitive — named, reusable SDLC proofs</span></div>
+        <div class="cl-item"><span class="cl-tag cl-new">NEW</span><span><code>mode</code> on the step (assist/delegate/verify) — not on the agent</span></div>
+        <div class="cl-item"><span class="cl-tag cl-changed">CHANGED</span><span><code>harness</code> becomes an extension point with a declared interface — no more fixed enum in the standard</span></div>
+        <div class="cl-item"><span class="cl-tag cl-changed">CHANGED</span><span><code>skill</code> = implementation module of a capability — the HOW, versioned in the registry</span></div>
+        <div class="cl-item"><span class="cl-tag cl-changed">CHANGED</span><span>Provider variables via <code>var.xxx</code> — no more <code>${vault...}</code> in the manifest</span></div>
+        <div class="cl-item"><span class="cl-tag cl-changed">CHANGED</span><span>Simplified gates — minimal core + extension via <code>policy</code> Rego ref</span></div>
+        <div class="cl-item"><span class="cl-tag cl-removed">REMOVED</span><span>Inline Rego in the manifest — all policies → <code>.asac/policies/*.rego</code> files</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- 3 LAYERS -->
+  <section id="layers">
+    <div class="sh">
+      <div class="eyebrow">Language architecture</div>
+      <h2>Three layers, three concerns</h2>
+      <p>Each layer has a different audience, a different rate of change, and a different gitflow. Mixing them in a single file is a design mistake.</p>
+    </div>
+
+    <div class="layers">
+      <div class="layer l1">
+        <div class="layer-num">Layer 1</div>
+        <div class="layer-title">SDLC Manifest</div>
+        <code class="layer-file">asac.yaml</code>
+        <div class="layer-who">Audience: tech lead, architect, PO</div>
+        <div class="layer-desc">Declares the <strong>WHAT</strong> — capabilities, agents, pipelines, evidence types, gates. No concrete values. Portable across all teams in the organization without modification.</div>
+        <div class="layer-rule">Rule: if you see a secret, a concrete URL or Rego code → you are in the wrong layer.</div>
+      </div>
+      <div class="layer l2">
+        <div class="layer-num">Layer 2</div>
+        <div class="layer-title">Runtime Config</div>
+        <code class="layer-file">asac.vars.yaml</code>
+        <div class="layer-who">Audience: ops, SRE, CI/CD pipeline</div>
+        <div class="layer-desc">Resolves the <strong>variables</strong> — system URLs, secret refs (Vault, env vars), state backend, concrete harness choices. One file per environment (dev/staging/prod). Often gitignored or encrypted.</div>
+        <div class="layer-rule">Rule: contains only values, never logical structure.</div>
+      </div>
+      <div class="layer l3">
+        <div class="layer-num">Layer 3</div>
+        <div class="layer-title">Policies</div>
+        <code class="layer-file">.asac/policies/*.rego</code>
+        <div class="layer-who">Audience: security, governance, compliance</div>
+        <div class="layer-desc">Encodes the <strong>OPA rules</strong> — what agents may or may not do. Independently testable. Can be centralized in a governance repo and referenced from the manifest.</div>
+        <div class="layer-rule">Rule: each .rego file is testable in isolation with <code>opa test</code>.</div>
+      </div>
+    </div>
+
+    <div class="co co-blue">
+      <strong>Analogy:</strong> Terraform does the same thing — <code>main.tf</code> (declaration) + <code>terraform.tfvars</code> (values) + Sentinel rules (policies). ASAC applies this pattern to the SDLC.
+    </div>
+  </section>
+
+  <!-- RESOURCE TYPES -->
+  <section id="resources">
+    <div class="sh">
+      <div class="eyebrow">Resource Types</div>
+      <h2>The 9 core primitives</h2>
+      <p>Each resource belongs to a layer. Layer 1 resources never contain concrete values. v0.4 adds 4 more (section <a href="#v04">v0.4</a>).</p>
+    </div>
+
+    <div class="rg">
+      <div class="rc">
+        <div class="rt rt-violet"><code>capability</code></div>
+        <h3>Capability — the WHAT</h3>
+        <p>Logical SDLC type — what a step must accomplish. Vendor-agnostic, reusable across projects. Declares inputs, outputs, and expected evidence.</p>
+        <div class="rc-layer">Layer <span>1 — Manifest</span></div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-blue"><code>evidenceType</code></div>
+        <h3>EvidenceType — the proof</h3>
+        <p>Named proof that a step was completed correctly. <code>spec_reviewed</code>, <code>tests_green</code>, <code>sast_clean</code> — first-class citizens of the language. The set of types is <strong>extensible</strong>: a registry module (e.g. a Golden Path) can declare its own <code>evidenceTypes</code>, along with the skill that produces them.</p>
+        <div class="rc-layer">Layer <span>1 — Manifest</span></div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-green"><code>skill</code></div>
+        <h3>Skill — the HOW</h3>
+        <p>Versioned module from the registry that implements a capability in a specific technology context. An agent brings a skill to fulfil a capability.</p>
+        <div class="rc-layer">Layer <span>1 — Manifest</span> (ref) + registry</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-orange"><code>provider</code></div>
+        <h3>Provider</h3>
+        <p>Integration with an external system. Declared with <code>var.xxx</code> for configuration — concrete values come from layer 2.</p>
+        <div class="rc-layer">Layer <span>1</span> (structure) + <span>2</span> (values)</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-teal"><code>agent</code></div>
+        <h3>Agent</h3>
+        <p>AI actor — combines skill + LLM provider + harness + tools. The harness is referenced via <code>var.xxx</code>, not hardcoded.</p>
+        <div class="rc-layer">Layer <span>1</span> (structure) + <span>2</span> (concrete harness)</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-orange"><code>pipeline</code></div>
+        <h3>Pipeline</h3>
+        <p>Ordered SDLC flow — trigger, steps with <code>dependsOn</code>, <code>requiresEvidence</code>, <code>producesEvidence</code>, and gates.</p>
+        <div class="rc-layer">Layer <span>1 — Manifest</span></div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-red"><code>gate</code></div>
+        <h3>Gate — simplified</h3>
+        <p>Minimal control point: <code>type</code> (human / quality / automated) + <code>role</code> or <code>policy</code>. Complex logic → separate Rego file.</p>
+        <div class="rc-layer">Layer <span>1 — Manifest</span> (core) + <span>3</span> (rules)</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-gray"><code>variable</code></div>
+        <h3>Variable</h3>
+        <p>Interface between layers 1 and 2. The manifest declares the expected variables (<code>var.gitlab_url</code>), layer 2 resolves them.</p>
+        <div class="rc-layer">Layer <span>1</span> (declaration) + <span>2</span> (value)</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-violet"><code>harness</code></div>
+        <h3>Harness — extension point</h3>
+        <p>Extensible type, not a fixed enum. The standard defines the interface (what a harness must implement). Concrete values (<code>copilot</code>, <code>claude-code</code>…) are extensions.</p>
+        <div class="rc-layer">Interface in the <span>standard</span> — values in <span>extensions</span></div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <p style="font-size:13.5px;font-weight:800;margin-bottom:10px">Relationship capability → skill → agent</p>
+    <div class="co co-blue" style="margin-top:0">
+      <strong>capability</strong> declares WHAT must be done (e.g. <em>specification_engineering</em>).<br>
+      <strong>skill</strong> implements the capability in a technology context (e.g. <code>registry.asac.dev/core/specification@2.1</code>).<br>
+      <strong>agent</strong> combines skill + harness to execute at runtime.<br><br>
+      You change LLM provider or harness → you only modify the agent or layer 2.<br>
+      You change the SDLC process → you modify the pipeline and its capabilities.<br>
+      The two evolve independently.
+    </div>
+  </section>
+
+  <!-- COMPLETE EXAMPLE -->
+  <section id="example">
+    <div class="sh">
+      <div class="eyebrow">Complete example</div>
+      <h2>The 3 files of an ASAC project</h2>
+      <p>A single payments-service project — minimal manifest + runtime vars + separate policy.</p>
+    </div>
+
+    <!-- LAYER 1 -->
+    <p style="font-size:13px;font-weight:800;margin-bottom:8px">
+      <span style="background:#f0f7ff;color:#0969da;border:1px solid #54aeff;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:11px">Layer 1</span>
+      &nbsp;asac.yaml — SDLC Manifest (versioned, shareable, readable by everyone)
+    </p>
+    <div class="cw">
+      <div class="ph"><span class="pt">asac.yaml</span><span class="pl">yaml</span></div>
+      <pre><span class="key">asac</span>:
+  <span class="key">spec</span>:      <span class="str">"0.4"</span>
+  <span class="key">workspace</span>: <span class="str">payments-service</span>
+  <span class="key">team</span>:      <span class="str">payments</span>
+
+<span class="cm">## ── EXPECTED VARIABLES (interface to layer 2) ──────────</span>
+<span class="key">variables</span>:
+  <span class="key">gitlab_url</span>:   <span class="key">type</span>: <span class="str">string</span>   <span class="key">description</span>: <span class="str">GitLab instance URL</span>
+  <span class="key">gitlab_token</span>: <span class="key">type</span>: <span class="str">string</span>   <span class="key">sensitive</span>: <span class="bool">true</span>
+  <span class="key">jira_url</span>:     <span class="key">type</span>: <span class="str">string</span>
+  <span class="key">jira_token</span>:   <span class="key">type</span>: <span class="str">string</span>   <span class="key">sensitive</span>: <span class="bool">true</span>
+  <span class="key">llm_model</span>:    <span class="key">type</span>: <span class="str">string</span>   <span class="key">default</span>: <span class="str">claude-opus-5-5</span>
+  <span class="key">llm_api_key</span>:  <span class="key">type</span>: <span class="str">string</span>   <span class="key">sensitive</span>: <span class="bool">true</span>
+  <span class="key">ba_harness</span>:   <span class="key">type</span>: <span class="str">harness</span>  <span class="key">description</span>: <span class="str">Harness for BA agent</span>
+  <span class="key">dev_harness</span>:  <span class="key">type</span>: <span class="str">harness</span>
+  <span class="key">qa_harness</span>:   <span class="key">type</span>: <span class="str">harness</span>
+
+<span class="cm">## ── PROVIDERS (structure only, values in layer 2) ──────</span>
+<span class="key">providers</span>:
+  <span class="key">gitlab</span>:
+    <span class="key">source</span>:  <span class="str">asac/gitlab</span>
+    <span class="key">version</span>: <span class="str">"~> 2.0"</span>
+    <span class="key">config</span>:
+      <span class="key">url</span>:   <span class="var">var.gitlab_url</span>
+      <span class="key">token</span>: <span class="var">var.gitlab_token</span>
+
+  <span class="key">jira</span>:
+    <span class="key">source</span>:  <span class="str">asac/jira</span>
+    <span class="key">version</span>: <span class="str">"~> 1.2"</span>
+    <span class="key">config</span>:
+      <span class="key">url</span>:   <span class="var">var.jira_url</span>
+      <span class="key">token</span>: <span class="var">var.jira_token</span>
+
+  <span class="key">llm</span>:
+    <span class="key">source</span>:  <span class="str">asac/claude</span>
+    <span class="key">version</span>: <span class="str">"~> 1.0"</span>
+    <span class="key">config</span>:
+      <span class="key">model</span>:   <span class="var">var.llm_model</span>
+      <span class="key">api_key</span>: <span class="var">var.llm_api_key</span>
+
+<span class="cm">## ── CAPABILITIES (the WHAT — vendor-agnostic) ──────────────────</span>
+<span class="key">capabilities</span>:
+  <span class="key">specification_engineering</span>:
+    <span class="key">description</span>: <span class="str">Transform business intent into executable spec</span>
+    <span class="key">inputs</span>:  [<span class="str">business_intent</span>, <span class="str">requirement_ticket</span>]
+    <span class="key">outputs</span>: [<span class="str">structured_spec</span>, <span class="str">acceptance_criteria</span>]
+    <span class="key">evidence</span>: [<span class="str">spec_reviewed</span>]
+
+  <span class="key">implementation</span>:
+    <span class="key">description</span>: <span class="str">Produce working code from specification</span>
+    <span class="key">inputs</span>:  [<span class="str">structured_spec</span>]
+    <span class="key">outputs</span>: [<span class="str">git_branch</span>, <span class="str">merge_request</span>]
+    <span class="key">evidence</span>: [<span class="str">tests_green</span>, <span class="str">mr_created</span>]
+
+  <span class="key">verification</span>:
+    <span class="key">description</span>: <span class="str">Validate implementation against spec and quality standards</span>
+    <span class="key">inputs</span>:  [<span class="str">merge_request</span>, <span class="str">structured_spec</span>]
+    <span class="key">outputs</span>: [<span class="str">quality_report</span>]
+    <span class="key">evidence</span>: [<span class="str">coverage_passed</span>, <span class="str">sast_clean</span>, <span class="str">qa_approved</span>]
+
+  <span class="key">release</span>:
+    <span class="key">description</span>: <span class="str">Deploy verified implementation to target environment</span>
+    <span class="key">inputs</span>:  [<span class="str">merge_request</span>]
+    <span class="key">evidence</span>: [<span class="str">deployed</span>]
+
+<span class="cm">## ── EVIDENCE TYPES (named SDLC proofs) ─────────────────────</span>
+<span class="key">evidenceTypes</span>:
+  <span class="key">spec_reviewed</span>:
+    <span class="key">description</span>: <span class="str">Spec reviewed and approved by product owner</span>
+  <span class="key">tests_green</span>:
+    <span class="key">description</span>: <span class="str">All required tests passing</span>
+  <span class="key">mr_created</span>:
+    <span class="key">description</span>: <span class="str">Merge request created with description</span>
+  <span class="key">coverage_passed</span>:
+    <span class="key">description</span>: <span class="str">Coverage meets configured minimum threshold</span>
+  <span class="key">sast_clean</span>:
+    <span class="key">description</span>: <span class="str">No high-severity SAST findings</span>
+  <span class="key">qa_approved</span>:
+    <span class="key">description</span>: <span class="str">QA engineer manual sign-off</span>
+  <span class="key">deployed</span>:
+    <span class="key">description</span>: <span class="str">Successfully deployed to target environment</span>
+
+<span class="cm">## ── SKILLS (the HOW — versioned modules from the registry) </span>
+<span class="key">skills</span>:
+  <span class="key">spec</span>:
+    <span class="key">ref</span>: <span class="str">registry.asac.dev/core/specification@2.1.0</span>
+    <span class="key">fulfils</span>: <span class="str">specification_engineering</span>  <span class="cm"># explicit capability → skill link</span>
+
+  <span class="key">java-impl</span>:
+    <span class="key">ref</span>: <span class="str">registry.asac.dev/java/implementation@3.0.0</span>
+    <span class="key">fulfils</span>: <span class="str">implementation</span>
+    <span class="key">params</span>:
+      <span class="key">build_tool</span>:    <span class="str">maven</span>
+      <span class="key">test_framework</span>: <span class="str">junit5</span>
+
+  <span class="key">qa</span>:
+    <span class="key">ref</span>: <span class="str">registry.asac.dev/core/quality-assurance@2.5.0</span>
+    <span class="key">fulfils</span>: <span class="str">verification</span>
+    <span class="key">params</span>:
+      <span class="key">coverage_min</span>: <span class="num">85</span>
+
+  <span class="key">release</span>:
+    <span class="key">ref</span>: <span class="str">registry.asac.dev/core/release@1.8.0</span>
+    <span class="key">fulfils</span>: <span class="str">release</span>
+
+<span class="cm">## ── AGENTS (skill + provider + harness via var) ───────────────</span>
+<span class="key">agents</span>:
+  <span class="key">ba</span>:
+    <span class="key">skill</span>:    <span class="str">spec</span>
+    <span class="key">provider</span>: <span class="str">llm</span>
+    <span class="key">harness</span>:  <span class="var">var.ba_harness</span>          <span class="cm"># resolved in layer 2</span>
+    <span class="key">tools</span>:    [<span class="str">jira</span>, <span class="str">gitlab</span>]
+
+  <span class="key">dev</span>:
+    <span class="key">skill</span>:    <span class="str">java-impl</span>
+    <span class="key">provider</span>: <span class="str">llm</span>
+    <span class="key">harness</span>:  <span class="var">var.dev_harness</span>
+    <span class="key">tools</span>:    [<span class="str">gitlab</span>]
+
+  <span class="key">qa-agent</span>:
+    <span class="key">skill</span>:    <span class="str">qa</span>
+    <span class="key">provider</span>: <span class="str">llm</span>
+    <span class="key">harness</span>:  <span class="var">var.qa_harness</span>
+    <span class="key">tools</span>:    [<span class="str">gitlab</span>]
+
+  <span class="key">devops</span>:
+    <span class="key">skill</span>:    <span class="str">release</span>
+    <span class="key">provider</span>: <span class="str">llm</span>
+    <span class="key">harness</span>:  <span class="var">var.dev_harness</span>
+    <span class="key">tools</span>:    [<span class="str">gitlab</span>]
+
+<span class="cm">## ── PIPELINE ──────────────────────────────────────────────────</span>
+<span class="key">pipelines</span>:
+  <span class="key">feature</span>:
+    <span class="key">description</span>: <span class="str">Full feature lifecycle — Jira story to staging</span>
+    <span class="key">timeout</span>: <span class="str">72h</span>
+    <span class="key">trigger</span>:
+      <span class="key">type</span>:     <span class="str">event</span>
+      <span class="key">provider</span>: <span class="str">jira</span>
+      <span class="key">event</span>:    <span class="str">issue_created</span>
+      <span class="key">filter</span>:
+        <span class="key">issuetype</span>: <span class="str">Story</span>
+        <span class="key">labels</span>:    [<span class="str">asac-enabled</span>]
+
+    <span class="key">steps</span>:
+      <span class="key">requirements</span>:
+        <span class="key">capability</span>:       <span class="str">specification_engineering</span>
+        <span class="key">agent</span>:            <span class="str">ba</span>
+        <span class="key">mode</span>:             <span class="str">assist</span>              <span class="cm"># mode on the step, not on the agent</span>
+        <span class="key">requiresEvidence</span>: []
+        <span class="key">producesEvidence</span>: [<span class="str">spec_reviewed</span>]
+        <span class="key">gate</span>:
+          <span class="key">type</span>:    <span class="str">human</span>
+          <span class="key">role</span>:    <span class="str">product_owner</span>
+          <span class="key">timeout</span>: <span class="str">24h</span>
+
+      <span class="key">development</span>:
+        <span class="key">capability</span>:       <span class="str">implementation</span>
+        <span class="key">agent</span>:            <span class="str">dev</span>
+        <span class="key">mode</span>:             <span class="str">delegate</span>
+        <span class="key">dependsOn</span>:        [<span class="str">requirements</span>]
+        <span class="key">requiresEvidence</span>: [<span class="str">spec_reviewed</span>]
+        <span class="key">producesEvidence</span>: [<span class="str">tests_green</span>, <span class="str">mr_created</span>]
+
+      <span class="key">verification</span>:
+        <span class="key">capability</span>:       <span class="str">verification</span>
+        <span class="key">agent</span>:            <span class="str">qa-agent</span>
+        <span class="key">mode</span>:             <span class="str">assist</span>
+        <span class="key">dependsOn</span>:        [<span class="str">development</span>]
+        <span class="key">requiresEvidence</span>: [<span class="str">tests_green</span>, <span class="str">mr_created</span>]
+        <span class="key">producesEvidence</span>: [<span class="str">coverage_passed</span>, <span class="str">sast_clean</span>, <span class="str">qa_approved</span>]
+        <span class="key">gate</span>:
+          <span class="key">type</span>:   <span class="str">quality</span>
+          <span class="key">policy</span>: <span class="str">.asac/policies/qa-gate.rego</span>   <span class="cm"># complex logic → separate Rego</span>
+
+      <span class="key">release</span>:
+        <span class="key">capability</span>:       <span class="str">release</span>
+        <span class="key">agent</span>:            <span class="str">devops</span>
+        <span class="key">mode</span>:             <span class="str">delegate</span>
+        <span class="key">dependsOn</span>:        [<span class="str">verification</span>]
+        <span class="key">requiresEvidence</span>: [<span class="str">coverage_passed</span>, <span class="str">sast_clean</span>, <span class="str">qa_approved</span>]
+        <span class="key">producesEvidence</span>: [<span class="str">deployed</span>]
+        <span class="key">gate</span>:
+          <span class="key">type</span>:    <span class="str">human</span>
+          <span class="key">role</span>:    <span class="str">product_owner</span>
+          <span class="key">timeout</span>: <span class="str">48h</span></pre>
+    </div>
+
+    <!-- LAYER 2 -->
+    <p style="font-size:13px;font-weight:800;margin-bottom:8px;margin-top:28px">
+      <span style="background:var(--orange-bg);color:#9a6700;border:1px solid #d4a72c;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:11px">Layer 2</span>
+      &nbsp;asac.vars.yaml — Runtime config (gitignored or encrypted, one per env)
+    </p>
+    <div class="cw">
+      <div class="ph"><span class="pt">asac.vars.yaml</span><span class="pl">yaml</span></div>
+      <pre><span class="cm"># Resolves all var.xxx declared in asac.yaml</span>
+<span class="cm"># This file changes per environment (dev / staging / prod)</span>
+
+<span class="key">state_backend</span>: <span class="str">s3://asac-state/payments</span>
+
+<span class="cm"># Providers</span>
+<span class="key">gitlab_url</span>:   <span class="str">https://gitlab.example.com</span>
+<span class="key">gitlab_token</span>: <span class="var">${vault.gitlab/deploy-token}</span>  <span class="cm"># Vault ref — resolved at execution time</span>
+<span class="key">jira_url</span>:     <span class="str">https://jira.example.com</span>
+<span class="key">jira_token</span>:   <span class="var">${vault.jira/api-key}</span>
+<span class="key">llm_api_key</span>:  <span class="var">${vault.anthropic/api-key}</span>
+<span class="key">llm_model</span>:    <span class="str">claude-opus-5-5</span>
+
+<span class="cm"># Harness — concrete choices per team/env</span>
+<span class="key">ba_harness</span>:   <span class="str">copilot</span>
+<span class="key">dev_harness</span>:  <span class="str">claude-code</span>
+<span class="key">qa_harness</span>:   <span class="str">copilot</span></pre>
+    </div>
+
+    <!-- LAYER 3 -->
+    <p style="font-size:13px;font-weight:800;margin-bottom:8px;margin-top:28px">
+      <span style="background:var(--violet-bg);color:#8250df;border:1px solid #c297ff;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:11px">Layer 3</span>
+      &nbsp;.asac/policies/qa-gate.rego — Gate logic (testable in isolation)
+    </p>
+    <div class="cw">
+      <div class="ph"><span class="pt">.asac/policies/qa-gate.rego</span><span class="pl">rego</span></div>
+      <pre><span class="fn">package</span> asac.gates.qa
+
+<span class="fn">import</span> rego.v1
+
+<span class="cm"># Block when findings exist and no human approved them.</span>
+<span class="fn">block</span> <span class="kw">contains</span> reason <span class="kw">if</span> {
+	<span class="var">input</span>.findings_count <span class="kw">&gt;</span> <span class="num">0</span>
+	<span class="kw">not</span> <span class="var">input</span>.human_approved
+	reason := <span class="str">"Findings detected: QA engineer approval required"</span>
+}
+
+<span class="cm"># Block when coverage is below the configured minimum.</span>
+<span class="fn">block</span> <span class="kw">contains</span> reason <span class="kw">if</span> {
+	<span class="var">input</span>.coverage <span class="kw">&lt;</span> <span class="var">input</span>.skill_params.coverage_min
+	reason := <span class="fn">sprintf</span>(<span class="str">"Coverage %v%% below minimum %v%%"</span>, [<span class="var">input</span>.coverage, <span class="var">input</span>.skill_params.coverage_min])
+}
+
+<span class="cm"># Block when a high-severity SAST finding exists.</span>
+<span class="fn">block</span> <span class="kw">contains</span> reason <span class="kw">if</span> {
+	<span class="var">input</span>.sast_high_count <span class="kw">&gt;</span> <span class="num">0</span>
+	reason := <span class="fn">sprintf</span>(<span class="str">"%v high-severity SAST findings must be resolved"</span>, [<span class="var">input</span>.sast_high_count])
+}
+
+<span class="cm"># Escalate when the gate has been pending for more than 24 hours.</span>
+<span class="fn">escalate</span> <span class="kw">if</span> <span class="var">input</span>.pending_hours <span class="kw">&gt;</span> <span class="num">24</span></pre>
+    </div>
+
+    <div class="co co-green">
+      <strong>Benefit of the separation:</strong> the security team can modify <code>qa-gate.rego</code>, test it with <code>opa test</code>, and have it reviewed in a separate PR — without ever touching the SDLC manifest. The two evolve at their own pace.
+    </div>
+  </section>
+
+  <!-- HARNESS (v0.3) -->
+  <section id="harness">
+    <div class="sh">
+      <div class="eyebrow">Harness — v0.3</div>
+      <h2>Harness — the agentic runtime</h2>
+      <p>A harness is the runtime that turns an LLM into an executable agent: agentic loop, tool access, context management, permissions, interface. Claude Code, Copilot and Cursor are harnesses. An LLM alone is not one.</p>
+    </div>
+
+    <p style="font-size:13px;font-weight:700;margin-bottom:8px">Position in an agent's composition</p>
+    <table class="st">
+      <thead><tr><th>Building block</th><th>Role</th><th>Example</th><th>Layer</th></tr></thead>
+      <tbody>
+        <tr><td>capability</td><td>WHAT — what the step must accomplish</td><td>implementation</td><td>1</td></tr>
+        <tr><td>skill</td><td>HOW — portable, versioned procedure</td><td>java/implementation@3.0.0</td><td>1</td></tr>
+        <tr><td>provider</td><td>BRAIN — the LLM model</td><td>claude-opus-5-5</td><td>1 + 2</td></tr>
+        <tr><td>harness</td><td>BODY — runtime that executes the loop</td><td>claude-code, copilot, cursor</td><td>2 (via var.xxx)</td></tr>
+        <tr><td>tools</td><td>HANDS — systems accessible via MCP</td><td>gitlab, jira, sonar</td><td>1 + 2</td></tr>
+        <tr><td>agent</td><td>Composition of the 5 blocks above</td><td>dev</td><td>1</td></tr>
+      </tbody>
+    </table>
+
+    <div class="co co-blue">
+      <strong>Skills are not part of the harness.</strong> An ASAC skill is portable: it lives in the registry, independent of any runtime. The harness <em>receives</em> it — via an adapter that projects it into its native format. This is what lets a developer use Cursor while the team uses Claude Code, on the same manifest.
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="hi-grid" style="margin-bottom:20px">
+      <div>
+        <p style="font-size:13px;font-weight:700;margin-bottom:8px">Standard interface — <code>asac/harness-interface@2.0</code></p>
+        <table class="st">
+          <thead><tr><th>Method</th><th>Contract</th></tr></thead>
+          <tbody>
+            <tr><td>mount(skill)</td><td>Projects an ASAC skill into the harness's native format (adapter)</td></tr>
+            <tr><td>run(task, context)</td><td>Executes a task: spec, memory, step inputs, required evidence</td></tr>
+            <tr><td>tools(mcp_servers)</td><td>Connects the declared tools via MCP Gateway</td></tr>
+            <tr><td>permissions(mode)</td><td>Maps <code>assist</code> / <code>delegate</code> onto the native approval model</td></tr>
+            <tr><td>emit(event)</td><td>Reports logs, costs, artifacts and produced evidence back to ASAC</td></tr>
+            <tr><td>describe()</td><td>Declares its runtime capabilities: headless, interactive, mcp, streaming</td></tr>
+            <tr><td>healthCheck()</td><td>Checks availability and configuration</td></tr>
+          </tbody>
+        </table>
+        <div class="co co-orange" style="font-size:12px">
+          <strong>BREAKING v0.3:</strong> <code>execute(skill, context)</code> is split into <code>mount</code> + <code>run</code>. The skill is mounted once per session, then tasks are executed. <code>getCapabilities()</code> becomes <code>describe()</code> to avoid a collision with the <code>capability</code> resource.
+        </div>
+      </div>
+      <div>
+        <p style="font-size:13px;font-weight:700;margin-bottom:8px">Skill adapters — native projection</p>
+        <table class="st">
+          <thead><tr><th>Harness</th><th>The skill becomes</th></tr></thead>
+          <tbody>
+            <tr><td>claude-code</td><td>.claude/skills/&lt;skill&gt;/SKILL.md + CLAUDE.md</td></tr>
+            <tr><td>bob</td><td>Bob rules + custom mode</td></tr>
+            <tr><td>copilot</td><td>.github/copilot-instructions.md + prompt files</td></tr>
+            <tr><td>cursor</td><td>.cursor/rules/&lt;skill&gt;.mdc</td></tr>
+            <tr><td>custom</td><td>Adapter provided by the extension</td></tr>
+          </tbody>
+        </table>
+        <div class="cw">
+          <div class="ph"><span class="pt">harness.asac.yaml — package asac-harness-claude-code</span><span class="pl">yaml</span></div>
+          <pre style="font-size:11px"><span class="key">harness</span>:
+  <span class="key">id</span>:         <span class="str">claude-code</span>
+  <span class="key">version</span>:    <span class="str">2.0.0</span>
+  <span class="key">implements</span>: <span class="str">asac/harness-interface@2.0</span>
+
+  <span class="key">runtime</span>:
+    <span class="key">interactive</span>: <span class="bool">true</span>     <span class="cm"># developer IDE / terminal</span>
+    <span class="key">headless</span>:    <span class="bool">true</span>     <span class="cm"># claude -p, Agent SDK</span>
+    <span class="key">mcp</span>:         <span class="bool">true</span>
+    <span class="key">streaming</span>:   <span class="bool">true</span>
+
+  <span class="key">adapter</span>:
+    <span class="key">skill_format</span>: <span class="str">claude-skill</span>
+    <span class="key">target</span>:       <span class="str">.claude/skills/{skill}/SKILL.md</span>
+
+  <span class="key">permissions</span>:
+    <span class="key">assist</span>:   <span class="str">default</span>      <span class="cm"># approval on every action</span>
+    <span class="key">delegate</span>: <span class="str">sandboxed</span>    <span class="cm"># autonomous, sandbox + OPA policy</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="sh" style="margin-bottom:16px">
+      <div class="eyebrow">Execution model</div>
+      <h2 style="font-size:20px">Where does a step run?</h2>
+      <p>The step's <code>mode</code> determines where it runs. The harness must declare the matching runtime, otherwise <code>asac validate</code> fails.</p>
+    </div>
+
+    <table class="st">
+      <thead><tr><th>mode</th><th>Location</th><th>Required runtime</th><th>Triggered by</th></tr></thead>
+      <tbody>
+        <tr><td>assist</td><td>Persona's machine (IDE / terminal)</td><td>interactive: true</td><td>Push-to-harness: ASAC notifies, the dev opens the task</td></tr>
+        <tr><td>delegate</td><td>ASAC Runner (server / CI, isolated container)</td><td>headless: true</td><td>ASAC Daemon on event (webhook, approved gate)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="hi-grid">
+      <div class="cw">
+        <div class="ph"><span class="pt">asac.yaml — explicit execution (optional)</span><span class="pl">yaml</span></div>
+        <pre style="font-size:11px"><span class="key">steps</span>:
+  <span class="key">development</span>:
+    <span class="key">capability</span>: <span class="str">implementation</span>
+    <span class="key">agent</span>:      <span class="str">dev</span>
+    <span class="key">mode</span>:       <span class="str">delegate</span>
+    <span class="key">execution</span>:
+      <span class="key">runner</span>:   <span class="var">var.runner_pool</span>   <span class="cm"># k8s, gitlab-runner…</span>
+      <span class="key">sandbox</span>:  <span class="str">container</span>
+      <span class="key">fallback</span>: <span class="str">assist</span>   <span class="cm"># if no runner available</span></pre>
+      </div>
+      <div class="cw">
+        <div class="ph"><span class="pt">$ asac validate</span><span class="pl">output</span></div>
+        <pre style="font-size:11px"><span class="g">✓</span> step requirements  ba   assist   copilot     interactive
+<span class="g">✓</span> step development   dev  delegate claude-code headless
+<span class="r">✗</span> step verification  qa   delegate cursor
+  <span class="r">harness 'cursor' does not declare headless: true</span>
+  <span class="cm">→ use mode: assist, or override qa_harness in vars</span></pre>
+      </div>
+    </div>
+
+    <div class="co co-green">
+      <strong>Rule:</strong> an IDE-only harness (Cursor) is only valid for <code>mode: assist</code>. A developer's personal choice can therefore never break the team's <code>delegate</code> step — <code>asac validate</code> detects it before any execution.
+    </div>
+  </section>
+
+  <!-- V0.4 -->
+  <section id="v04">
+    <div class="sh">
+      <div class="eyebrow">Agent governance — v0.4</div>
+      <h2>Four primitives and two step attributes</h2>
+      <p>Derived from the analysis of harness engineering (6 pillars). They do not change the v0.3 definition of the harness: the harness remains the runtime. They describe what is provided to it and the limits within which it acts. The language gains only these 4 primitives and 2 step attributes; CLI commands are not primitives.</p>
+    </div>
+
+    <div class="rg" style="margin-bottom:20px">
+      <div class="rc">
+        <div class="rt rt-teal"><code>knowledge</code></div>
+        <h3>Knowledge — what the agent knows</h3>
+        <p>Knowledge source with provenance, <code>trust_tier</code>, <code>owner</code> and <code>stale_after</code>. Providers: OKF files, MCP server (graph/vector). Pillar 2.</p>
+        <div class="rc-layer">Layer <span>1</span> (structure) + <span>2</span> (access)</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-violet"><code>instruction</code></div>
+        <h3>Instruction — the rules</h3>
+        <p>Versioned project rules (conventions, "never X", output contracts, escalation rules), projected by the adapter to CLAUDE.md, AGENTS.md or <code>.cursor/rules</code>. Pillar 1.</p>
+        <div class="rc-layer">Layer <span>1 — Manifest</span></div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-orange"><code>budget</code></div>
+        <h3>Budget — the limits</h3>
+        <p>Caps per run and per step: tokens, cost, duration, number of iterations. Exceeding = stop and escalate. Pillar 6.</p>
+        <div class="rc-layer">Layer <span>1</span> (caps) + <span>3</span> (enforcement)</div>
+      </div>
+      <div class="rc">
+        <div class="rt rt-red"><code>hook</code></div>
+        <h3>Hook — the control points</h3>
+        <p>Deterministic check run before/after a tool call or a step (secret scan, dependency verification, eval suite). Pillar 6.</p>
+        <div class="rc-layer">Layer <span>1</span> (ref) + <span>3</span> (rules)</div>
+      </div>
+    </div>
+
+    <div class="hi-grid">
+      <div class="cw">
+        <div class="ph"><span class="pt">asac.yaml — v0.4 excerpts</span><span class="pl">yaml</span></div>
+        <pre style="font-size:11px"><span class="key">knowledge</span>:
+  <span class="key">project-okf</span>:
+    <span class="key">provider</span>:    <span class="str">okf</span>
+    <span class="key">path</span>:        <span class="str">.asac/knowledge</span>
+    <span class="key">stale_after</span>: <span class="str">90d</span>
+    <span class="key">trust_tier</span>:  <span class="str">reviewed</span>
+
+<span class="key">instructions</span>:
+  - <span class="key">ref</span>: <span class="str">.asac/instructions/security.md</span>
+
+<span class="key">budgets</span>:
+  <span class="key">per_run</span>:  { <span class="key">tokens</span>: <span class="num">2000000</span>, <span class="key">cost_usd</span>: <span class="num">15</span>, <span class="key">wall_clock</span>: <span class="str">2h</span> }
+  <span class="key">per_step</span>: { <span class="key">iterations</span>: <span class="num">5</span> }
+
+<span class="key">hooks</span>:
+  <span class="key">pre_tool</span>:  [<span class="str">secret-scan</span>]
+  <span class="key">post_step</span>: [<span class="str">deps-verify</span>, <span class="str">eval-suite</span>]
+
+<span class="key">pipelines</span>:
+  <span class="key">feature</span>:
+    <span class="key">specLevel</span>: <span class="num">3</span>      <span class="cm"># 1 story · 2 versioned spec · 3 executable spec</span></pre>
+      </div>
+      <div class="cw">
+        <div class="ph"><span class="pt">asac.yaml — step with autonomy</span><span class="pl">yaml</span></div>
+        <pre style="font-size:11px"><span class="key">steps</span>:
+  <span class="key">development</span>:
+    <span class="key">capability</span>: <span class="str">implementation</span>
+    <span class="key">agent</span>:      <span class="str">dev</span>
+    <span class="key">mode</span>:       <span class="str">delegate</span>    <span class="cm"># WHERE it runs</span>
+    <span class="key">autonomy</span>:   <span class="str">review</span>      <span class="cm"># HOW MUCH freedom</span>
+    <span class="key">escalation</span>:
+      <span class="key">outside_scope</span>: <span class="str">human</span>
+    <span class="key">producesEvidence</span>: [<span class="str">tests_green</span>, <span class="str">deps_verified</span>]
+    <span class="key">policies</span>: [<span class="str">no_regression</span>]</pre>
+      </div>
+    </div>
+
+    <table class="st">
+      <thead><tr><th>autonomy</th><th>Behavior</th><th>Adoption maturity</th></tr></thead>
+      <tbody>
+        <tr><td>readonly</td><td>The agent reads and proposes; no writes, no actions on an external system</td><td>L0-L1</td></tr>
+        <tr><td>review</td><td>The agent acts within its scope; every output goes through a human gate before taking effect</td><td>L2-L3</td></tr>
+        <tr><td>autonomous</td><td>The agent acts without a human gate within scope; automatic escalation outside scope</td><td>L4, proven capabilities</td></tr>
+      </tbody>
+    </table>
+
+    <div class="co co-orange">
+      <strong>Autonomy doctrine:</strong> the <code>autonomous</code> level is not declared without a written document, validated by security and legal, then translated into <code>.rego</code>.
+    </div>
+
+    <p style="font-size:13px;font-weight:700;margin:20px 0 8px">New evidence types and policies</p>
+    <table class="st">
+      <thead><tr><th>Name</th><th>Type</th><th>Risk covered</th></tr></thead>
+      <tbody>
+        <tr><td>deps_verified</td><td>evidence</td><td>Nonexistent or hallucinated dependencies (slopsquatting): deterministic check against approved registries</td></tr>
+        <tr><td>no_regression</td><td>policy</td><td>Security degradation between iterations of the same step: non-decreasing score, otherwise blocked</td></tr>
+        <tr><td>hills_defined, prfaq_approved</td><td>evidence</td><td><code>discovery</code> pipeline: the need is framed before entering delivery</td></tr>
+        <tr><td>tda_signed</td><td>evidence</td><td>Architecture review before going to production</td></tr>
+        <tr><td>outcome_reviewed</td><td>evidence</td><td>Outcome review (pivot or scale): Monitor → Plan feedback loop</td></tr>
+      </tbody>
+    </table>
+
+    <div class="co co-blue">
+      <strong>Skill supply chain:</strong> a skill reference can be pinned by digest (<code>core/quality-assurance@2.5.0#sha256:…</code>) and require a valid signature. A silently modified skill could impose dependencies or behaviors; pinning makes the modification detectable.
+    </div>
+  </section>
+
+  <!-- V0.5 -->
+  <section id="v05">
+    <div class="sh">
+      <div class="eyebrow">Deferred to v0.5</div>
+      <h2>What does not enter v0.4</h2>
+      <p>These items were studied and then set aside in order to freeze a clear version. None is implemented. Each has an intended destination.</p>
+    </div>
+    <table class="st">
+      <thead><tr><th>Item</th><th>Reason for deferral</th><th>Intended destination</th></tr></thead>
+      <tbody>
+        <tr><td><code>routing</code> (multi-model)</td><td>Routing rules by capability, sensitivity and cost, with fallback. Design decision not settled.</td><td>Spec v0.5, layer 2</td></tr>
+        <tr><td><code>critic</code> pattern (cross-review)</td><td>Supervisor / workers / critic topology. The "QA ≠ dev" rule already exists; the declared pattern does not.</td><td>Spec v0.5, step</td></tr>
+        <tr><td>Evidence types <code>integration_green</code>, <code>e2e_green</code></td><td>Extension of <code>tests_green</code>. Simple addition of an evidence type.</td><td>Spec v0.5 or module</td></tr>
+        <tr><td>Evidence types <code>canary_healthy</code>, <code>post_deploy_verified</code></td><td>Depends on a progressive deployment strategy, not modelled.</td><td>Spec v0.5, release step</td></tr>
+        <tr><td><code>monitor.signal</code> event</td><td>Opening remediation tickets from production. Monitor → Plan loop to be settled.</td><td>Spec v0.5</td></tr>
+        <tr><td><code>knowledge</code> with an index provider</td><td>Semantic index (code, ADRs, docs), hybrid RAG, graph. Only OKF and MCP are covered in v0.4.</td><td>Spec v0.5, provider</td></tr>
+        <tr><td><code>scope.paths</code></td><td>Feasible today with Rego and sandbox. Declarative convenience, no new capability.</td><td>Spec v0.5, step</td></tr>
+        <tr><td><code>arch_conform</code></td><td>Evidence supplied by a module (ArchUnit, dependency-cruiser), not a language concept.</td><td>Golden Path module (registry)</td></tr>
+        <tr><td>Golden Paths</td><td>Assembly of existing primitives, not a primitive.</td><td>ASAC template catalog (registry, README)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- REGISTRY -->
+  <section id="registry">
+    <div class="sh">
+      <div class="eyebrow">Registry</div>
+      <h2>registry.asac.dev — Skills, Providers, Modules, Harnesses</h2>
+      <p>Everything that can be reused across projects is published in the registry. Versioned, tested, with embedded evals for skills.</p>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px 20px;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--paper-muted);margin-bottom:12px">Official skills</div>
+      <div class="rr"><div class="rn">core/specification</div><div class="rv">2.1.0</div><div class="rtype official">official</div><div class="rd">Transforms business intent into a structured spec and acceptance criteria</div></div>
+      <div class="rr"><div class="rn">core/quality-assurance</div><div class="rv">2.5.0</div><div class="rtype official">official</div><div class="rd">Code review, tests, coverage, SAST — parameterizable</div></div>
+      <div class="rr"><div class="rn">core/release</div><div class="rv">1.8.0</div><div class="rtype official">official</div><div class="rd">Merge, tag, changelog, deploy to the target environment</div></div>
+      <div class="rr"><div class="rn">java/implementation</div><div class="rv">3.0.0</div><div class="rtype official">official</div><div class="rd">Java implementation — Maven/Gradle, JUnit 5, Spring Boot aware</div></div>
+      <div class="rr"><div class="rn">node/implementation</div><div class="rv">2.4.0</div><div class="rtype official">official</div><div class="rd">Node.js implementation — npm/pnpm, Jest, TypeScript aware</div></div>
+      <div class="rr"><div class="rn">python/implementation</div><div class="rv">1.9.0</div><div class="rtype official">official</div><div class="rd">Python implementation — pip/uv, pytest, type hints</div></div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--paper-border);border-radius:8px;padding:16px 20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--paper-muted);margin-bottom:12px">Modules — complete SDLC patterns</div>
+      <div class="rr"><div class="rn">quickstart/java-microservice</div><div class="rv">2.1.0</div><div class="rtype official">official</div><div class="rd">5 agents + 2 pipelines + default policies for a Java service</div></div>
+      <div class="rr"><div class="rn">quickstart/node-api</div><div class="rv">1.6.0</div><div class="rtype official">official</div><div class="rd">Node.js REST API — feature + hotfix + deploy pipelines</div></div>
+      <div class="rr"><div class="rn">enterprise/release-train</div><div class="rv">1.2.0</div><div class="rtype community">community</div><div class="rd">Multi-team release train with coordination and merge-freeze gates</div></div>
+    </div>
+  </section>
+
+  <!-- CLI -->
+  <section id="cli">
+    <div class="sh">
+      <div class="eyebrow">CLI Reference</div>
+      <h2>Command-line interface — asac</h2>
+      <p>New commands in v0.2: <code>asac vars</code> to manage the layers, <code>asac evidence</code> for the audit trail.</p>
+    </div>
+
+    <table class="ct">
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr class="cg"><td colspan="2">Setup</td></tr>
+        <tr><td>asac init</td><td>Generates a minimal <code>asac.yaml</code> with stack detection. Also creates <code>asac.vars.yaml.example</code> and <code>.asac/policies/</code>.</td></tr>
+        <tr><td>asac validate</td><td>Validates the 3 layers — manifest syntax, resolution of all <code>var.xxx</code>, capability/skill consistency, Rego policies.</td></tr>
+        <tr><td>asac provider install</td><td>Installs the declared providers + harness extensions.</td></tr>
+        <tr class="cg"><td colspan="2">Vars (layer 2)</td></tr>
+        <tr><td>asac vars check</td><td>Checks that all manifest <code>var.xxx</code> are resolved in <code>asac.vars.yaml</code>.</td></tr>
+        <tr><td>asac vars diff</td><td>Shows missing or unused variables between manifest and vars file.</td></tr>
+        <tr class="cg"><td colspan="2">Execution</td></tr>
+        <tr><td>asac plan</td><td>Shows what the agents will do — agents, steps, gates, estimated token cost — without executing.</td></tr>
+        <tr><td>asac apply</td><td>Executes the pipeline. Checks required evidence before each step, blocks on gates.</td></tr>
+        <tr><td>asac run &lt;step&gt;</td><td>Executes a single step without going through the trigger or previous steps.</td></tr>
+        <tr class="cg"><td colspan="2">Evidence &amp; Gates</td></tr>
+        <tr><td>asac evidence show</td><td>Shows the state of all evidence for a given run.</td></tr>
+        <tr><td>asac evidence verify</td><td>Checks that a step's required evidence is satisfied before launching.</td></tr>
+        <tr><td>asac gates</td><td>Lists all pending human gates in the workspace.</td></tr>
+        <tr><td>asac approve &lt;gate-id&gt;</td><td>Approves a gate from the CLI. Alternative to the web portal.</td></tr>
+        <tr class="cg"><td colspan="2">Monitoring &amp; Audit</td></tr>
+        <tr><td>asac status</td><td>State of running pipelines and pending gates.</td></tr>
+        <tr><td>asac logs &lt;run-id&gt;</td><td>Logs of a run — per step, per agent, with OTEL spans.</td></tr>
+        <tr><td>asac audit</td><td>Full audit log — who approved what, when, which evidence was produced.</td></tr>
+        <tr class="cg"><td colspan="2">Governance (v0.4) — CLI tools, not primitives</td></tr>
+        <tr><td>asac plan --dry-run</td><td>Simulates the effects of a step (actions and files touched) without applying them.</td></tr>
+        <tr><td>asac kill &lt;run-id&gt;</td><td>Immediately stops a run and revokes its access (kill-switch).</td></tr>
+        <tr><td>asac learn &lt;run-id&gt;</td><td>Proposes a Rego rule, an instruction or a skill update based on failed gates.</td></tr>
+        <tr class="cg"><td colspan="2">Registry</td></tr>
+        <tr><td>asac registry search</td><td>Searches skills, providers, modules in registry.asac.dev.</td></tr>
+        <tr><td>asac skill publish</td><td>Publishes a skill — runs the embedded evals before publication.</td></tr>
+        <tr><td>asac portal</td><td>Launches the local governance portal (PO, QA, Manager).</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- STATE -->
+  <section id="state">
+    <div class="sh">
+      <div class="eyebrow">State Model</div>
+      <h2>The SDLC's memory — with evidence tracking</h2>
+      <p>In v0.2, the state explicitly tracks the evidence produced and its status. It is the source of truth for audit and for resuming after an interruption.</p>
+    </div>
+
+    <div class="cw">
+      <div class="ph"><span class="pt">.asac-state/default.state — evidence tracking</span><span class="pl">json</span></div>
+      <pre style="font-size:11px"><span class="val">{</span>
+  <span class="key">"version"</span>: <span class="str">"1.0"</span>,
+  <span class="key">"workspace"</span>: <span class="str">"payments-service"</span>,
+  <span class="key">"run"</span>: <span class="str">"run_STORY-1234_20260930"</span>,
+  <span class="key">"pipeline"</span>: <span class="str">"feature"</span>,
+  <span class="key">"status"</span>: <span class="str">"in_progress"</span>,
+
+  <span class="cm">// State per step</span>
+  <span class="key">"steps"</span>: {
+    <span class="key">"requirements"</span>: { <span class="key">"status"</span>: <span class="str">"completed"</span>, <span class="key">"agent"</span>: <span class="str">"ba"</span>, <span class="key">"mode"</span>: <span class="str">"assist"</span> },
+    <span class="key">"development"</span>:  { <span class="key">"status"</span>: <span class="str">"running"</span>,   <span class="key">"agent"</span>: <span class="str">"dev"</span> },
+    <span class="key">"verification"</span>: { <span class="key">"status"</span>: <span class="str">"pending"</span> },
+    <span class="key">"release"</span>:      { <span class="key">"status"</span>: <span class="str">"pending"</span> }
+  },
+
+  <span class="cm">// Evidence — immutable once produced</span>
+  <span class="key">"evidence"</span>: {
+    <span class="key">"spec_reviewed"</span>: {
+      <span class="key">"status"</span>:      <span class="str">"produced"</span>,
+      <span class="key">"produced_by"</span>: <span class="str">"requirements"</span>,
+      <span class="key">"approved_by"</span>: <span class="str">"alice@example.com"</span>,
+      <span class="key">"at"</span>:          <span class="str">"2026-09-30T09:45:00Z"</span>
+    },
+    <span class="key">"tests_green"</span>:   { <span class="key">"status"</span>: <span class="str">"pending"</span> },
+    <span class="key">"mr_created"</span>:    { <span class="key">"status"</span>: <span class="str">"pending"</span> },
+    <span class="key">"coverage_passed"</span>: { <span class="key">"status"</span>: <span class="str">"pending"</span> },
+    <span class="key">"sast_clean"</span>:    { <span class="key">"status"</span>: <span class="str">"pending"</span> },
+    <span class="key">"qa_approved"</span>:   { <span class="key">"status"</span>: <span class="str">"pending"</span> },
+    <span class="key">"deployed"</span>:      { <span class="key">"status"</span>: <span class="str">"pending"</span> }
+  }
+<span class="val">}</span></pre>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="fi">
+      <div>
+        <p style="font-weight:800;margin-bottom:4px">ASAC — Agentic SDLC as Code</p>
+        <p>Language Specification v0.4 (frozen), Apache 2.0</p>
+      </div>
+      <div style="text-align:right">
+        <p>3 layers: manifest / vars / policies</p>
+        <p>9 core primitives: capability · evidenceType · skill · provider · agent · pipeline · gate · variable · harness</p>
+        <p>+ 4 in v0.4: knowledge · instruction · budget · hook</p>
+        <p>registry.asac.dev — asac CLI — asac portal</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

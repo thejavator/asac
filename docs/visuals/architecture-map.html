@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASAC — Global architecture map</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --ink:#e6edf3;--muted:#8b949e;--mono:"SF Mono","Fira Code",monospace;
+}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--ink);font-size:13px;display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--border);
+  background:var(--surface);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px}
+.logo{background:linear-gradient(135deg,#58a6ff,#d2a8ff);width:26px;height:26px;border-radius:6px;
+  display:grid;place-items:center;font-weight:900;font-size:12px;color:#fff}
+.brand small{font-weight:400;color:var(--muted);font-size:12px}
+.spacer{flex:1}
+.ctrl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ctrl-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-right:2px}
+.chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip.off{opacity:.35}
+.chip:hover{color:var(--ink)}
+.btn{font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:#58a6ff}
+.btn.primary{background:#238636;border-color:#2ea043}
+.btn.primary:hover{background:#2ea043}
+
+.main{flex:1;display:flex;min-height:0}
+.stage{flex:1;position:relative;overflow:hidden}
+.canvas{position:absolute;top:0;left:0;transform-origin:0 0}
+svg.edges{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
+
+.band{position:absolute;border-radius:10px;border:1px dashed;transition:opacity .2s}
+.band-label{position:absolute;top:6px;left:12px;font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.1em}
+.band-sub{position:absolute;top:6px;right:12px;font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+.node{position:absolute;border-radius:8px;border:1px solid;background:var(--surface);
+  padding:6px 9px;cursor:pointer;transition:opacity .2s, transform .15s, box-shadow .2s;
+  display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.node:hover{transform:translateY(-2px)}
+.node .n-title{font-size:12px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .n-sub{font-size:10px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.node.sel{box-shadow:0 0 0 2px #fff, 0 0 24px rgba(255,255,255,.25)}
+.node.flow{box-shadow:0 0 0 2px #3fb950, 0 0 28px rgba(63,185,80,.55)}
+.dim{opacity:.13 !important}
+
+.edge{fill:none;stroke:#30363d;stroke-width:1.2;transition:opacity .2s,stroke .2s}
+.edge.hl{stroke-width:2.2}
+.edge.flowing{stroke-dasharray:6 6;animation:dash 0.8s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-12}}
+
+/* PANEL */
+.panel{width:360px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;
+  padding:18px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.p-layer{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  display:inline-block;padding:2px 8px;border-radius:4px}
+.p-desc{color:#c9d1d9;line-height:1.55;font-size:13px}
+.p-sec{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+.p-list{display:flex;flex-direction:column;gap:4px}
+.p-link{font-size:12px;padding:5px 8px;border-radius:5px;background:var(--surface2);cursor:pointer;
+  display:flex;gap:8px;align-items:center;border:1px solid transparent}
+.p-link:hover{border-color:var(--border)}
+.p-link .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.p-link .rel{color:var(--muted);font-size:11px;margin-left:auto;font-family:var(--mono)}
+pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;
+  font-family:var(--mono);font-size:11px;line-height:1.6;color:#c9d1d9;overflow-x:auto;white-space:pre}
+.k{color:#79c0ff}.s{color:#a5d6ff}.c{color:#8b949e;font-style:italic}.v{color:#3fb950}
+.hint{color:var(--muted);font-size:12px;line-height:1.6}
+.hint b{color:var(--ink)}
+.legend{display:flex;flex-direction:column;gap:6px}
+.lg{display:flex;align-items:center;gap:8px;font-size:12px}
+.lg .sw{width:12px;height:12px;border-radius:3px;border:1px solid}
+
+.flowbar{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(22,27,34,.96);
+  border:1px solid #2ea043;border-radius:10px;padding:12px 16px;max-width:720px;width:calc(100% - 40px);
+  display:none;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.flowbar.on{display:flex}
+.fb-step{font-family:var(--mono);font-size:11px;color:#3fb950;font-weight:700;white-space:nowrap}
+.fb-text{flex:1;font-size:13px;line-height:1.45}
+.fb-text b{color:#fff}
+.fb-btns{display:flex;gap:6px}
+
+.zoom{position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:4px}
+.zoom .btn{width:32px;padding:5px 0;text-align:center}
+
+/* LENSES */
+.lensbar{display:flex;gap:8px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--border);
+  background:#11161d;flex-wrap:wrap}
+button.chip{font-family:inherit}
+.chip.on{border-color:#58a6ff;color:var(--ink);background:#1f2a3a}
+.node .lt{position:absolute;top:3px;right:5px;font-size:9px;font-weight:800;font-family:var(--mono);
+  color:var(--ink);background:#30363d;padding:0 5px;border-radius:3px;line-height:14px}
+.node.tgt{box-shadow:0 0 0 2px #f85149}
+.node.grd{box-shadow:0 0 0 2px #3fb950}
+.lv-bar{width:160px;accent-color:#58a6ff}
+.footer{padding:5px 18px;border-top:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px}
+.footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><div class="logo">A</div>ASAC <small>— Carte d'architecture globale</small></div>
+  <div class="spacer"></div>
+  <div class="ctrl" id="filters"><span class="ctrl-label">Layers</span></div>
+  <div class="ctrl">
+    <span class="ctrl-label">Walkthroughs</span>
+    <button class="btn primary" onclick="startFlow('feature')">▶ Feature</button>
+    <button class="btn" onclick="startFlow('hotfix')">▶ Hotfix</button>
+    <button class="btn" onclick="startFlow('agent')">▶ Agent anatomy</button>
+    <button class="btn" onclick="resetView()">Reset</button>
+  </div>
+</div>
+
+<div class="lensbar" id="lensbar">
+  <span class="ctrl-label">Lenses</span>
+  <button class="chip" data-lens="mat" onclick="setLens('mat')">Maturity L0→L4</button>
+  <button class="chip" data-lens="aut" onclick="setLens('aut')">Autonomy</button>
+  <button class="chip" data-lens="pil" onclick="setLens('pil')">6 pillars</button>
+  <button class="chip" data-lens="thr" onclick="setLens('thr')">Threats</button>
+  <span id="lensCtl" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></span>
+</div>
+<div class="main">
+  <div class="stage" id="stage">
+    <div class="canvas" id="canvas">
+      <svg class="edges" id="edges"></svg>
+    </div>
+    <div class="zoom">
+      <button class="btn" onclick="zoomBy(1.15)">+</button>
+      <button class="btn" onclick="zoomBy(1/1.15)">−</button>
+      <button class="btn" onclick="fit()">⤢</button>
+    </div>
+    <div class="flowbar" id="flowbar">
+      <div class="fb-step" id="fbStep"></div>
+      <div class="fb-text" id="fbText"></div>
+      <div class="fb-btns">
+        <button class="btn" onclick="flowPrev()">◀</button>
+        <button class="btn" onclick="flowNext()">▶</button>
+        <button class="btn" onclick="stopFlow()">✕</button>
+      </div>
+    </div>
+  </div>
+  <aside class="panel" id="panel"></aside>
+</div>
+
+<script>
+const W = 1560, H = 1110;
+
+const LAYERS = {
+  business: {label:'Business & Personas', color:'#ffa657'},
+  pdlc:     {label:'PDLC — Product',      color:'#f778ba'},
+  sdlc:     {label:'SDLC — Delivery',     color:'#58a6ff'},
+  control:  {label:'ASAC Control Plane',  color:'#d2a8ff'},
+  agents:   {label:'Agents',              color:'#3fb950'},
+  skills:   {label:'Skills',              color:'#56d4dd'},
+  harness:  {label:'Harness',             color:'#e3b341'},
+  llm:      {label:'LLM Providers',       color:'#ff7b72'},
+  tools:    {label:'MCP & Tools',         color:'#a5d6ff'},
+  devsecops:{label:'DevSecOps',           color:'#f85149'},
+  obs:      {label:'Observability & FinOps', color:'#8b949e'},
+};
+
+// Bands: horizontal (center) and vertical (side columns)
+const CX0 = 210, CX1 = 1250;
+const BANDS = [
+  {layer:'business', x:CX0, y:20,  w:CX1-CX0, h:100, sub:'portal · slack · jira'},
+  {layer:'pdlc',     x:CX0, y:140, w:CX1-CX0, h:100, sub:'why & what to build'},
+  {layer:'sdlc',     x:CX0, y:260, w:CX1-CX0, h:100, sub:'pipelines: feature · hotfix'},
+  {layer:'control',  x:CX0, y:380, w:CX1-CX0, h:100, sub:'asac.yaml · vars · rego'},
+  {layer:'agents',   x:CX0, y:500, w:CX1-CX0, h:100, sub:'agent = skill + provider + harness + tools'},
+  {layer:'skills',   x:CX0, y:620, w:470,     h:100, sub:'the HOW, portable'},
+  {layer:'harness',  x:CX0+490, y:620, w:CX1-CX0-490, h:100, sub:'the runtime'},
+  {layer:'llm',      x:CX0, y:740, w:CX1-CX0, h:100, sub:'the brain'},
+  {layer:'tools',    x:CX0, y:860, w:CX1-CX0, h:220, sub:'the hands — via MCP'},
+  {layer:'obs',      x:20,  y:260, w:170, h:820, vertical:true},
+  {layer:'devsecops',x:1270,y:20,  w:270, h:1060, vertical:true},
+];
+
+const NODES = [
+  // BUSINESS
+  {id:'biz', layer:'business', t:'Business', s:'intent, OKR',
+   d:"Owns the business intent. Never writes YAML: states a need, then checks the portal for progress and value metrics.",
+   y:`<span class="c"># persona — portal read-only</span>
+<span class="k">personas</span>:
+  <span class="k">business</span>: { <span class="k">access</span>: <span class="s">portal:view</span> }`},
+  {id:'po', layer:'business', t:'Product Owner', s:'gates spec & release',
+   d:"Approves the human gates (spec, release) from the portal or Slack. Their approval produces the spec_reviewed evidence and the release sign-off.",
+   y:`<span class="k">gate</span>:
+  <span class="k">type</span>: <span class="s">human</span>
+  <span class="k">role</span>: <span class="s">product_owner</span>
+  <span class="k">timeout</span>: <span class="s">48h</span>`},
+  {id:'ba', layer:'business', t:'Business Analyst', s:'assist · bob',
+   d:"Works with the BA agent in assist mode: reviews and adjusts the generated user stories and acceptance criteria."},
+  {id:'devp', layer:'business', t:'Developer', s:'CLI + IDE',
+   d:"Runs asac plan / apply and works with the dev agent in their preferred harness (chosen in asac.vars.yaml, gitignored)."},
+  {id:'qap', layer:'business', t:'QA Engineer', s:'quality gate',
+   d:"Arbitrates the QA agent's findings: approves despite findings or sends the work back to the dev. Produces qa_approved."},
+  {id:'mgr', layer:'business', t:'Manager', s:'DORA dashboard',
+   d:"Read-only: DORA metrics, maturity per capability (L0→L4), token costs per team."},
+  {id:'portal', layer:'business', t:'Stakeholder Portal', s:'asac portal',
+   d:"Web interface for non-dev personas: pending gates, evidence chain, quality reports, dashboards. Slack/Teams notifications with inline approval."},
+
+  // PDLC
+  {id:'discovery', layer:'pdlc', t:'Discovery', s:'problem, users',
+   d:"Problem exploration: interviews, usage data, hypotheses. A research agent can synthesise feedback and analytics (capability: product_discovery)."},
+  {id:'strategy', layer:'pdlc', t:'Strategy & OKR', s:'measurable goals',
+   d:"Links initiatives to business goals. ASAC evidence can be traced up to the OKRs (value traceability)."},
+  {id:'roadmap', layer:'pdlc', t:'Roadmap', s:'prioritisation',
+   d:"Sequencing of initiatives. Outside the ASAC execution scope, but the source of epics."},
+  {id:'backlog', layer:'pdlc', t:'Backlog', s:'jira · label asac-enabled',
+   d:"Junction point PDLC → SDLC. A story tagged asac-enabled triggers the feature pipeline via webhook.",
+   y:`<span class="k">triggers</span>:
+  - <span class="k">on</span>: <span class="s">jira.issue_created</span>
+    <span class="k">when</span>: <span class="s">label == "asac-enabled"</span>
+    <span class="k">pipeline</span>: <span class="s">feature</span>`},
+  {id:'feedback', layer:'pdlc', t:'Feedback & Analytics', s:'value loop',
+   d:"Real usage, incidents, NPS. Closes the loop: feeds Discovery and can trigger the hotfix pipeline."},
+
+  // SDLC
+  {id:'s_req', layer:'sdlc', t:'Requirements', s:'specification_engineering',
+   d:"Turns intent into user stories and AC. Produces spec_reviewed after the PO gate.",
+   y:`<span class="k">requirements</span>:
+  <span class="k">capability</span>: <span class="s">specification_engineering</span>
+  <span class="k">agent</span>: <span class="s">ba</span>
+  <span class="k">mode</span>: <span class="s">assist</span>
+  <span class="k">producesEvidence</span>: [<span class="s">spec_reviewed</span>]`},
+  {id:'s_spec', layer:'sdlc', t:'Specification', s:'design · openspec',
+   d:"Executable technical spec. This is where SpecKit / OpenSpec plug in — at the skill level (engine: openspec), not the pipeline level."},
+  {id:'s_dev', layer:'sdlc', t:'Development', s:'implementation',
+   d:"Implementation + tests + MR. Requires spec_reviewed, produces tests_green and mr_created.",
+   y:`<span class="k">development</span>:
+  <span class="k">capability</span>: <span class="s">implementation</span>
+  <span class="k">agent</span>: <span class="s">dev</span>
+  <span class="k">mode</span>: <span class="s">delegate</span>
+  <span class="k">requiresEvidence</span>: [<span class="s">spec_reviewed</span>]
+  <span class="k">producesEvidence</span>: [<span class="s">tests_green</span>, <span class="s">mr_created</span>]`},
+  {id:'s_ver', layer:'sdlc', t:'Verification', s:'quality_assurance',
+   d:"Independent review: coverage, SAST, spec conformance. The QA agent must differ from the dev agent (OPA rule)."},
+  {id:'s_rel', layer:'sdlc', t:'Release', s:'release',
+   d:"Checks the complete evidence chain, merges, deploys. PO release gate."},
+  {id:'s_ops', layer:'sdlc', t:'Operate', s:'run · incident',
+   d:"Production: monitoring, incidents, rollback. A P1 incident triggers the hotfix pipeline."},
+
+  // CONTROL PLANE
+  {id:'manifest', layer:'control', t:'3-layer Manifest', s:'asac.yaml · vars · rego',
+   d:"Layer 1: asac.yaml (portable SDLC). Layer 2: asac.vars.yaml (values, secrets, harness choice). Layer 3: .asac/policies/*.rego (testable governance).",
+   y:`<span class="k">asac</span>:
+  <span class="k">spec</span>: <span class="s">"0.4"</span>
+
+asac.yaml              <span class="c"># L1 — WHAT</span>
+asac.vars.yaml         <span class="c"># L2 — WHERE / WITH WHAT</span>
+.asac/policies/*.rego  <span class="c"># L3 — RULES</span>`},
+  {id:'planner', layer:'control', t:'Planner', s:'asac plan',
+   d:"Resolves the step graph, checks mode/harness compatibility, estimates cost and duration. Nothing is executed before apply."},
+  {id:'daemon', layer:'control', t:'Daemon / Orchestrator', s:'events → runs',
+   d:"Receives webhooks (Jira, GitLab, gates), starts runs, dispatches steps: delegate → headless Runner, assist → push-to-harness of the persona."},
+  {id:'opa', layer:'control', t:'Gate Engine (OPA)', s:'policy eval',
+   d:"Evaluates gates: human, quality, Rego policy. Blocks if a required evidence is missing or a rule fails.",
+   y:`<span class="k">package</span> asac.gates.qa
+<span class="k">block</span> <span class="k">contains</span> reason <span class="k">if</span> {
+  input.findings_count > 0
+  not input.human_approved
+  reason := "findings not approved"
+}`},
+  {id:'state', layer:'control', t:'State & Evidence', s:'s3://asac-state',
+   d:"Source of truth: runs, steps, timestamped and signed evidence. Enables resuming after an interruption, and audit."},
+  {id:'registry', layer:'control', t:'Registry', s:'registry.example.dev',
+   d:"Skills, providers, harness extensions, shared policies. Versioned (semver), with embedded evals for skills."},
+
+  // AGENTS
+  {id:'a_ba', layer:'agents', t:'BA Agent', s:'assist · var.ba_harness',
+   d:"Generates user stories and AC from the ticket and from memory (similar stories)."},
+  {id:'a_spec', layer:'agents', t:'Spec Agent', s:'openspec engine',
+   d:"Produces the executable technical spec from the approved AC."},
+  {id:'a_dev', layer:'agents', t:'Dev Agent', s:'delegate · var.dev_harness',
+   d:"Implements, tests, opens the MR.",
+   y:`<span class="k">agents</span>:
+  <span class="k">dev</span>:
+    <span class="k">skill</span>:    <span class="s">java-impl</span>        <span class="c"># HOW</span>
+    <span class="k">provider</span>: <span class="s">llm</span>              <span class="c"># BRAIN</span>
+    <span class="k">harness</span>:  <span class="v">var.dev_harness</span>  <span class="c"># RUNTIME</span>
+    <span class="k">tools</span>:    [<span class="s">gitlab</span>]         <span class="c"># HANDS</span>`},
+  {id:'a_qa', layer:'agents', t:'QA Agent', s:'≠ dev agent',
+   d:"Independent analysis of the MR: coverage, SAST, conformance to the AC."},
+  {id:'a_sec', layer:'agents', t:'Security Agent', s:'threat model · triage',
+   d:"Triage of SAST/SCA findings, threat modelling of sensitive changes, fix proposals."},
+  {id:'a_ops', layer:'agents', t:'DevOps Agent', s:'release · deploy',
+   d:"Checks the evidence chain, merges, deploys, updates Jira."},
+
+  // SKILLS
+  {id:'sk_spec', layer:'skills', t:'core/specification', s:'@2.1.0',
+   d:"Portable skill: procedure to turn an intent into a spec + AC. fulfils: specification_engineering."},
+  {id:'sk_java', layer:'skills', t:'java/implementation', s:'@3.0.0',
+   d:"Portable Java skill: Maven/Gradle, JUnit 5, Spring Boot conventions.",
+   y:`<span class="k">skills</span>:
+  <span class="k">java-impl</span>:
+    <span class="k">ref</span>: <span class="s">registry.example.dev/java/implementation@3.0.0</span>
+    <span class="k">fulfils</span>: <span class="s">implementation</span>`},
+  {id:'sk_qa', layer:'skills', t:'core/quality-assurance', s:'@2.5.0',
+   d:"Code review, tests, coverage, SAST — configurable."},
+  {id:'sk_rel', layer:'skills', t:'core/release', s:'@1.8.0',
+   d:"Merge, tag, changelog, deployment."},
+
+  // HARNESS
+  {id:'h_cc', layer:'harness', t:'Claude Code', s:'interactive + headless',
+   d:"Interactive (terminal/IDE) and headless (claude -p, Agent SDK) harness. Valid for assist and delegate. Adapter: .claude/skills/{skill}/SKILL.md"},
+  {id:'h_bob', layer:'harness', t:'Bob', s:'interactive',
+   d:"Example harness. Adapter: rules + custom mode."},
+  {id:'h_cop', layer:'harness', t:'Copilot', s:'interactive + agent',
+   d:"Adapter: .github/copilot-instructions.md + prompt files."},
+  {id:'h_cur', layer:'harness', t:'Cursor', s:'interactive only',
+   d:"IDE-only: valid only for mode: assist. asac validate rejects a delegate step that targets it."},
+  {id:'runner', layer:'harness', t:'ASAC Runner', s:'headless · sandbox',
+   d:"Server-side execution pool (k8s, gitlab-runner): launches a headless harness in an isolated container for delegate steps.",
+   y:`<span class="k">execution</span>:
+  <span class="k">runner</span>:   <span class="v">var.runner_pool</span>
+  <span class="k">sandbox</span>:  <span class="s">container</span>
+  <span class="k">fallback</span>: <span class="s">assist</span>`},
+
+  // LLM
+  {id:'llmgw', layer:'llm', t:'LLM Gateway', s:'routing · quotas · cache',
+   d:"Single entry point to the models: routing, per-team quotas, cache, PII redaction, token metering for FinOps."},
+  {id:'m_claude', layer:'llm', t:'Claude', s:'opus / sonnet / haiku',
+   d:"Anthropic models. The concrete choice lives in asac.vars.yaml (llm_model)."},
+  {id:'m_wx', layer:'llm', t:'Self-hosted models', s:'on-prem possible',
+   d:"Models deployable on-premises for sensitive data."},
+  {id:'m_oai', layer:'llm', t:'Other providers', s:'OpenAI, Gemini…',
+   d:"Any provider implementing the ASAC provider interface."},
+  {id:'m_local', layer:'llm', t:'Local models', s:'Ollama, vLLM',
+   d:"For air-gapped environments or low-cost tasks."},
+
+  // TOOLS
+  {id:'mcp', layer:'tools', t:'MCP Gateway', s:'authz · audit · rate limit', wide:true,
+   d:"Universal bus between agents and tools. Applies per-agent authorisation (least privilege), logs every tool call, injects credentials from Vault — agents never see the secrets."},
+  {id:'t_jira', layer:'tools', t:'Jira', s:'tickets', d:"Source of stories and triggers."},
+  {id:'t_git', layer:'tools', t:'GitLab / GitHub', s:'repo, MR', d:"Branches, MR, CI."},
+  {id:'t_sonar', layer:'tools', t:'SonarQube', s:'quality', d:"Coverage, code smells."},
+  {id:'t_vault', layer:'tools', t:'Vault', s:'secrets', d:"Secrets resolved in layer 2 and injected by the MCP Gateway."},
+  {id:'t_k8s', layer:'tools', t:'Kubernetes', s:'deployment', d:"Deployment target and Runner host."},
+  {id:'t_mem', layer:'tools', t:'Shared memory', s:'memory://', d:"Specs, project conventions, story history — shared between agents."},
+  {id:'t_slack', layer:'tools', t:'Slack / Teams', s:'notifications', d:"Gate notifications and inline approval."},
+
+  // DEVSECOPS
+  {id:'d_cicd', layer:'devsecops', t:'CI/CD', s:'gitlab-ci · argo', d:"Build, test, deploy. ASAC orchestrates, CI executes."},
+  {id:'d_sast', layer:'devsecops', t:'SAST', s:'semgrep, sonar', d:"Static analysis. Non-negotiable gate, even for hotfix → sast_clean."},
+  {id:'d_sca', layer:'devsecops', t:'SCA & SBOM', s:'deps, licences', d:"Dependency analysis, SBOM generation, SLSA attestations."},
+  {id:'d_secret', layer:'devsecops', t:'Secret scanning', s:'pre-commit, CI', d:"Prevents secrets from leaking into agent-generated code."},
+  {id:'d_policy', layer:'devsecops', t:'Policy as Code', s:'OPA / Rego', d:"Versioned and tested security rules (opa test), reviewed by the security team in a separate PR."},
+  {id:'d_supply', layer:'devsecops', t:'Supply chain', s:'signing, provenance', d:"Signing of artefacts and evidence (cosign / in-toto)."},
+  {id:'d_agentsec', layer:'devsecops', t:'Agent security', s:'sandbox · prompt injection', d:"Runner sandboxing, filtering of untrusted inputs, network allowlist, human review of risky actions."},
+  {id:'d_runtime', layer:'devsecops', t:'Runtime security', s:'WAF, CSPM', d:"Production protection, anomaly detection."},
+
+  // OBS
+  {id:'o_trace', layer:'obs', t:'Agent traces', s:'OpenTelemetry', d:"Every run, step, LLM call and tool call traced (OTel GenAI semconv)."},
+  {id:'o_dora', layer:'obs', t:'DORA metrics', s:'lead time, MTTR', d:"Computed from the ASAC state."},
+  {id:'o_finops', layer:'obs', t:'Token FinOps', s:'cost / run', d:"Cost per run, per team, per capability. Budgets and alerts."},
+  {id:'o_evals', layer:'obs', t:'Agent evals', s:'skill quality', d:"Continuous evaluation of skills (success rate, rework, findings)."},
+  {id:'o_audit', layer:'obs', t:'Audit trail', s:'signed evidence', d:"Who approved what, when, with which proofs. Compliance export."},
+  {id:'o_maturity', layer:'obs', t:'Maturity L0→L4', s:'per capability', d:"Progression observe → assist → gates → delegate → policy governed."},
+];
+
+const EDGES = [
+  // business
+  ['biz','discovery','expresses'],['biz','portal','views'],['po','portal','approves'],['qap','portal','arbitrates'],
+  ['mgr','portal','steers'],['portal','opa','gate decisions'],['ba','a_ba','assist'],['devp','h_cc','works in'],
+  ['devp','h_cur','or'],['devp','planner','asac plan'],['portal','t_slack','notifies'],
+  // pdlc
+  ['discovery','strategy','→'],['strategy','roadmap','→'],['roadmap','backlog','→'],['feedback','discovery','loop'],
+  ['backlog','s_req','trigger'],['backlog','daemon','webhook'],
+  // sdlc
+  ['s_req','s_spec','→'],['s_spec','s_dev','→'],['s_dev','s_ver','→'],['s_ver','s_rel','→'],['s_rel','s_ops','→'],
+  ['s_ops','feedback','usage & incidents'],['s_ops','daemon','incident → hotfix'],
+  // control
+  ['manifest','planner','read by'],['planner','daemon','approved plan'],['daemon','opa','evaluates gates'],['opa','state','evidence'],
+  ['daemon','state','runs'],['registry','manifest','resolves refs'],['manifest','s_req','declares'],['manifest','s_rel','declares'],
+  // agents ↔ sdlc
+  ['a_ba','s_req','executes'],['a_spec','s_spec','executes'],['a_dev','s_dev','executes'],['a_qa','s_ver','executes'],['a_ops','s_rel','executes'],
+  ['daemon','a_ba','dispatch'],['daemon','a_dev','dispatch'],['daemon','a_qa','dispatch'],['daemon','a_ops','dispatch'],['daemon','a_spec','dispatch'],
+  ['a_sec','d_sast','triage'],['a_qa','d_sast','runs'],['a_ops','d_cicd','triggers'],
+  // agents → skills/harness
+  ['sk_spec','a_ba','mount'],['sk_spec','a_spec','mount'],['sk_java','a_dev','mount'],['sk_qa','a_qa','mount'],['sk_rel','a_ops','mount'],
+  ['registry','sk_java','publishes'],
+  ['a_ba','h_bob','runtime'],['a_dev','h_cc','runtime'],['a_dev','runner','delegate'],['a_qa','h_cop','runtime'],['a_ops','runner','delegate'],['a_sec','runner','delegate'],
+  ['runner','h_cc','launches headless'],['runner','t_k8s','hosted on'],
+  // harness → llm / tools
+  ['h_cc','llmgw','prompts'],['h_bob','llmgw','prompts'],['h_cop','llmgw','prompts'],['h_cur','llmgw','prompts'],['runner','llmgw','prompts'],
+  ['llmgw','m_claude','route'],['llmgw','m_wx','route'],['llmgw','m_oai','route'],['llmgw','m_local','route'],
+  ['h_cc','mcp','tool calls'],['h_bob','mcp','tool calls'],['h_cop','mcp','tool calls'],['runner','mcp','tool calls'],
+  ['mcp','t_jira',''],['mcp','t_git',''],['mcp','t_sonar',''],['mcp','t_vault','credentials'],['mcp','t_k8s',''],['mcp','t_mem',''],['mcp','t_slack',''],
+  // devsecops
+  ['d_cicd','t_git','pipelines'],['d_cicd','t_k8s','deploy'],['d_policy','opa','feeds'],['d_supply','state','signs evidence'],
+  ['d_agentsec','runner','sandbox'],['d_agentsec','mcp','authz'],['d_runtime','s_ops','protects'],['d_sca','s_ver','evidence'],['d_secret','s_dev','scan'],
+  ['d_sast','s_ver','sast_clean'],
+  // obs
+  ['o_trace','daemon','collects'],['o_trace','mcp','collects'],['o_finops','llmgw','tokens'],['o_dora','state','computes'],
+  ['o_audit','state','reads'],['o_evals','registry','scores skills'],['o_maturity','manifest','per capability'],['mgr','o_dora','views'],
+];
+
+const FLOWS = {
+  feature: {name:'Feature pipeline', steps:[
+    {n:['biz','discovery','backlog'], t:"The business states a need → <b>Discovery</b> → story PAY-1234 in the <b>Backlog</b> with the asac-enabled label."},
+    {n:['backlog','daemon'], t:"The Jira webhook reaches the ASAC <b>Daemon</b>, which starts a run of the <b>feature</b> pipeline."},
+    {n:['manifest','planner','daemon'], t:"The daemon reads the <b>3-layer manifest</b>: steps, agents, gates, required evidence."},
+    {n:['daemon','a_ba','sk_spec','h_bob','llmgw','s_req'], t:"<b>Requirements</b> step: the BA agent (skill core/specification mounted in Bob) generates stories and AC."},
+    {n:['po','portal','opa','state'], t:"Human gate: the <b>PO</b> approves in the portal → <b>OPA</b> validates → <b>spec_reviewed</b> evidence in the state."},
+    {n:['daemon','a_dev','sk_java','runner','h_cc','llmgw','m_claude','s_dev'], t:"<b>Development</b> step in <b>delegate</b> mode: the Runner launches headless Claude Code with the java-impl skill."},
+    {n:['h_cc','runner','mcp','t_git','t_vault','t_mem'], t:"Tool calls go through the <b>MCP Gateway</b>: branch, code, MR. Credentials injected from Vault."},
+    {n:['a_qa','sk_qa','s_ver','d_sast','d_sca','t_sonar'], t:"<b>Verification</b> step: the QA agent (≠ dev agent) runs SAST, SCA, coverage → findings."},
+    {n:['qap','portal','opa','state'], t:"Quality gate: the <b>QA Engineer</b> arbitrates the findings → qa_approved, sast_clean evidence."},
+    {n:['a_ops','sk_rel','s_rel','d_cicd','t_k8s','d_supply'], t:"<b>Release</b> step: evidence chain check, merge, deployment, signed artefacts."},
+    {n:['s_ops','feedback','o_dora','o_finops','o_audit'], t:"In production: <b>feedback</b> to the PDLC; DORA, token cost and audit trail updated."},
+  ]},
+  hotfix: {name:'Hotfix pipeline', steps:[
+    {n:['s_ops','d_runtime','o_trace'], t:"P1 incident detected in <b>production</b> (runtime alert / traces)."},
+    {n:['devp','planner','daemon'], t:"The dev runs <b>asac apply --pipeline hotfix</b>: spec step and coverage gate disabled, SAST kept."},
+    {n:['a_dev','h_cc','llmgw','mcp','t_git','s_dev'], t:"Dev agent in <b>assist</b> mode in the dev's harness: log analysis, root cause, fix validated by the dev."},
+    {n:['a_qa','d_sast','s_ver'], t:"Non-negotiable SAST → <b>sast_clean</b>, gate passed automatically."},
+    {n:['opa','d_policy','state'], t:"OPA checks: type Bug + priority P1 required for a direct production deployment."},
+    {n:['a_ops','d_cicd','t_k8s','s_rel'], t:"Direct production deployment — the target design aims for a short trigger-to-production time."},
+  ]},
+  agent: {name:"Anatomy of an agent", steps:[
+    {n:['a_dev'], t:"An <b>agent</b> is not a model: it is a composition declared in asac.yaml."},
+    {n:['a_dev','s_dev'], t:"It fulfils a <b>capability</b> (the WHAT): implementation, carried by an SDLC step."},
+    {n:['a_dev','sk_java','registry'], t:"The <b>skill</b> (the HOW) comes from the registry, versioned and portable: java/implementation@3.0.0."},
+    {n:['a_dev','h_cc','h_cur','runner'], t:"The <b>harness</b> (the RUNTIME) is chosen in layer 2. The skill is mounted into it through a native adapter. Cursor = assist only; delegate requires a headless runtime."},
+    {n:['h_cc','llmgw','m_claude','m_wx'], t:"The <b>provider</b> (the BRAIN) is reached through the LLM Gateway: routing, quotas, metering."},
+    {n:['h_cc','mcp','t_git','t_vault'], t:"The <b>tools</b> (the HANDS) go through the MCP Gateway, with least-privilege authorisation."},
+    {n:['opa','state','d_agentsec'], t:"All of it is framed by the <b>OPA gates</b>, the sandbox and the evidence chain."},
+  ]},
+};
+
+// ---------- LAYOUT ----------
+const canvas = document.getElementById('canvas');
+const svg = document.getElementById('edges');
+canvas.style.width = W+'px'; canvas.style.height = H+'px';
+svg.setAttribute('width',W); svg.setAttribute('height',H);
+
+const pos = {};
+const nodeEls = {}, bandEls = {};
+const hidden = new Set();
+
+BANDS.forEach(b=>{
+  const L = LAYERS[b.layer];
+  const el = document.createElement('div');
+  el.className='band';
+  Object.assign(el.style,{left:b.x+'px',top:b.y+'px',width:b.w+'px',height:b.h+'px',
+    borderColor:L.color+'55',background:L.color+'0d'});
+  el.innerHTML=`<div class="band-label" style="color:${L.color}">${L.label}</div>`+(b.sub?`<div class="band-sub">${b.sub}</div>`:'');
+  canvas.appendChild(el); bandEls[b.layer]=el;
+
+  const ns = NODES.filter(n=>n.layer===b.layer);
+  const pad=12, top=30;
+  if(b.vertical){
+    const nh=56, gap=(b.h-top-pad-ns.length*nh)/Math.max(1,ns.length-1);
+    ns.forEach((n,i)=>{ pos[n.id]={x:b.x+pad,y:b.y+top+i*(nh+Math.min(gap,40)),w:b.w-2*pad,h:nh}; });
+  } else if(b.layer==='tools'){
+    const mcp = ns.find(n=>n.wide), rest = ns.filter(n=>!n.wide);
+    pos[mcp.id]={x:b.x+pad,y:b.y+top,w:b.w-2*pad,h:52};
+    const nw=(b.w-pad*(rest.length+1))/rest.length;
+    rest.forEach((n,i)=>{ pos[n.id]={x:b.x+pad+i*(nw+pad),y:b.y+top+80,w:nw,h:56}; });
+  } else {
+    const nw=(b.w-pad*(ns.length+1))/ns.length;
+    ns.forEach((n,i)=>{ pos[n.id]={x:b.x+pad+i*(nw+pad),y:b.y+top,w:nw,h:58}; });
+  }
+});
+
+NODES.forEach(n=>{
+  const p=pos[n.id], L=LAYERS[n.layer];
+  const el=document.createElement('div');
+  el.className='node';
+  Object.assign(el.style,{left:p.x+'px',top:p.y+'px',width:p.w+'px',height:p.h+'px',borderColor:L.color+'aa'});
+  el.innerHTML=`<div class="n-title" style="color:${L.color}">${n.t}</div><div class="n-sub">${n.s||''}</div><span class="lt" style="display:none"></span>`;
+  el.onclick=e=>{e.stopPropagation(); stopFlow(true); select(n.id);};
+  canvas.appendChild(el); nodeEls[n.id]=el;
+});
+
+const nodeById = Object.fromEntries(NODES.map(n=>[n.id,n]));
+const edgeEls = EDGES.map(([a,b,label])=>{
+  const pa=pos[a], pb=pos[b];
+  const ca={x:pa.x+pa.w/2,y:pa.y+pa.h/2}, cb={x:pb.x+pb.w/2,y:pb.y+pb.h/2};
+  // anchor on box edge
+  const anchor=(p,c,o)=>{
+    const dx=o.x-c.x, dy=o.y-c.y;
+    if(Math.abs(dy)*p.w > Math.abs(dx)*p.h) return {x:c.x, y: dy>0? p.y+p.h : p.y, v:true};
+    return {x: dx>0? p.x+p.w : p.x, y:c.y, v:false};
+  };
+  const s=anchor(pa,ca,cb), t=anchor(pb,cb,ca);
+  const k=0.45;
+  const c1 = s.v? {x:s.x,y:s.y+(t.y-s.y)*k} : {x:s.x+(t.x-s.x)*k,y:s.y};
+  const c2 = t.v? {x:t.x,y:t.y-(t.y-s.y)*k} : {x:t.x-(t.x-s.x)*k,y:t.y};
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',`M${s.x},${s.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${t.x},${t.y}`);
+  path.setAttribute('class','edge');
+  svg.appendChild(path);
+  return {a,b,label,el:path};
+});
+
+// ---------- FILTERS ----------
+const filters=document.getElementById('filters');
+Object.entries(LAYERS).forEach(([k,L])=>{
+  const c=document.createElement('div');
+  c.className='chip'; c.innerHTML=`<span class="dot" style="background:${L.color}"></span>${L.label.split(' —')[0]}`;
+  c.onclick=()=>{ hidden.has(k)?hidden.delete(k):hidden.add(k); c.classList.toggle('off'); render(); };
+  filters.appendChild(c);
+});
+
+// ---------- STATE / RENDER ----------
+let selected=null, flowSet=null, flowEdgesSet=null;
+
+function render(){
+  const focus = flowSet || (selected ? neighborhood(selected) : null);
+  const lm = lensMap();
+  NODES.forEach(n=>{
+    const el=nodeEls[n.id];
+    const isHidden=hidden.has(n.layer);
+    const li = lm && lm.get(n.id);
+    el.style.display=isHidden?'none':'flex';
+    el.classList.toggle('dim', (!!focus && !focus.has(n.id)) || (!!lm && !li));
+    el.classList.toggle('sel', selected===n.id && !flowSet);
+    el.classList.toggle('flow', !!flowSet && flowSet.has(n.id));
+    el.classList.toggle('tgt', !!li && li.cls==='tgt');
+    el.classList.toggle('grd', !!li && li.cls==='grd');
+    const tag=el.querySelector('.lt');
+    tag.textContent = li ? li.tag : '';
+    tag.style.display = li ? '' : 'none';
+  });
+  BANDS.forEach(b=>{ bandEls[b.layer].style.opacity = hidden.has(b.layer)?.15:1; });
+  edgeEls.forEach(e=>{
+    const vis=!hidden.has(nodeById[e.a].layer)&&!hidden.has(nodeById[e.b].layer);
+    let on=false;
+    if(flowSet) on=flowEdgesSet.has(e);
+    else if(selected) on=(e.a===selected||e.b===selected);
+    e.el.style.display=vis?'':'none';
+    e.el.classList.toggle('hl',on);
+    e.el.classList.toggle('flowing',on && !!flowSet);
+    e.el.style.stroke = on ? (flowSet?'#3fb950':LAYERS[nodeById[selected===e.a?e.b:e.a].layer].color) : '';
+    const lensOut = !!lm && !(lm.has(e.a)&&lm.has(e.b));
+    e.el.style.opacity = ((focus && !on) || lensOut) ? .08 : 1;
+  });
+}
+
+// ---------- LENSES ----------
+// Levels, autonomy, pillars and threats: indicative overlays aligned with spec v0.4 and six-pillars.html. Not normative.
+const LVL_NAMES={0:'observe',1:'assist + gates',2:'OPA gates',3:'delegate',4:'policy-governed'};
+const LVL={
+  0:"biz po mgr devp ba qap backlog s_req s_spec s_dev s_ver s_rel s_ops h_cc h_cur h_bob h_cop llmgw m_claude m_wx m_oai m_local mcp t_git t_jira t_sonar t_slack o_trace d_sast d_secret sk_spec sk_java sk_qa a_ba a_spec a_dev a_qa portal",
+  1:"manifest state planner registry t_mem discovery strategy roadmap feedback o_dora o_audit d_sca",
+  2:"opa d_policy o_finops o_evals d_supply t_vault",
+  3:"daemon runner a_ops a_sec sk_rel t_k8s d_cicd",
+  4:"o_maturity d_runtime d_agentsec"};
+const LEVEL={};
+Object.entries(LVL).forEach(([l,ids])=>ids.split(' ').forEach(i=>LEVEL[i]=+l));
+
+const AUT_LABEL={readonly:'read-only',review:'review',autonomous:'autonomous'};
+const AUT={
+  readonly:"a_sec o_dora o_finops o_evals o_audit o_maturity o_trace d_sast d_sca d_secret d_policy d_runtime strategy roadmap feedback t_mem discovery",
+  review:"a_ba a_spec a_dev a_qa a_ops",
+  autonomous:"daemon runner"};
+const AUT_DESC={
+  readonly:"The agent observes, reads and proposes. No writes, no action on an external system.",
+  review:"The agent acts within its scope, but every output goes through a human gate before taking effect.",
+  autonomous:"The agent acts without a human gate within its scope. Outside its scope, it escalates automatically."};
+
+const PIL_NAMES=['','Instructions','Knowledge','Skills','Tools','Orchestration','Control'];
+const PIL_DESC=['',
+  "Versioned project rules, projected by the adapter to CLAUDE.md, AGENTS.md or .cursor/rules.",
+  "Knowledge with provenance and freshness: OKF, MCP, memory.",
+  "Versioned procedures in the registry, mounted into the harness.",
+  "System access via the MCP Gateway, with least-privilege authorisation.",
+  "Pipeline, agents, dispatch and sub-agents.",
+  "Gates, policies, evidence, hooks, budgets, audit and evaluation."];
+const PIL={
+  1:"manifest h_cc h_bob h_cop h_cur",
+  2:"t_mem discovery feedback",
+  3:"sk_spec sk_java sk_qa sk_rel registry",
+  4:"mcp t_git t_jira t_sonar t_vault t_k8s t_slack",
+  5:"planner daemon runner a_ba a_spec a_dev a_qa a_ops a_sec s_req s_spec s_dev s_ver s_rel s_ops",
+  6:"opa state d_policy d_secret d_sast d_sca d_supply d_agentsec d_runtime d_cicd o_audit o_maturity o_evals o_dora o_finops o_trace qap portal"};
+
+const THR={
+  inj:{name:"Prompt injection",
+    text:"An untrusted input (ticket, comment, web page read by the agent) hijacks its behaviour. Guard: Runner sandbox, network allowlist, input filtering (d_agentsec); out-of-scope actions are blocked.",
+    targets:"h_cc h_bob h_cop h_cur a_dev a_ba a_spec a_qa mcp", guards:"d_agentsec runner"},
+  slop:{name:"Slopsquatting",
+    text:"The agent imports a hallucinated package, later published by an attacker. Guard: deps_verified evidence (existence checked deterministically, allowlist) on the SCA side, and an OPA policy.",
+    targets:"a_dev sk_java s_dev", guards:"d_sca d_policy"},
+  steer:{name:"Dependency steering",
+    text:"A silently modified skill imposes malicious dependencies or behaviours. Guard: skills signed and pinned by digest, allowlist in Rego.",
+    targets:"registry sk_java sk_spec sk_qa sk_rel", guards:"d_supply d_policy"},
+  degr:{name:"Iterative degradation",
+    text:"After several LLM refinements, code security can regress. Guard: no_regression policy between iterations, SAST and evals; iteration cap via budget.",
+    targets:"a_dev a_qa s_dev s_ver", guards:"opa o_evals d_sast"}};
+Object.values(THR).forEach(t=>{ t.targets=t.targets.split(' '); t.guards=t.guards.split(' '); });
+
+let lens=null, lv=0, lPil=1, lThr='inj';
+const LV_TEXT=()=>`L${lv} · ${LVL_NAMES[lv]}`;
+
+function lensMap(){
+  if(!lens) return null;
+  const m=new Map();
+  if(lens==='mat'){
+    NODES.forEach(n=>{ const l=LEVEL[n.id]; if(l!==undefined && l<=lv) m.set(n.id,{tag:'L'+l}); });
+  } else if(lens==='aut'){
+    Object.entries(AUT).forEach(([k,ids])=>ids.split(' ').forEach(i=>m.set(i,{tag:AUT_LABEL[k]})));
+  } else if(lens==='pil'){
+    PIL[lPil].split(' ').forEach(i=>m.set(i,{tag:'P'+lPil}));
+  } else if(lens==='thr'){
+    const t=THR[lThr];
+    t.targets.forEach(i=>m.set(i,{tag:'target',cls:'tgt'}));
+    t.guards.forEach(i=>m.set(i,{tag:'guard',cls:'grd'}));
+  }
+  return m;
+}
+
+function renderLensCtl(){
+  const c=document.getElementById('lensCtl');
+  if(lens==='mat'){
+    c.innerHTML=`<input type="range" min="0" max="4" value="${lv}" class="lv-bar" oninput="setLv(this.value)"><span class="hint" id="lvLabel">${LV_TEXT()}</span>`;
+  } else if(lens==='pil'){
+    c.innerHTML=[1,2,3,4,5,6].map(i=>`<button class="chip ${lPil===i?'on':''}" onclick="setPil(${i})">P${i} ${PIL_NAMES[i]}</button>`).join('');
+  } else if(lens==='thr'){
+    c.innerHTML=Object.entries(THR).map(([k,t])=>`<button class="chip ${lThr===k?'on':''}" onclick="setThr('${k}')">${t.name}</button>`).join('');
+  } else {
+    c.innerHTML='';
+  }
+}
+
+function setLens(k){
+  lens = (lens===k) ? null : k;
+  document.querySelectorAll('#lensbar [data-lens]').forEach(b=>b.classList.toggle('on', b.dataset.lens===lens));
+  if(lens){ stopFlow(true); selected=null; }
+  renderLensCtl(); render();
+  lens ? lensPanel() : intro();
+}
+function setLv(v){ lv=+v; const l=document.getElementById('lvLabel'); if(l) l.textContent=LV_TEXT(); render(); lensPanel(); }
+function setPil(i){ lPil=i; renderLensCtl(); render(); lensPanel(); }
+function setThr(k){ lThr=k; renderLensCtl(); render(); lensPanel(); }
+function clearLens(){
+  lens=null;
+  document.querySelectorAll('#lensbar [data-lens]').forEach(b=>b.classList.remove('on'));
+  document.getElementById('lensCtl').innerHTML='';
+}
+
+function lensPanel(){
+  const li=(ids)=>ids.map(i=>`<div class="p-link" onclick="select('${i}')"><span class="dot" style="background:${LAYERS[nodeById[i].layer].color}"></span>${nodeById[i].t}</div>`).join('');
+  let h='';
+  if(lens==='mat'){
+    h=`<h2>Maturity L0→L4</h2>
+      <div class="hint">Components introduced beyond the chosen level are dimmed. The levels suggest an adoption order; they are not a rule.</div>
+      <div class="p-list">${[0,1,2,3,4].map(l=>`<div class="p-link" style="${l===lv?'border-color:#58a6ff':''}"><b>L${l}</b>&nbsp;${LVL_NAMES[l]}<span class="rel">${LVL[l].split(' ').length}</span></div>`).join('')}</div>`;
+  } else if(lens==='aut'){
+    h=`<h2>Autonomy</h2>
+      <div class="hint">The mode (<code>assist</code> / <code>delegate</code>) says <b>where</b> a step runs. Autonomy says <b>how much freedom</b> it has.</div>
+      ${Object.keys(AUT).map(k=>`<div><div class="p-sec">${AUT_LABEL[k]}</div><div class="hint" style="margin-bottom:6px">${AUT_DESC[k]}</div><div class="p-list">${li(AUT[k].split(' '))}</div></div>`).join('')}`;
+  } else if(lens==='pil'){
+    h=`<h2>P${lPil} · ${PIL_NAMES[lPil]}</h2>
+      <div class="hint">${PIL_DESC[lPil]}</div>
+      <div><div class="p-sec">Components (${PIL[lPil].split(' ').length})</div><div class="p-list">${li(PIL[lPil].split(' '))}</div></div>
+      <div class="hint">Reference: <a href="six-pillars.html">six-pillars.html</a></div>`;
+  } else if(lens==='thr'){
+    const t=THR[lThr];
+    h=`<h2>${t.name}</h2>
+      <div class="p-desc">${t.text}</div>
+      <div><div class="p-sec">Targets</div><div class="p-list">${li(t.targets)}</div></div>
+      <div><div class="p-sec">Guards</div><div class="p-list">${li(t.guards)}</div></div>
+      <div class="hint">Indicative overlay, to be validated by the security team.</div>`;
+  }
+  panel.innerHTML=h;
+}
+
+function neighborhood(id){
+  const s=new Set([id]);
+  edgeEls.forEach(e=>{ if(e.a===id) s.add(e.b); if(e.b===id) s.add(e.a); });
+  return s;
+}
+
+const panel=document.getElementById('panel');
+function select(id){
+  selected=id; render();
+  const n=nodeById[id], L=LAYERS[n.layer];
+  const links=edgeEls.filter(e=>e.a===id||e.b===id).map(e=>{
+    const other=e.a===id?e.b:e.a, o=nodeById[other], dir=e.a===id?'→':'←';
+    return `<div class="p-link" onclick="select('${other}')"><span class="dot" style="background:${LAYERS[o.layer].color}"></span>${o.t}<span class="rel">${dir} ${e.label||''}</span></div>`;
+  }).join('');
+  panel.innerHTML=`
+    <div><span class="p-layer" style="background:${L.color}22;color:${L.color}">${L.label}</span></div>
+    <h2>${n.t}</h2>
+    <div class="p-desc">${n.d||''}</div>
+    ${n.y?`<div><div class="p-sec">In ASAC</div><pre>${n.y}</pre></div>`:''}
+    <div><div class="p-sec">Connexions (${edgeEls.filter(e=>e.a===id||e.b===id).length})</div><div class="p-list">${links}</div></div>`;
+}
+
+function intro(){
+  panel.innerHTML=`
+    <h2>ASAC architecture map</h2>
+    <div class="hint">
+      From business intent down to the tools, through the PDLC, the SDLC, the ASAC control plane, the agents and their composition (skill + harness + LLM + tools), with DevSecOps and observability as cross-cutting concerns.<br><br>
+      <b>Click</b> a component to see its role, its ASAC declaration and its connections.<br>
+      <b>Filter</b> layers at the top.<br>
+      <b>▶ Walkthroughs</b> to follow a flow step by step (← → on the keyboard).<br>
+      <b>Wheel</b> to zoom, <b>drag</b> to pan.
+    </div>
+    <div><div class="p-sec">Vertical reading</div>
+    <div class="legend">
+      ${Object.entries(LAYERS).map(([k,L])=>`<div class="lg"><span class="sw" style="background:${L.color}33;border-color:${L.color}"></span>${L.label}</div>`).join('')}
+    </div></div>
+    <div><div class="p-sec">The composition rule</div>
+<pre><span class="k">capability</span> = WHAT     <span class="c"># step SDLC</span>
+<span class="k">skill</span>      = HOW      <span class="c"># registry</span>
+<span class="k">harness</span>    = RUNTIME  <span class="c"># var.xxx</span>
+<span class="k">provider</span>   = BRAIN    <span class="c"># LLM gateway</span>
+<span class="k">tools</span>      = HANDS    <span class="c"># MCP gateway</span>
+<span class="k">agent</span>      = skill + harness + provider + tools</pre></div>`;
+}
+
+// ---------- FLOWS ----------
+let flow=null, fi=0;
+const fb=document.getElementById('flowbar');
+function startFlow(k){ flow=FLOWS[k]; fi=0; selected=null; fb.classList.add('on'); showFlow(); }
+function showFlow(){
+  const st=flow.steps[fi];
+  flowSet=new Set(st.n);
+  flowEdgesSet=new Set(edgeEls.filter(e=>flowSet.has(e.a)&&flowSet.has(e.b)));
+  document.getElementById('fbStep').textContent=`${flow.name} · ${fi+1}/${flow.steps.length}`;
+  document.getElementById('fbText').innerHTML=st.t;
+  render();
+  const n=nodeById[st.n[st.n.length-1]];
+  selectPanelOnly(n.id);
+}
+function selectPanelOnly(id){ const keep=selected; select(id); selected=keep; render(); }
+function flowNext(){ if(!flow) return; fi=Math.min(fi+1,flow.steps.length-1); showFlow(); }
+function flowPrev(){ if(!flow) return; fi=Math.max(fi-1,0); showFlow(); }
+function stopFlow(silent){ flow=null; flowSet=null; flowEdgesSet=null; fb.classList.remove('on'); if(!silent){render();} }
+function resetView(){ stopFlow(true); clearLens(); selected=null; hidden.clear(); document.querySelectorAll('.chip').forEach(c=>c.classList.remove('off')); render(); intro(); fit(); }
+document.addEventListener('keydown',e=>{
+  if(!flow) return;
+  if(e.key==='ArrowRight') flowNext();
+  if(e.key==='ArrowLeft') flowPrev();
+  if(e.key==='Escape') stopFlow();
+});
+
+// ---------- PAN / ZOOM ----------
+const stage=document.getElementById('stage');
+let scale=1, tx=0, ty=0;
+function apply(){ canvas.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+function fit(){
+  const r=stage.getBoundingClientRect();
+  scale=Math.min(r.width/(W+20), r.height/(H+20));
+  tx=(r.width-W*scale)/2; ty=(r.height-H*scale)/2; apply();
+}
+function zoomBy(f,cx,cy){
+  const r=stage.getBoundingClientRect();
+  cx=cx??r.width/2; cy=cy??r.height/2;
+  const ns=Math.max(.3,Math.min(3,scale*f));
+  tx=cx-(cx-tx)*ns/scale; ty=cy-(cy-ty)*ns/scale; scale=ns; apply();
+}
+stage.addEventListener('wheel',e=>{
+  e.preventDefault(); const r=stage.getBoundingClientRect();
+  zoomBy(e.deltaY<0?1.1:1/1.1, e.clientX-r.left, e.clientY-r.top);
+},{passive:false});
+let drag=null;
+stage.addEventListener('mousedown',e=>{ if(e.target.closest('.node,.btn,.flowbar')) return; drag={x:e.clientX,y:e.clientY,tx,ty,moved:false}; });
+window.addEventListener('mousemove',e=>{ if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true; tx=drag.tx+dx; ty=drag.ty+dy; apply(); });
+window.addEventListener('mouseup',e=>{
+  if(drag && !drag.moved && !e.target.closest('.node,.btn,.flowbar,.zoom')){ if(!flow){ selected=null; render(); lens ? lensPanel() : intro(); } }
+  drag=null;
+});
+window.addEventListener('resize',fit);
+
+intro(); render(); fit();
+</script>
+<div class="footer">Illustrative architecture, spec v0.4. Not normative. Apache 2.0. <a href="six-pillars.html">Six pillars</a> · <a href="scenarios.html">Scenarios</a> · <a href="readme-overview.html">Overview</a></div>
+</body>
+</html>

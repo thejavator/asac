@@ -1,0 +1,3 @@
+error ASAC024 providers.jira.mcp: give exactly one of 'command' or 'url'
+1 error(s), 4 warning(s)
+exit=1

@@ -1,0 +1,2 @@
+error ASAC000 asac.spec: unsupported spec version (this build supports 0.4): Input should be '0.4'
+exit=1

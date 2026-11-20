@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASAC × the 6 pillars of Harness Engineering</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --ink:#e6edf3;--muted:#8b949e;
+  --blue:#58a6ff;--blue-soft:#1f6feb;--blue-bg:rgba(31,111,235,.1);
+  --green:#3fb950;--green-soft:#238636;--green-bg:#dafbe1;
+  --orange:#d29922;--orange-bg:#fff8c5;
+  --violet:#d2a8ff;--violet-soft:#8957e5;--violet-bg:#fbefff;
+  --teal-bg:#ddf4ff;--red-bg:#ffebe9;
+  --paper-bg:#f6f8fa;--paper:#fff;--paper-border:#d0d7de;
+  --paper-ink:#1f2328;--paper-muted:#656d76;
+  --mono:"SF Mono","Fira Code","Cascadia Code",monospace;
+  --radius:6px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.6;color:var(--paper-ink);background:var(--paper-bg)}
+a{color:var(--blue-soft);text-decoration:none}
+
+/* TOPBAR */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.topbar .inner{max-width:1280px;margin:auto;padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;color:var(--ink)}
+.brand .logo{background:linear-gradient(135deg,var(--blue),var(--violet));
+  width:28px;height:28px;border-radius:6px;display:grid;place-items:center;
+  font-weight:900;font-size:12px;color:white}
+.badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;
+  background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.badge.new{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-soft)}
+.nav{display:flex;gap:4px;flex-wrap:wrap}
+.nav a{font-size:12px;color:var(--muted);padding:5px 10px;border-radius:6px;
+  border:1px solid transparent}
+.nav a:hover{background:var(--surface2);color:var(--ink);border-color:var(--border)}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+
+/* HERO */
+.hero{background:var(--bg);color:var(--ink);padding:48px 0 36px;border-bottom:1px solid var(--border)}
+.eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);margin-bottom:8px}
+.hero h1{font-size:clamp(26px,4vw,44px);font-weight:900;line-height:1;letter-spacing:-.04em;margin-bottom:12px}
+.hero h1 span{color:var(--blue)}
+.hero .lead{font-size:15px;color:var(--muted);max-width:760px;margin-bottom:20px;line-height:1.6}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;
+  border:1px solid var(--border);color:var(--muted);background:var(--surface)}
+.pill.hi{border-color:var(--blue-soft);color:var(--blue);background:var(--blue-bg)}
+.pill.green{border-color:var(--green-soft);color:var(--green);background:rgba(35,134,54,.1)}
+
+/* CHANGELOG BANNER */
+.changelog{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:16px 20px;margin:24px 0;color:var(--ink)}
+.changelog .cl-title{font-size:12px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+.cl-items{display:flex;flex-direction:column;gap:6px}
+.cl-item{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.cl-tag{font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px;flex-shrink:0;margin-top:1px}
+.cl-new{background:rgba(35,134,54,.2);color:#3fb950}
+.cl-changed{background:rgba(31,111,235,.2);color:#58a6ff}
+.cl-removed{background:rgba(248,81,73,.15);color:#ff7b72}
+
+section{padding:40px 0;border-bottom:1px solid var(--paper-border)}
+section:last-of-type{border-bottom:none}
+.sh{margin-bottom:24px}
+.sh .eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--blue-soft);margin-bottom:6px}
+.sh h2{font-size:clamp(18px,3vw,28px);font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
+.sh p{color:var(--paper-muted);font-size:13.5px;max-width:760px}
+
+/* LAYERS */
+.layers{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.layer{padding:20px;border-right:1px solid var(--paper-border)}
+.layer:last-child{border-right:none}
+.layer-num{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--paper-muted);margin-bottom:6px}
+.layer-title{font-size:15px;font-weight:800;margin-bottom:4px}
+.layer-file{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:4px;
+  display:inline-block;margin-bottom:8px}
+.l1 .layer-file{background:#f0f7ff;color:#0969da;border:1px solid #54aeff}
+.l2 .layer-file{background:var(--orange-bg);color:#9a6700;border:1px solid #d4a72c}
+.l3 .layer-file{background:var(--violet-bg);color:#8250df;border:1px solid #c297ff}
+.layer-who{font-size:12px;color:var(--paper-muted);margin-bottom:6px}
+.layer-desc{font-size:12.5px;line-height:1.5}
+.layer-rule{font-size:11.5px;font-style:italic;color:var(--paper-muted);margin-top:8px;
+  padding-top:8px;border-top:1px solid var(--paper-border)}
+
+/* RESOURCE CARDS */
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.rc{border:1px solid var(--paper-border);border-radius:8px;padding:16px;background:white}
+.rt{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;
+  font-family:var(--mono);margin-bottom:8px}
+.rt-blue{background:#ddf4ff;color:#0969da;border:1px solid #54aeff}
+.rt-green{background:var(--green-bg);color:#1a7f37;border:1px solid #4ac26b}
+.rt-orange{background:var(--orange-bg);color:#9a6700;border:1px solid #d4a72c}
+.rt-violet{background:var(--violet-bg);color:#8250df;border:1px solid #c297ff}
+.rt-teal{background:var(--teal-bg);color:#1b7a8b;border:1px solid #39c5cf}
+.rt-red{background:var(--red-bg);color:#cf222e;border:1px solid #ff8182}
+.rt-gray{background:var(--paper-bg);color:#57606a;border:1px solid var(--paper-border)}
+.rc h3{font-size:13.5px;font-weight:800;margin-bottom:4px}
+.rc p{font-size:12.5px;color:var(--paper-muted);line-height:1.5}
+.rc-layer{font-size:10px;font-weight:700;margin-top:8px;padding-top:6px;
+  border-top:1px solid var(--paper-border);color:var(--paper-muted)}
+.rc-layer span{font-weight:800}
+
+/* CODE */
+pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 20px;font-family:var(--mono);font-size:12px;line-height:1.7;
+  color:#e6edf3;overflow-x:auto;margin:0}
+.ph{background:var(--surface2);border:1px solid var(--border);
+  border-bottom:none;border-radius:var(--radius) var(--radius) 0 0;
+  padding:8px 14px;display:flex;align-items:center;justify-content:space-between}
+.ph .pt{font-size:12px;font-weight:600;color:var(--muted);font-family:var(--mono)}
+.ph .pl{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
+  background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.ph+pre{border-radius:0 0 var(--radius) var(--radius)}
+.cw{margin-bottom:20px}
+
+/* Syntax */
+.kw{color:#ff7b72}.str{color:#a5d6ff}.cm{color:#8b949e;font-style:italic}
+.key{color:#79c0ff}.type{color:#ffa657}.num{color:#79c0ff}.bool{color:#ff7b72}
+.fn{color:#d2a8ff}.var{color:#3fb950}
+.g{color:#3fb950}.b{color:#58a6ff}.v{color:#d2a8ff}.o{color:#ffa657}.r{color:#ff7b72}
+
+/* CALLOUT */
+.co{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13px;line-height:1.5}
+.co-blue{background:#f0f7ff;border:1px solid #54aeff;border-left:4px solid #0969da}
+.co-green{background:var(--green-bg);border:1px solid #4ac26b;border-left:4px solid #1a7f37}
+.co-orange{background:var(--orange-bg);border:1px solid #d4a72c;border-left:4px solid #9a6700}
+.co strong{font-weight:800}
+
+/* CLI TABLE */
+.ct{width:100%;border-collapse:separate;border-spacing:0;background:white;
+  border:1px solid var(--paper-border);border-radius:8px;overflow:hidden}
+.ct th,.ct td{padding:9px 13px;text-align:left;border-bottom:1px solid var(--paper-border);
+  font-size:12.5px;vertical-align:top}
+.ct th{background:var(--paper-bg);font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--paper-muted)}
+.ct td:first-child{font-family:var(--mono);font-size:11px;font-weight:700;color:#0969da;white-space:nowrap}
+.ct tr:last-child td{border-bottom:none}
+.cg{background:#f0f7ff !important}
+.cg td{font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--paper-muted);padding:5px 13px}
+
+/* SCHEMA */
+.st{width:100%;border-collapse:separate;border-spacing:0;background:white;
+  border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.st th,.st td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--paper-border);
+  border-right:1px solid var(--paper-border);font-size:12px;vertical-align:top}
+.st th:last-child,.st td:last-child{border-right:none}
+.st tr:last-child td{border-bottom:none}
+.st thead tr{background:var(--paper-bg)}
+.st th{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--paper-muted)}
+.st td:first-child{font-family:var(--mono);font-size:11px;color:#0969da;font-weight:700}
+.st td:nth-child(2){font-family:var(--mono);font-size:11px;color:#8250df}
+
+/* REGISTRY ROWS */
+.rr{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--paper-border)}
+.rr:last-child{border-bottom:none}
+.rn{font-family:var(--mono);font-size:13px;font-weight:700;color:#0969da;min-width:220px}
+.rv{font-size:11px;background:var(--paper-bg);border:1px solid var(--paper-border);
+  padding:2px 7px;border-radius:4px;font-family:var(--mono)}
+.rtype{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.official{background:var(--green-bg);color:#1a7f37}
+.community{background:var(--paper-bg);color:#57606a}
+.rd{font-size:12px;color:var(--paper-muted);flex:1}
+
+/* HARNESS INTERFACE */
+.hi-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* DIVIDER */
+.sep{height:1px;background:var(--paper-border);margin:24px 0}
+
+footer{padding:28px 0 48px;color:var(--paper-muted);font-size:12px;
+  border-top:1px solid var(--paper-border)}
+.fi{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+@media(max-width:960px){.rg,.layers,.hi-grid{grid-template-columns:1fr 1fr}.layers{grid-template-columns:1fr}}
+@media(max-width:640px){.wrap,.topbar .inner{padding-left:14px;padding-right:14px}
+  .rg{grid-template-columns:1fr}.nav{display:none}}
+
+.mx{width:100%;border-collapse:separate;border-spacing:0;background:white;border:1px solid var(--paper-border);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.mx th,.mx td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--paper-border);border-right:1px solid var(--paper-border);font-size:12.5px;vertical-align:top}
+.mx th:last-child,.mx td:last-child{border-right:none}.mx tr:last-child td{border-bottom:none}
+.mx thead th{background:var(--paper-bg);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--paper-muted)}
+.mx td:first-child{font-weight:800}
+.gap{display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;background:var(--orange-bg);color:#9a6700;border:1px solid #d4a72c}
+.ok{display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;background:var(--green-bg);color:#1a7f37;border:1px solid #4ac26b}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:960px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="inner">
+  <div class="brand"><div class="logo">A</div>ASAC <span class="badge">harness engineering</span><span class="badge new">spec v0.4</span></div>
+  <div class="nav"><a href="#vocab">Vocabulary</a><a href="#map">6 pillars</a><a href="#agent">Agent card</a><a href="#matrix">Stages × pillars</a><a href="#limits">Limits</a></div>
+</div></div>
+
+<div class="hero"><div class="wrap">
+  <div class="eyebrow">Mapping</div>
+  <h1><span>ASAC</span> × the 6 pillars</h1>
+  <p class="lead">Harness engineering describes what to build around a model to get a reliable agent: Instructions, Knowledge, Skills, Tools, Orchestration, Control. This page shows where each pillar lives in ASAC and what v0.4 adds to close the gaps.</p>
+  <div class="pills"><div class="pill hi">Agent = Model + Harness</div><div class="pill green">6 pillars → primitives</div></div>
+</div></div>
+
+<main class="wrap">
+
+<section id="vocab">
+  <div class="sh"><div class="eyebrow">Vocabulary</div><h2>Two meanings of the word "harness"</h2>
+  <p>The word refers to two things at different levels. Mixing them up makes discussions confusing.</p></div>
+  <table class="mx">
+    <thead><tr><th>Term</th><th>Meaning</th><th>In ASAC</th></tr></thead>
+    <tbody>
+      <tr><td>Harness engineering</td><td>Discipline: designing everything around the model (instructions, knowledge, skills, tools, orchestration, control)</td><td>The whole <code>asac.yaml</code> manifest + policies</td></tr>
+      <tr><td>Harness (runtime)</td><td>Product that runs the agentic loop: for example Claude Code, Copilot, Cursor, or Bob</td><td><code>harness</code> resource (v0.3), interface <code>asac/harness-interface@2.0</code></td></tr>
+    </tbody>
+  </table>
+  <div class="co co-blue"><strong>Reading rule:</strong> "harness" in the broad sense = the 6 pillars; "<code>harness</code>" in the YAML = the runtime. Skills are part of the harness in the broad sense (pillar 3) but not part of the runtime: they are mounted by an adapter.</div>
+</section>
+
+<section id="map">
+  <div class="sh"><div class="eyebrow">Mapping</div><h2>Where each pillar lives in ASAC</h2></div>
+  <table class="mx">
+    <thead><tr><th>Pillar</th><th>Content</th><th>ASAC primitive</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1. Instructions</td><td>System prompts, CLAUDE.md / AGENTS.md, output contracts, "never X", escalation rules</td><td><code>instruction</code> (+ harness adapter)</td><td><span class="gap">NEW v0.4</span></td></tr>
+      <tr><td>2. Knowledge</td><td>Structured documentation (OKF), RAG, graph, memory, freshness, context budget</td><td><code>knowledge</code></td><td><span class="gap">NEW v0.4</span></td></tr>
+      <tr><td>3. Skills</td><td>Reusable, versioned procedures</td><td><code>skill</code> + registry</td><td><span class="ok">v0.2</span> + digest and signature (v0.4)</td></tr>
+      <tr><td>4. Tools</td><td>Access to systems (MCP), sandbox, human approval as a tool</td><td><code>provider</code> + MCP Gateway + <code>execution.sandbox</code></td><td><span class="ok">v0.2-0.3</span></td></tr>
+      <tr><td>5. Orchestration</td><td>Pipeline, sub-agents, critique/reflection, iteration limits</td><td><code>pipeline</code>, <code>step</code>, <code>agent</code>, <code>budget.per_step</code></td><td><span class="ok">v0.2</span> + budgets (v0.4)</td></tr>
+      <tr><td>6. Control</td><td>Hooks, gates, budgets, kill-switch, audit, evals</td><td><code>gate</code>, <code>evidenceType</code>, <code>.rego</code>, <code>hook</code>, <code>budget</code>, <code>autonomy</code></td><td><span class="ok">gates, evidence</span> + <span class="gap">hooks, budgets, autonomy v0.4</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="agent">
+  <div class="sh"><div class="eyebrow">Agent card</div><h2>An agent described by its 6 pillars</h2>
+  <p>The following card could be generated by a portal for each agent: it serves as a readable "charter" for the security officer, the manager and the product owner.</p></div>
+  <div class="two">
+    <div class="cw"><div class="ph"><span class="pt">dev agent — 6-pillar view</span><span class="pl">yaml</span></div>
+<pre style="font-size:11px"><span class="key">agent</span>: <span class="str">dev</span>
+  <span class="cm"># Model + runtime</span>
+  <span class="key">provider</span>: <span class="var">var.dev_model</span>
+  <span class="key">harness</span>:  <span class="var">var.dev_harness</span>
+
+  <span class="cm"># 1. Instructions</span>
+  <span class="key">instructions</span>: [<span class="str">security.md</span>, <span class="str">java-conventions.md</span>]
+  <span class="cm"># 2. Knowledge</span>
+  <span class="key">knowledge</span>:    [<span class="str">project-okf</span>]
+  <span class="cm"># 3. Skills</span>
+  <span class="key">skills</span>:       [<span class="str">java/implementation@3.0.0</span>]
+  <span class="cm"># 4. Tools</span>
+  <span class="key">tools</span>:        [<span class="str">gitlab</span>, <span class="str">sonar</span>]
+  <span class="cm"># 5. Orchestration</span>
+  <span class="key">handlesCapabilities</span>: [<span class="str">implementation</span>]
+  <span class="cm"># 6. Control</span>
+  <span class="key">autonomy</span>: <span class="str">review</span>
+  <span class="key">hooks</span>:    [<span class="str">secret-scan</span>, <span class="str">deps-verify</span>]</pre></div>
+    <div>
+      <p style="font-size:13px;font-weight:700;margin-bottom:8px">What the card answers</p>
+      <table class="st"><thead><tr><th>Question</th><th>Pillar</th></tr></thead><tbody>
+        <tr><td>Which rules does it follow?</td><td>1</td></tr>
+        <tr><td>What can it read, and is it up to date?</td><td>2</td></tr>
+        <tr><td>Which procedure does it apply?</td><td>3</td></tr>
+        <tr><td>Which systems does it access?</td><td>4</td></tr>
+        <tr><td>Who reviews it, and how many iterations?</td><td>5</td></tr>
+        <tr><td>What stops or escalates it?</td><td>6</td></tr>
+      </tbody></table>
+      <div class="co co-orange"><strong>Note:</strong> the syntax shown here is a presentation proposal. In v0.4, <code>instructions</code>, <code>knowledge</code>, <code>budgets</code> and <code>hooks</code> are declared at the root of the manifest, as described in the v0.4 spec (frozen).</div>
+    </div>
+  </div>
+</section>
+
+<section id="matrix">
+  <div class="sh"><div class="eyebrow">Cross-cutting view</div><h2>Lifecycle stages × pillars</h2>
+  <p>What each pillar contributes at each stage of the <code>feature</code> pipeline. Cells are indicative.</p></div>
+  <table class="mx">
+    <thead><tr><th>Stage</th><th>Instructions</th><th>Knowledge</th><th>Skills</th><th>Tools</th><th>Orchestration</th><th>Control</th></tr></thead>
+    <tbody>
+      <tr><td>Discovery</td><td>Hills / PR-FAQ format</td><td>User research</td><td>core/discovery</td><td>Wiki, analytics</td><td>PO + BA</td><td>hills_defined, prfaq_approved</td></tr>
+      <tr><td>Requirements</td><td>Spec format</td><td>Business domain, ADRs</td><td>core/specification</td><td>Jira</td><td>BA → PO</td><td>spec_reviewed</td></tr>
+      <tr><td>Development</td><td>Conventions, "never X"</td><td>Code, project OKF</td><td>java/implementation</td><td>Git, build</td><td>dev; independent critique</td><td>tests_green, deps_verified, no_regression, budget</td></tr>
+      <tr><td>Verification</td><td>Acceptance criteria</td><td>Spec, bug history</td><td>core/quality-assurance</td><td>Sonar, CI</td><td>qa ≠ dev</td><td>sast_clean, coverage_passed, qa_approved</td></tr>
+      <tr><td>Release</td><td>Deployment rules</td><td>Runbooks</td><td>core/release</td><td>CD, registry</td><td>devops</td><td>tda_signed, deployed</td></tr>
+      <tr><td>Operate</td><td>Autonomy doctrine</td><td>Past incidents</td><td>core/incident</td><td>Observability</td><td>loop back to Plan</td><td>outcome_reviewed, kill-switch</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="limits">
+  <div class="sh"><div class="eyebrow">Limits</div><h2>What this page does not claim</h2></div>
+  <div class="co co-orange">
+    <p>• The primitives and fields of spec v0.4 are frozen in the spec; the reference CLI, portal and runner exist; the registry does not yet.</p>
+    <p>• The six pillars are a common way to describe harness engineering; this page is an original mapping to ASAC.</p>
+    <p>• The matrix cells illustrate a typical case, not a requirement.</p>
+  </div>
+</section>
+</main>
+<footer><div class="wrap"><div class="fi"><div><p style="font-weight:800;margin-bottom:4px">ASAC — Agentic SDLC as Code</p><p>ASAC harness engineering mapping, spec v0.4, Apache 2.0</p></div><div style="text-align:right"><a href="architecture-map.html">Architecture map</a> · <a href="six-pillars.html">Six pillars</a> · <a href="scenarios.html">Scenarios</a> · <a href="readme-overview.html">README overview</a></div></div></div></footer>
+</body></html>

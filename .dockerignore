@@ -1,0 +1,8 @@
+.venv
+.git
+site
+**/__pycache__
+.asac-state
+.pytest_cache
+.mypy_cache
+.ruff_cache

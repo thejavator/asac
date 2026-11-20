@@ -1,0 +1,3 @@
+error ASAC008 pipelines.feature: dependsOn contains a cycle
+1 error(s), 4 warning(s)
+exit=1

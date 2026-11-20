@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipeline · payments-service · ASAC</title>
+  <link rel="stylesheet" href="decision-room.css">
+  <link rel="stylesheet" href="run-detail.css">
+  <link rel="stylesheet" href="pipeline.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail" aria-label="Main navigation">
+    <div class="brand">ASAC <small>governance</small></div>
+
+    <div class="scope">
+      <b>payments-service</b>
+      <span>Acme · team payments</span>
+    </div>
+
+    <nav>
+      <ul class="nav">
+        <li><a href="#">Runs</a></li>
+        <li><a href="#">Decision Room <span class="count">3</span></a></li>
+        <li><a href="#">Errors <span class="count">1</span></a></li>
+        <li><a href="#" aria-current="page">Pipeline</a></li>
+        <li><a href="#">Variables</a></li>
+      </ul>
+      <ul class="nav">
+        <li><h2>Organisation</h2></li>
+        <li><a href="#">All projects</a></li>
+        <li><a href="#">Audit trail</a></li>
+        <li><a href="#">Administration</a></li>
+      </ul>
+    </nav>
+
+    <div class="who">
+      <b>Malik Benali</b>
+      <span>developer · payments</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <p class="crumbs"><a href="#">All projects</a> / <a href="#">payments-service</a> / Pipeline</p>
+
+    <div class="page-head">
+      <div>
+        <h1>Pipeline <span class="mono">feature</span></h1>
+        <p>Steps, the evidence each one needs and produces, and who signs each gate. Saved to git through a merge request.</p>
+      </div>
+      <div class="draft-state">
+        <span class="chip" data-state="bad">Draft has 1 error</span>
+        <span>Based on <a class="mono" href="#">3e1f9a7</a> on main · your draft is not in git yet</span>
+      </div>
+    </div>
+
+    <article class="sheet" aria-label="Feature pipeline">
+      <header>
+        <dl class="facts">
+          <div><dt>File</dt><dd class="mono">asac.yaml</dd></div>
+          <div><dt>Trigger</dt><dd>Jira issue_created, Story with label asac-enabled</dd></div>
+          <div><dt>Spec level</dt><dd>3</dd></div>
+          <div><dt>Timeout</dt><dd>72 h</dd></div>
+          <div><dt>Budget per run</dt><dd>$15 · 2 M tokens · 2 h</dd></div>
+        </dl>
+      </header>
+
+      <div class="section">
+        <h3>Flow and evidence</h3>
+        <div class="scroll-x">
+          <svg class="pipe-graph" viewBox="0 0 880 118" role="img"
+               aria-label="Four steps: requirements, development (selected, has an error), verification and release, in that order">
+            <path class="edge" d="M158 42 H236"/>
+            <path class="edge" d="M388 42 H466"/>
+            <path class="edge" d="M618 42 H696"/>
+            <g class="node" data-state="idle">
+              <rect x="8" y="10" width="150" height="66" rx="6"/>
+              <text x="20" y="32">requirements</text>
+              <text class="sub" x="20" y="50">ba · assist · review</text>
+              <text class="sub" x="20" y="66">gate: product_owner</text>
+            </g>
+            <g class="node" data-state="bad" aria-current="step">
+              <rect x="238" y="10" width="150" height="66" rx="6"/>
+              <text x="250" y="32">development</text>
+              <text class="sub" x="250" y="50">dev · delegate · review</text>
+              <text class="tag" x="250" y="66">✕ 1 error</text>
+            </g>
+            <g class="node" data-state="idle">
+              <rect x="468" y="10" width="150" height="66" rx="6"/>
+              <text x="480" y="32">verification</text>
+              <text class="sub" x="480" y="50">qa-agent · assist</text>
+              <text class="sub" x="480" y="66">gate: qa_engineer</text>
+            </g>
+            <g class="node" data-state="idle">
+              <rect x="698" y="10" width="150" height="66" rx="6"/>
+              <text x="710" y="32">release</text>
+              <text class="sub" x="710" y="50">devops · delegate</text>
+              <text class="sub" x="710" y="66">gate: product_owner</text>
+            </g>
+          </svg>
+        </div>
+        <p class="source-note">Each arrow carries the evidence that must exist before the next step may start.</p>
+      </div>
+
+      <div class="pipe-grid">
+
+        <div class="section">
+          <h3>Step inspector</h3>
+          <h4 class="inspector-title">development</h4>
+          <p class="inspector-sub">Edited in this draft. The line in red is the one to fix.</p>
+
+          <dl class="fields">
+            <dt>Agent</dt><dd class="mono">dev</dd>
+            <dt>Mode</dt><dd>delegate: the agent does the work, a runner executes it</dd>
+            <dt>Autonomy</dt><dd>review: a person checks the result before the next step</dd>
+            <dt>Depends on</dt><dd class="mono">requirements</dd>
+            <dt>Requires</dt><dd class="mono">spec_reviewed, integration_green</dd>
+            <dt>Produces</dt><dd class="mono">tests_green, mr_created, deps_verified</dd>
+            <dt>Policies</dt><dd class="mono">no_regression</dd>
+            <dt>Escalation</dt><dd>outside_scope goes to a human</dd>
+            <dt>Hooks</dt><dd class="mono">secret-scan (pre_tool, block) · deps-verify (post_step, block)</dd>
+          </dl>
+        </div>
+
+        <div class="section">
+          <h3>Manifest source</h3>
+          <pre class="source" aria-label="asac.yaml, development step"><span class="line"><span class="n">21</span><span class="context">  requirements:</span></span><span class="line"><span class="n">22</span><span class="context">    agent: ba</span></span><span class="line"><span class="n">23</span><span class="context">    gate: { type: human, role: product_owner, timeout: 24h }</span></span><span class="line"><span class="n">24</span><span class="context">  development:</span></span><span class="line"><span class="n">25</span><span class="key">    agent:</span> <span class="val">dev</span></span><span class="line"><span class="n">26</span><span class="key">    mode:</span> <span class="val">delegate</span></span><span class="line"><span class="n">27</span><span class="key">    autonomy:</span> <span class="val">review</span></span><span class="line"><span class="n">28</span><span class="key">    dependsOn:</span> <span class="val">[requirements]</span></span><span class="line" data-mark="bad"><span class="n">29</span><span class="key">    requiresEvidence:</span> <span class="val">[spec_reviewed, integration_green]</span></span><span class="line"><span class="n">30</span><span class="key">    producesEvidence:</span> <span class="val">[tests_green, mr_created, deps_verified]</span></span><span class="line"><span class="n">31</span><span class="key">    policies:</span> <span class="val">[no_regression]</span></span><span class="line"><span class="n">32</span><span class="key">    escalation:</span> <span class="val">{ outside_scope: human }</span></span><span class="line"><span class="n">33</span><span class="context">  verification:</span></span></pre>
+          <p class="source-note">Shown read-only here. The editor in the SPA edits this text and the graph together.</p>
+        </div>
+
+      </div>
+
+      <div class="section">
+        <h3>Checks on this draft</h3>
+        <ul class="checks">
+          <li data-state="bad">
+            <span class="sym" aria-hidden="true">&#10005;</span>
+            <span class="what"><b>development requires integration_green</b><span>No step produces it. It is not part of spec v0.4. Remove it, or add the step that produces it.</span></span>
+            <span class="chip" data-state="bad">Error</span>
+          </li>
+          <li data-state="ok">
+            <span class="sym" aria-hidden="true">&#10003;</span>
+            <span class="what"><b>Every other requirement is produced upstream</b><span>spec_reviewed, tests_green, mr_created, coverage_passed, sast_clean, qa_approved, deployed</span></span>
+            <span class="chip" data-state="ok">Passed</span>
+          </li>
+          <li data-state="ok">
+            <span class="sym" aria-hidden="true">&#10003;</span>
+            <span class="what"><b>Every gate names a role</b><span>product_owner for requirements and release, qa_engineer for verification</span></span>
+            <span class="chip" data-state="ok">Passed</span>
+          </li>
+          <li data-state="ok">
+            <span class="sym" aria-hidden="true">&#10003;</span>
+            <span class="what"><b>Hooks resolve to files in the repository</b><span><span class="mono">.asac/hooks/secret-scan.sh</span>, <span class="mono">.asac/hooks/deps-verify.sh</span></span></span>
+            <span class="chip" data-state="ok">Passed</span>
+          </li>
+          <li data-state="wait">
+            <span class="sym" aria-hidden="true">!</span>
+            <span class="what"><b>Trigger timeout is longer than the first gate</b><span>72 h run timeout, 24 h requirements gate. Confirm this is intended.</span></span>
+            <span class="chip" data-state="wait">Warning</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="section decide">
+        <h3>Save or propose</h3>
+        <p class="soft">Saving keeps the draft in ASAC only. Proposing creates the branch <span class="mono">asac/pipeline-d7e2</span>, commits this file and opens a merge request on the forge.</p>
+        <div class="pipe-foot">
+          <button class="btn" type="button">Save draft</button>
+          <button class="btn btn-primary" type="button" disabled>Propose change</button>
+          <button class="btn" type="button">Discard changes</button>
+          <span class="alone">Fix the error to propose</span>
+        </div>
+        <p class="notice">
+          <span aria-hidden="true">&#9888;</span>
+          <span>Separation of duties: you wrote this change, so you cannot approve its merge request. A product_owner or qa_engineer must review it.</span>
+        </p>
+      </div>
+
+    </article>
+  </main>
+</div>
+</body>
+</html>

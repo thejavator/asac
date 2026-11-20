@@ -1,0 +1,13 @@
+pipeline feature: 4 steps in 4 levels
+  [0] requirements   capability=specification_engineering agent=ba mode=assist gate=human(product_owner)
+       produces: spec_reviewed
+  [1] development    capability=implementation agent=dev mode=delegate no gate
+       requires: spec_reviewed
+       produces: tests_green, mr_created, deps_verified
+  [2] verification   capability=verification agent=qa-agent mode=assist gate=quality(qa_engineer)
+       requires: tests_green, mr_created
+       produces: coverage_passed, sast_clean, qa_approved
+  [3] release        capability=release agent=devops mode=delegate gate=human(product_owner)
+       requires: coverage_passed, sast_clean, qa_approved
+       produces: deployed
+estimated tokens: 400,000 / budget 2,000,000

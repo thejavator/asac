@@ -1,0 +1,2 @@
+tool: cursor
+autorun: true   # ASAC launches the tool CLI itself (CLI, portal and daemon alike)

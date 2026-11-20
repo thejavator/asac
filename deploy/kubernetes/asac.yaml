@@ -1,0 +1,113 @@
+# Plain Kubernetes manifests (also valid on OpenShift: no fixed UID, no privileged setting).
+# Replace the image, the host name and the Secret values before applying.
+apiVersion: v1
+kind: Namespace
+metadata: { name: asac }
+---
+apiVersion: v1
+kind: Secret
+metadata: { name: asac-config, namespace: asac }
+type: Opaque
+stringData:
+  ASAC_STATE_URL: postgresql://asac:change-me@postgres.example.internal:5432/asac
+  ASAC_OIDC_ISSUER: https://sso.example.com/realms/asac
+  ASAC_OIDC_CLIENT_ID: asac-portal
+  ASAC_OIDC_CLIENT_SECRET: ""
+  ASAC_OIDC_REDIRECT_URI: https://asac.example.com/callback
+  ASAC_WEBHOOK_SECRET: change-me
+  ASAC_NOTIFY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: asac-portal, namespace: asac, labels: { app: asac-portal } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: asac-portal } }
+  template:
+    metadata: { labels: { app: asac-portal } }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: portal
+          image: ghcr.io/example/asac:0.0.1
+          args: ["portal", "--host", "0.0.0.0", "--port", "8080"]
+          envFrom: [{ secretRef: { name: asac-config } }]
+          env: [{ name: ASAC_STATE_DIR, value: /state }]
+          ports: [{ containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /healthz, port: 8080 } }
+          livenessProbe: { httpGet: { path: /healthz, port: 8080 }, initialDelaySeconds: 10 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: project, mountPath: /project, readOnly: true }
+            - { name: state, mountPath: /state }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        # The project (asac.yaml, .asac/) comes from a ConfigMap, a git-sync sidecar or a PVC.
+        - { name: project, persistentVolumeClaim: { claimName: asac-project } }
+        - { name: state, emptyDir: {} }   # session cache only; run state is in Postgres
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: asac-daemon, namespace: asac, labels: { app: asac-daemon } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: asac-daemon } }
+  template:
+    metadata: { labels: { app: asac-daemon } }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: daemon
+          image: ghcr.io/example/asac:0.0.1
+          args: ["daemon", "--host", "0.0.0.0", "--port", "8090"]
+          envFrom: [{ secretRef: { name: asac-config } }]
+          env: [{ name: ASAC_STATE_DIR, value: /state }]
+          ports: [{ containerPort: 8090 }]
+          readinessProbe: { httpGet: { path: /healthz, port: 8090 } }
+          livenessProbe: { httpGet: { path: /healthz, port: 8090 }, initialDelaySeconds: 10 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: project, mountPath: /project }
+            - { name: state, mountPath: /state }
+      volumes:
+        - { name: project, persistentVolumeClaim: { claimName: asac-project } }
+        - { name: state, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: asac-portal, namespace: asac }
+spec:
+  selector: { app: asac-portal }
+  ports: [{ port: 80, targetPort: 8080 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: asac-daemon, namespace: asac }
+spec:
+  selector: { app: asac-daemon }
+  ports: [{ port: 80, targetPort: 8090 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: { name: asac, namespace: asac }
+spec:
+  # TLS terminates here. On OpenShift, replace with a Route (edge termination).
+  tls: [{ hosts: [asac.example.com], secretName: asac-tls }]
+  rules:
+    - host: asac.example.com
+      http:
+        paths:
+          - { path: /webhooks, pathType: Prefix, backend: { service: { name: asac-daemon, port: { number: 80 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: asac-portal, port: { number: 80 } } } }

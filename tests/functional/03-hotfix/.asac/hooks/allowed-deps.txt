@@ -1,0 +1,2 @@
+org.springframework.boot:spring-boot-starter-mail:3.2.0
+org.junit.jupiter:junit-jupiter:5.10.0

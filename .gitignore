@@ -1,0 +1,19 @@
+site/
+asac.vars.yaml
+.asac-state/
+.venv/
+__pycache__/
+.DS_Store
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.cache/
+web/node_modules/
+
+# local artefacts
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+dist/
+build/

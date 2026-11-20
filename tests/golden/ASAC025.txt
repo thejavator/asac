@@ -1,0 +1,3 @@
+error ASAC025 providers.jira.mcp.env.T: secrets must be ${vault...} references
+1 error(s), 4 warning(s)
+exit=1

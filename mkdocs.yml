@@ -1,0 +1,66 @@
+site_name: ASAC — Agentic SDLC as Code
+site_description: Declare your software delivery. Let agents execute it.
+repo_url: https://github.com/asac-dev/asac
+edit_uri: edit/main/docs/
+copyright: Apache License 2.0
+theme:
+  name: material
+  features: [navigation.sections, navigation.top, navigation.footer, content.code.copy, search.highlight, toc.follow]
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - scheme: slate
+      primary: indigo
+      toggle: { icon: material/weather-sunny, name: Light mode }
+markdown_extensions:
+  - admonition
+  - tables
+  - attr_list
+  - toc: { permalink: true }
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed: { alternate_style: true }
+  - pymdownx.snippets: { base_path: ['.'], check_paths: true }
+nav:
+  - Home: index.md
+  - Concepts:
+      - Overview: concepts/index.md
+      - The three layers: concepts/three-layers.md
+      - Capability, skill, agent: concepts/capability-skill-agent.md
+      - Evidence and gates: concepts/evidence-and-gates.md
+      - Harness: concepts/harness.md
+      - Execution model: concepts/execution-model.md
+      - Agent governance (v0.4): concepts/governance.md
+      - Six pillars mapping: concepts/six-pillars.md
+  - Getting started:
+      - Quick start: getting-started/quickstart.md
+      - Adopting ASAC on an existing project: getting-started/existing-projects.md
+  - Guides:
+      - Maturity levels L0–L4: guides/maturity.md
+      - Golden Path templates: guides/golden-paths.md
+      - Writing policies in Rego: guides/policies.md
+      - Notifications: guides/notifications.md
+      - Deploying the portal and daemon: guides/deployment.md
+      - Serving several projects: guides/multi-project.md
+  - Scenarios:
+      - Overview: scenarios/index.md
+      - New feature: scenarios/feature.md
+      - New project: scenarios/new-project.md
+      - Hotfix: scenarios/hotfix.md
+      - Onboarding a developer: scenarios/onboarding.md
+  - Reference:
+      - Resource types: reference/resources.md
+      - Complete example: reference/example.md
+      - CLI: reference/cli.md
+      - Portal and daemon: reference/portal.md
+      - Registry: reference/registry.md
+      - State model: reference/state.md
+      - Glossary: reference/glossary.md
+  - Visuals: visuals/index.md
+  - Project:
+      - Versioning: project/versioning.md
+      - Roadmap and v0.5 backlog: project/roadmap.md
+      - Changelog: project/changelog.md
+      - Contributing: project/contributing.md

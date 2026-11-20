@@ -1,0 +1,3 @@
+error ASAC012 hooks.pre_tool: unknown hook 'nope'
+1 error(s), 4 warning(s)
+exit=1

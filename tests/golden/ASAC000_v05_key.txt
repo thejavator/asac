@@ -1,0 +1,2 @@
+error ASAC000 routing: 'routing' is not in spec v0.4 (planned for v0.5)
+exit=1

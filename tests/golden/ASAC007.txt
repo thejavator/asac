@@ -1,0 +1,6 @@
+error ASAC007 pipelines.feature.steps.release.dependsOn: unknown step 'nope'
+error ASAC009 pipelines.feature.steps.release.requiresEvidence: 'coverage_passed' is not produced by any upstream step
+error ASAC009 pipelines.feature.steps.release.requiresEvidence: 'sast_clean' is not produced by any upstream step
+error ASAC009 pipelines.feature.steps.release.requiresEvidence: 'qa_approved' is not produced by any upstream step
+4 error(s), 4 warning(s)
+exit=1
