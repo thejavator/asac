@@ -99,6 +99,8 @@ def make_context(
         autorun_timeout=int(
             os.environ.get("ASAC_AUTORUN_TIMEOUT", values.get("autorun_timeout", 900))
         ),
+        sandbox=_flag(os.environ.get("ASAC_SANDBOX"), bool(values.get("sandbox", False))),
+        sandbox_domains=_domains(os.environ.get("ASAC_SANDBOX_DOMAINS"), values),
     )
     # One harness per (run, harness): mounted skills accumulate within a run, and a
     # context shared by several runs (daemon, portal) never writes into another run's tree.
@@ -141,6 +143,12 @@ def recorded_workspace(store: StateStore, run_id: str) -> Path | None:
                     raise StateError(f"the worktree of run '{run_id}' is missing ({path})")
                 return path
     return None
+
+
+def _domains(env: str | None, values: dict[str, Any]) -> tuple[str, ...]:
+    """Domains the sandboxed tool may reach: the model gateway, plus what the team lists."""
+    raw = env if env else ",".join(str(d) for d in values.get("sandbox_domains", []) or [])
+    return tuple(d.strip() for d in raw.split(",") if d.strip())
 
 
 def _isolation(harness_name: str | None, values: dict[str, Any]) -> bool:

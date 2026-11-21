@@ -23,6 +23,9 @@ class AdapterContext:
     # Where the agent writes (skills, CLAUDE.md, .mcp.json, brief, its own edits). The run's
     # worktree when isolation is on; otherwise the main checkout, as before.
     work: Path | None = None
+    # Run the tool inside the OS sandbox (srt) with the policy derived from the run.
+    sandbox: bool = False
+    sandbox_domains: tuple[str, ...] = ()
 
     @property
     def workdir(self) -> Path:

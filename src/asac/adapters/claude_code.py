@@ -171,6 +171,8 @@ class ClaudeCodeHarness:
             return None  # GUI tool: nothing to launch, the person opens it
         log = brief.with_suffix(".log")
         timeout = self._ctx.autorun_timeout
+        if self._ctx.sandbox:
+            cmd = self._sandboxed(cmd, brief)
         try:
             done = subprocess.run(  # noqa: S603 - fixed argv, no shell
                 cmd, cwd=self._ctx.workdir, capture_output=True, text=True, timeout=timeout,
@@ -199,6 +201,23 @@ class ClaudeCodeHarness:
         if report.cost_usd is None:
             launched["cost"] = "unknown"
         return launched
+
+    def _sandboxed(self, cmd: list[str], brief: Path) -> list[str]:
+        """The tool runs in srt: write only in the worktree, read no secrets, reach only the
+        allowed domains. The settings file lives in the state folder, outside the agent's reach."""
+        import json
+
+        from asac.adapters.sandbox import SandboxPolicy, build_settings, wrap_command
+
+        policy = SandboxPolicy(
+            workdir=self._ctx.workdir.resolve(),
+            allowed_domains=self._ctx.sandbox_domains,
+            extra_write=(_tool_scratch(),),
+        )
+        settings = self._ctx.state_dir / "sandbox" / f"{brief.parent.name}.json"
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text(json.dumps(build_settings(policy)), encoding="utf-8")
+        return wrap_command(cmd, policy, settings)
 
     def mounted_path(self, skill: str) -> str:
         return f".claude/skills/{skill}/SKILL.md"
@@ -318,3 +337,10 @@ class ClaudeCodeHarness:
 
 def _yaml_str(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _tool_scratch() -> str:
+    """The Bash tool of Claude Code writes its cwd tracking under a per-user temp folder."""
+    import os
+
+    return f"/private/tmp/claude-{os.getuid()}" if os.name == "posix" else ""
