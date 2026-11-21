@@ -11,7 +11,7 @@ ASAC is an open, declarative framework for describing a software delivery lifecy
 | Software delivery | **ASAC** | Capabilities, agents, pipelines, gates, evidence |
 
 !!! warning "Status"
-    ASAC is a **language specification (v0.4, frozen)** with a working reference implementation: the CLI (`validate`, `plan`, `apply`, gates, evidence, audit), the web portal, the Docker runner for `delegate` steps and the Claude Code harness (including MCP servers). The other harnesses (Codex, Cursor, Bob, Antigravity, Copilot) only hand off, and the registry is not implemented yet. See [Versioning](project/versioning.md) and the [Roadmap](project/roadmap.md).
+    ASAC is a **language specification (v0.4, frozen)**. **Version 0.1 supports one path, end to end:** `validate`, `apply`, the Claude Code harness, hooks and Rego checks, a human gate bound to a commit, `approve`, `evidence verify`, `audit`, `clean`, plus `doctor` and the step `loop`. Each run works in its own git worktree, and with the sandbox on (`srt`) the agent cannot rewrite the rules, delete the audit, read your keys or reach other hosts. **Everything else in this repository exists but is not supported in 0.1:** the web portal and daemon, the forge adapters, the Docker and Kubernetes runners, the other harnesses (they only mount files), MCP and Postgres. Their tests use fakes, never the real system. The registry is not implemented. See [Roadmap](project/roadmap.md). See [Versioning](project/versioning.md) and the [Roadmap](project/roadmap.md).
 
 ## The problem
 

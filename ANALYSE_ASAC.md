@@ -1,5 +1,14 @@
 # Analyse du projet ASAC & Architecture cible du Portail Entreprise
 
+> **Document historique, périmé le 2026-11-21.** Les points listés en 1.4 et 1.5 ont été vérifiés
+> un à un dans le code à cette date : exception OPA gérée (le moteur bloque, il ne plante plus),
+> gate d'escalade créée, `readonly` accepté par le harness Claude Code, `step.policies` évaluées,
+> hooks `pre_tool` appelés, outils transmis au harness, runner branché, `asac run <step>` présent,
+> `trace_id` déterministe, connexions SQLite fermées. Ce qui reste vrai : le registre n'est pas
+> implémenté, les harnesses autres que Claude Code ne font que monter des fichiers. Le périmètre
+> de la première version est décrit dans `SCOPE_V1.md`.
+
+
 > **Date d'analyse** : 19 novembre 2026  
 > **Périmètre analysé** : implémentation de référence ASAC (spec v0.4) dans `src/asac/`, `tests/`, `examples/`, `docs/` et `schemas/`.
 

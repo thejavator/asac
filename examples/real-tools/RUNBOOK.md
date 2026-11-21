@@ -1,164 +1,132 @@
-# Runbook: run the pipeline with a real AI tool
+# Runbook: run a two-step pipeline with Claude Code
 
-You are the human in the loop. ASAC mounts the skill and stops; the tool works only when you
-launch it; nothing moves forward until you record evidence and approve. Run the blocks in
-order, in one terminal (zsh/bash). Nothing here edits the repository: you work in a copy.
+About 15 minutes. ASAC launches `claude -p` for each step inside its own git worktree, checks the
+result with hooks, and stops at a human gate. Nothing moves forward until you approve.
 
-## 0. Set up a scratch copy
+**What this proves, and what it does not.** With the sandbox on, the agent cannot rewrite the
+hooks or the manifest, delete the audit, read your SSH keys or reach a domain you did not list.
+If it tries to change a rule anyway, the step is blocked and the audit says which file. It does
+not prove the agent's work is good: you still review it at the gate.
 
-Pick the tool: `claude-code`, `codex`, `cursor`, `bob` or `antigravity`.
+## 0. Prerequisites
 
 ```bash
-export TOOL=codex
-export ASAC_BIN=/Users/tahrielmedhi/IBM/sldc-agentic/asac/.venv/bin   # folder that holds `asac`
-export PATH="$ASAC_BIN:$PATH"
-export WORK="$(mktemp -d /tmp/asac-real-$TOOL.XXXXXX)"
-cp -R /Users/tahrielmedhi/IBM/sldc-agentic/asac/examples/real-tools/. "$WORK"
-cd "$WORK" && cp vars/$TOOL.yaml asac.vars.yaml && export ASAC_STATE_DIR="$WORK/.asac-state"
+git clone <this repository> && cd <this repository>/asac
+uv sync                       # or: pip install -e .
+asac doctor -f examples/real-tools/asac.yaml
 ```
 
-## 1. Validate, then start the run (mounts the skill, stops at the first human step)
+`asac doctor` says what is missing and how to install it. You need `git`, `opa`, `node` 22.12 or
+newer, `srt` and `claude` (logged in, or with `ANTHROPIC_API_KEY`).
+
+## 1. Make a scratch project
+
+The run starts from the last commit, so the project must be a clean git repository.
 
 ```bash
+export WORK="$(mktemp -d)/real-tools"
+cp -R examples/real-tools "$WORK" && cd "$WORK"
+cp vars/claude-code.yaml asac.vars.yaml
+git init -q && git add -A && git commit -qm "start"
+export ASAC_STATE_DIR="$WORK/../asac-state"
+asac doctor
 asac validate
 ```
+
+## 2. Turn the sandbox on
+
+```bash
+export ASAC_SANDBOX=1
+export ASAC_SANDBOX_DOMAINS="<host of your model API, e.g. api.anthropic.com>"
+```
+
+Only the hosts you list are reachable. Other hosts are refused; so is everything else the agent
+has no business touching (see *Limits*).
+
+## 3. Run
 
 ```bash
 asac apply -p feature --run-id demo
 ```
 
-Expected: exit code 2, "requirements handed to a person". Files mounted for your tool:
-
-| Tool | Mounted file |
-|---|---|
-| claude-code | `.claude/skills/spec/SKILL.md`, `CLAUDE.md` |
-| codex | `AGENTS.md` |
-| cursor | `.cursor/rules/asac-spec.mdc` |
-| bob | `.bob/skills/spec/SKILL.md` |
-| antigravity | `.agent/skills/spec/SKILL.md` |
-
-The task for the tool is in `.asac-state/briefs/demo/requirements.md`.
-
-## 2. Step `requirements`: the tool writes a spec
-
-Run the tool on this step only. Copy the line for your tool (needs the tool to be logged in;
-it uses your account). It must not touch `app/`.
+Expected: exit code 2, `waiting for gate gate_demo_requirements`. ASAC created the worktree
+`$ASAC_STATE_DIR/worktrees/demo` on branch `asac/demo`, launched Claude Code there, ran the
+hooks, and made a commit. Look at what it produced and at the commit the gate is about:
 
 ```bash
-claude -p "Read .asac-state/briefs/demo/requirements.md and the mounted ASAC skill. Write a short spec with acceptance criteria in SPEC.md for: done() must raise ValueError when the title is unknown. Do NOT change anything under app/." --permission-mode acceptEdits
+asac gates                    # the commit the gate approves is shown as commit=<sha>
+git -C "$ASAC_STATE_DIR/worktrees/demo" show --stat HEAD
+cat "$ASAC_STATE_DIR/worktrees/demo/SPEC.md"
 ```
 
-```bash
-codex exec -s workspace-write --skip-git-repo-check -C "$WORK" "Read .asac-state/briefs/demo/requirements.md and the mounted ASAC skill. Write a short spec with acceptance criteria in SPEC.md for: done() must raise ValueError when the title is unknown. Do NOT change anything under app/."
-```
+## 4. Decide
+
+If the spec is good, approve. This records the evidence `spec_reviewed` and starts `development`:
 
 ```bash
-cursor-agent -p -f "Read .asac-state/briefs/demo/requirements.md and the mounted ASAC skill. Write a short spec with acceptance criteria in SPEC.md for: done() must raise ValueError when the title is unknown. Do NOT change anything under app/."
-```
-
-Bob and Antigravity are GUI apps: open the folder, check that the mounted skill is listed, and
-give them the same prompt as above.
-
-```bash
-bobide "$WORK"
-```
-
-```bash
-open -a Antigravity "$WORK"
-```
-
-Review `SPEC.md`. If it is good, record your decision:
-
-```bash
-asac evidence bootstrap demo --evidence spec_reviewed --by you
 asac approve gate_demo_requirements --role product_owner --by you
 ```
 
-Both commands continue the run by themselves (add `--no-resume` to only record the decision).
-The second one reaches `development` and writes `.asac-state/briefs/demo/development.md`.
-
-## 3. Step `development`: the tool implements and tests
-
-Same tool, same pattern. Copy the line for your tool.
+If it is not, reject with a reason (the reason is part of the audit):
 
 ```bash
-claude -p "Read .asac-state/briefs/demo/development.md, the mounted ASAC skill and SPEC.md. Implement SPEC.md in app/todo/__init__.py and add a unit test in app/tests/test_todo.py. Run: cd app && PYTHONPATH=. python3 -m unittest discover -s tests" --permission-mode acceptEdits
+asac approve gate_demo_requirements --role product_owner --by you --reject --comment "criteria are vague"
 ```
 
-```bash
-codex exec -s workspace-write --skip-git-repo-check -C "$WORK" "Read .asac-state/briefs/demo/development.md, the mounted ASAC skill and SPEC.md. Implement SPEC.md in app/todo/__init__.py and add a unit test in app/tests/test_todo.py. Run: cd app && PYTHONPATH=. python3 -m unittest discover -s tests"
-```
+A rejection ends the run (`failed`). It does **not** send the reason back to the agent: the
+branch `asac/demo` keeps what was produced, for you to look at. `asac apply --resume demo --reopen`
+reopens the same gate on the same commit; to get a better result, start a new run
+(`--run-id demo2`), or put the check you care about in a `loop` (below) so the agent is told why.
 
-```bash
-cursor-agent -p -f "Read .asac-state/briefs/demo/development.md, the mounted ASAC skill and SPEC.md. Implement SPEC.md in app/todo/__init__.py and add a unit test in app/tests/test_todo.py. Run: cd app && PYTHONPATH=. python3 -m unittest discover -s tests"
-```
-
-Check the result yourself with the real tests:
-
-```bash
-(cd app && PYTHONPATH=. python3 -m unittest discover -s tests -v)
-```
-
-Then record it. The `tests-green` hook runs the same tests again and blocks (exit 3) if they fail:
-
-```bash
-asac evidence bootstrap demo --evidence tests_green --by you
-```
-
-If the hook blocked, fix the code and run `asac apply --resume demo` again (a blocked run is
-the one case where you resume by hand). Otherwise approve:
+The `development` step runs next, and stops at `gate_demo_development`. Its `tests-green` hook
+ran the project's real tests in the worktree before the gate opened: a failing test blocks the
+step (exit 3) instead of reaching you as finished work.
 
 ```bash
 asac approve gate_demo_development --role product_owner --by you
 ```
 
-## 4. Look at the result
+## 5. Look at the result
 
 ```bash
-asac status --run-id demo
-asac audit
+asac status
+asac logs demo                # every decision, in order
+asac evidence verify demo
+git -C "$WORK" log --oneline asac/demo
 ```
 
-`asac audit` lists every decision: who recorded which evidence, who approved which gate.
-Remove the scratch copy with `cd / && rm -rf "$WORK"` when you are done.
+The work is on the branch `asac/demo`. Review and merge it yourself, then free the worktree:
 
-## What is checked and what is not
+```bash
+asac clean demo
+```
 
-- Automated (`tests/test_real_tools_example.py`): validation, mounting for the five tools,
-  hand-off, and the hook blocking when the real tests fail. No tool is launched.
-- Not checked: that each tool reads the mounted file. Step 2 is that check; if the tool
-  ignores the skill, tell us which tool.
-- ASAC cannot stop a tool you launch yourself from editing files early. Only the future
-  `delegate` mode (a runner starts the tool) can enforce that.
+## Retry until the checks pass
 
+A step can loop: when its checks fail, ASAC relaunches the agent with the reason, up to a hard
+cap. In `asac.yaml`, on the step:
 
-## Optional: let ASAC launch the tool for you
+```yaml
+loop: { until: [tests-green], max_iterations: 3 }
+```
 
-For `claude-code`, `codex` and `cursor`, `vars/<tool>.yaml` sets `autorun: true` in `asac.vars.yaml`, so the CLI, the portal and the daemon all launch the tool. `ASAC_AUTORUN=0` or `1` overrides it for one process; `autorun_timeout` (or `ASAC_AUTORUN_TIMEOUT`) sets the limit.
-ASAC then runs the tool's non-interactive CLI for the current step only (output in
-`.asac-state/briefs/<run>/<step>.log`, timeout `ASAC_AUTORUN_TIMEOUT`, default 900 s).
-The human gates are unchanged: you still check the result, record the evidence
-(`asac evidence bootstrap`), approve and resume. `bob` and `antigravity` are GUI tools and
-are never launched. If the CLI is missing or exits non-zero, the step fails with that reason.
+Each turn is audited as `step.iteration`. If the checks never pass, the step fails; it is never
+validated.
 
+## Limits you should know
 
-Each step now has its own skill (`.asac/skills/spec.md` for the analyst, `.asac/skills/impl.md`
-for the developer), and the `tests-green` hook only runs after `development`.
+- **The sandbox only reaches the model API.** `srt` re-signs TLS; hosts other than the model
+  gateway fail certificate checks. The agent therefore cannot download dependencies.
+- **Identity is declared.** `--by` and `--role` are not authenticated on the command line.
+  Anyone who can run `asac` can approve as any role.
+- **Cost is an estimate.** It comes from Claude Code's own report; behind a gateway it may not be
+  a billed amount. A step that reports no cost blocks a run that has a cost budget.
+- **One tool.** Claude Code is the only tool tested for real. Codex, Cursor, Bob and Antigravity
+  mount their files but are not covered by the sandbox or the checks above.
+- **Linux is not tested.** The sandbox was verified on macOS only.
 
-## One command for the whole run
+## Doing a step by hand
 
-`asac apply --watch` stays in the foreground, continues after each approval or evidence, and
-exits when the run is completed, failed or blocked. Combined with `ASAC_AUTORUN=1`, you only
-make the human decisions (evidence, approve) from a second terminal.
-
-## What ASAC checks, and what it cannot
-
-- With `ASAC_AUTORUN=1` nobody types the tool command. The audit records `tool.launched`
-  (tool, exit code, log path, SHA-256 of the log).
-- The `step-scope` hook checks the result, whoever produced it: after `requirements`, `SPEC.md`
-  must exist with acceptance criteria and `app/` must be unchanged (fingerprint before/after).
-  A failure blocks the step (exit 3).
-- With autorun there is no manual `evidence bootstrap`: the gate opens once the hooks pass, and the
-  evidence is recorded when the `product_owner` approves it.
-- Without autorun, `evidence bootstrap` is still a declaration by a person. The hooks still check
-  the result, but ASAC cannot prove that the tool was run.
+Without `autorun`, ASAC prepares the brief and stops. You run the tool yourself in the worktree,
+then record the evidence with `asac evidence bootstrap demo --evidence <id> --by you` and approve.
+The hooks still check the result; ASAC cannot prove the tool was run.

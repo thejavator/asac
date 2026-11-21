@@ -1,7 +1,7 @@
 # Quick start
 
 !!! note "Status"
-    The `asac` CLI, the portal and the Claude Code harness work today; `--harness fake` runs without any tool. Commands for the registry (`skill publish`, `registry search`, `provider install`) are not implemented yet. This page shows the workflow as defined by spec v0.4. You can already study and validate the [example project](https://github.com/asac-dev/asac/tree/main/examples/payments-service): its YAML parses and its Rego policy is covered by `opa test`.
+    Version 0.1 runs one path for real: Claude Code, a git worktree per run, hooks, a human gate. Follow the [runbook](https://github.com/asac-dev/asac/blob/main/examples/real-tools/RUNBOOK.md) to try it in about 15 minutes; `asac doctor` checks your machine first. The registry commands (`skill publish`, `registry search`, `provider install`) are not implemented. The commands below show the full workflow of spec v0.4, which is wider than what 0.1 supports.
 
 ## 1. Initialise
 

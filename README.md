@@ -4,7 +4,7 @@
 
 ASAC is an open, declarative framework for describing a software delivery lifecycle as code (capabilities, agents, pipelines, gates, evidence) and running it with AI agents under explicit governance. Terraform is to infrastructure and Kubernetes to containers what ASAC aims to be to the SDLC.
 
-> **Status: specification v0.4 (frozen).** The reference implementation works: the CLI (`validate`, `plan`, `apply`, gates, evidence, audit), the web portal, the Docker runner for `delegate` steps and the Claude Code harness (including MCP servers). The other harnesses (Codex, Cursor, Bob, Antigravity, Copilot) only hand off, and the registry is not implemented yet. This repository contains the language specification, the reference implementation, documentation and a verified example project.
+> **Status: specification v0.4 (frozen), reference implementation 0.1.** **Version 0.1 supports one path, end to end:** `validate`, `apply`, the Claude Code harness, hooks and Rego checks, a human gate bound to a commit, `approve`, `evidence verify`, `audit`, `clean`, plus `doctor` and the step `loop`. Each run works in its own git worktree, and with the sandbox on (`srt`) the agent cannot rewrite the rules, delete the audit, read your keys or reach other hosts. **Everything else in this repository exists but is not supported in 0.1:** the web portal and daemon, the forge adapters, the Docker and Kubernetes runners, the other harnesses (they only mount files), MCP and Postgres. Their tests use fakes, never the real system. The registry is not implemented. See [SCOPE_V1.md](SCOPE_V1.md).
 
 ## Three layers
 
