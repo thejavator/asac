@@ -87,7 +87,8 @@ def _tool(tmp_path: Path, body: str) -> None:
     exe = tmp_path / "bin" / "claude"
     exe.write_text(
         "#!/bin/sh\n" + body + "\n"
-        'echo \'{"type":"result","is_error":false,"total_cost_usd":0.01,"usage":{},"result":"x"}\'\n'
+        'echo \'{"type":"result","is_error":false,"total_cost_usd":0.01,'
+        '"usage":{},"result":"x"}\'\n'
     )
     exe.chmod(0o755)
 
