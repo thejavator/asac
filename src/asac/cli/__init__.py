@@ -978,3 +978,18 @@ def clean(
     store.append_audit(run_id, os.environ.get("USER", "cli"), "workspace.removed",
                        clock.now_iso(), detail=str(path))  # fmt: skip
     typer.echo(f"run {run_id}: worktree removed; branch {branch} kept")
+
+
+@app.command()
+def doctor(file: ManifestOpt = Path("asac.yaml")) -> None:
+    """Check what a run needs (git, opa, node, srt, claude) and say how to fix what is missing."""
+    from asac import doctor as checks
+
+    results = checks.run_checks(file.resolve().parent)
+    failed = False
+    for c in results:
+        mark = "ok  " if c.ok else ("FAIL" if c.required else "warn")
+        typer.echo(f"{mark}  {c.name:<15} {c.detail}")
+        failed = failed or (not c.ok and c.required)
+    if failed:
+        raise typer.Exit(EXIT_ERROR)
