@@ -397,6 +397,32 @@
       "title": "Knowledge",
       "type": "object"
     },
+    "Loop": {
+      "additionalProperties": false,
+      "description": "Retry the agent until every check passes, with a hard cap. The cap is mandatory.",
+      "properties": {
+        "until": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Until",
+          "type": "array"
+        },
+        "max_iterations": {
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Max Iterations",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "until",
+        "max_iterations"
+      ],
+      "title": "Loop",
+      "type": "object"
+    },
     "McpServer": {
       "additionalProperties": false,
       "description": "How a harness reaches this provider as an MCP server (layer-2 extension).\n\nExactly one of ``command`` (stdio) or ``url`` (HTTP). ``env`` values must be\n``${vault...}`` references: secrets are resolved at run time, never stored.",
@@ -738,6 +764,17 @@
           },
           "title": "Policies",
           "type": "array"
+        },
+        "loop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Loop"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [

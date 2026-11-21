@@ -234,6 +234,11 @@ def validate(manifest: Manifest, root: Path, vars_file: VarsFile | None = None) 
             for pol in step.policies:
                 if pol not in BUILTIN_POLICIES:
                     check_local(f".asac/policies/{pol}.rego", f"{at}.policies")
+            if step.loop is not None:
+                declared_hooks = set(manifest.hooks.definitions) if manifest.hooks else set()
+                for check in step.loop.until:
+                    if check not in declared_hooks:
+                        err("ASAC012", f"{at}.loop.until", f"unknown hook '{check}'")
             if step.gate and step.gate.policy:
                 check_local(step.gate.policy, f"{at}.gate.policy")
             if step.gate and step.gate.type in ("human", "quality") and not step.gate.role:

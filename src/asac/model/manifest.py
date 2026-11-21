@@ -140,6 +140,13 @@ class Execution(_Strict):
     fallback: Literal["assist"] | None = None
 
 
+class Loop(_Strict):
+    """Retry the agent until every check passes, with a hard cap. The cap is mandatory."""
+
+    until: list[str] = Field(min_length=1)  # hooks (post_step) that must all pass
+    max_iterations: int = Field(ge=1, le=50)
+
+
 class Step(_Strict):
     capability: str
     agent: str
@@ -152,6 +159,7 @@ class Step(_Strict):
     execution: Execution | None = None
     escalation: dict[str, str] | None = None
     policies: list[str] = Field(default_factory=list)
+    loop: Loop | None = None
 
 
 class Pipeline(_Strict):

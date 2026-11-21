@@ -92,3 +92,14 @@ def run_hooks(
         return []
     names = getattr(manifest.hooks, attach)
     return [run_hook(manifest, root, n, stdin, env, workdir) for n in names]
+
+
+def run_hooks_named(
+    manifest: Manifest,
+    root: Path,
+    name: str,
+    env: dict[str, str] | None = None,
+    workdir: Path | None = None,
+) -> HookResult:
+    """One declared hook by name, with the same trust rules as ``run_hook`` (used by loops)."""
+    return run_hook(manifest, root, name, "", env, workdir)

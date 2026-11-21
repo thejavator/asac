@@ -35,7 +35,7 @@ from asac.engine.governance import (
 from asac.engine.locked import LockedStore
 from asac.engine.plan import waves
 from asac.engine.workspace import WorkspaceError, commit_step
-from asac.hooks import HookError, run_hooks
+from asac.hooks import HookError, run_hooks, run_hooks_named
 from asac.model import Manifest
 from asac.model.manifest import Gate, Pipeline, Step
 from asac.ports.artifacts import ArtifactError, ArtifactStore
@@ -85,6 +85,7 @@ class Context:
     workspace: Callable[[str], tuple[Path, str, str] | None] | None = None
     # The worktree of a run, or None when it is not isolated (hooks run there).
     workdir_for: Callable[[str], Path | None] | None = None
+    state_dir: Path | None = None  # where briefs live (loops write feedback into them)
 
     @property
     def pipeline(self) -> Pipeline:
@@ -120,6 +121,11 @@ def create_run(ctx: Context, run_id: str) -> None:
         )  # fmt: skip
 
 
+def _was_isolated(store: StateStore, run_id: str) -> bool:
+    """A run that started in a worktree, or whose isolation failed, stays isolated."""
+    return any(a.action in ("workspace.created", "workspace.failed") for a in store.audit(run_id))
+
+
 def execute(ctx: Context, run_id: str, only: str | None = None) -> Outcome:
     pipe = ctx.pipeline
     store = ctx.store
@@ -128,6 +134,17 @@ def execute(ctx: Context, run_id: str, only: str | None = None) -> Outcome:
     rec = store.get_run(run_id)
     if rec.status == "killed":
         return Outcome(Exit.BLOCKED, run_id, "run was killed; it cannot be resumed")
+    if ctx.workdir_for is not None and ctx.workspace is not None:
+        # An isolated run whose worktree is gone must not advance: the agent would work unisolated.
+        try:
+            recorded = ctx.workdir_for(run_id)
+        except StateError as exc:
+            return Outcome(Exit.ERROR, run_id, f"cannot resume {run_id}: {exc}")
+        if recorded is None and _was_isolated(store, run_id):
+            return Outcome(
+                Exit.ERROR, run_id,
+                f"cannot resume {run_id}: its worktree was never created (isolation required)",
+            )  # fmt: skip
     store.set_run_status(run_id, "running")
     parallel = ctx.parallel > 1 and only is None
     if parallel:
@@ -478,6 +495,10 @@ def _check_handoff(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome |
 
 
 def _finish_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None:
+    if step.loop is not None and ctx.root is not None:
+        turn = _loop_turn(ctx, run_id, sid, step)
+        if turn is not None:
+            return turn  # the agent gets another turn (or the step failed at the cap)
     if ctx.root is not None:
         blocked = _post_step_hooks(ctx, run_id, sid)
         if blocked is not None:
@@ -504,6 +525,60 @@ def _commit_if_isolated(ctx: Context, run_id: str, sid: str) -> str | None:
         return None
     _audit(ctx, run_id, "step.committed", sid, sha)
     return sha
+
+
+def _loop_turn(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None:
+    """One turn of ``step.loop``: run the checks; if one fails, hand the step back with the reason.
+
+    Returns None when every check passes (the step goes on). Each turn is audited. At the cap the
+    step fails: a check that never passes never validates the step.
+    """
+    assert step.loop is not None and ctx.root is not None
+    turn = _turns_so_far(ctx, run_id, sid) + 1
+    env = {"ASAC_RUN_ID": run_id, "ASAC_STEP": sid, "ASAC_HOOK_ATTACH": "loop"}
+    work = ctx.workdir_for(run_id) if ctx.workdir_for is not None else None
+    if work is not None:
+        env["ASAC_WORKTREE"] = str(work)
+        env["ASAC_ROOT"] = str(ctx.root)
+    failures: list[str] = []
+    for name in step.loop.until:
+        try:
+            r = run_hooks_named(ctx.manifest, ctx.root, name, env=env, workdir=work)
+        except HookError as exc:
+            return _fail(ctx, run_id, sid, f"loop check '{name}': {exc}")
+        if not r.passed:
+            failures.append(f"{name}: {r.output.strip()[:1500]}")
+    if not failures:
+        _audit(ctx, run_id, "step.iteration", sid, f"{turn} of {step.loop.max_iterations} passed")
+        return None
+    reason = "\n".join(failures)
+    _audit(ctx, run_id, "step.iteration", sid,
+           f"{turn} of {step.loop.max_iterations} failed: {reason[:800]}")  # fmt: skip
+    if turn >= step.loop.max_iterations:
+        return _fail(ctx, run_id, sid, f"loop cap reached after {turn} turns: {failures[0][:200]}")
+    _write_feedback(ctx, run_id, sid, turn, reason)
+    ctx.store.set_step_status(run_id, sid, "handoff")
+    ctx.store.set_run_status(run_id, "gate_waiting")
+    return Outcome(Exit.WAITING, run_id, f"{sid} turn {turn} failed its checks; back to the agent")
+
+
+def _turns_so_far(ctx: Context, run_id: str, sid: str) -> int:
+    return sum(
+        1 for a in ctx.store.audit(run_id) if a.action == "step.iteration" and a.step_id == sid
+    )
+
+
+def _write_feedback(ctx: Context, run_id: str, sid: str, turn: int, reason: str) -> None:
+    """The agent's next brief carries the reason its previous turn was rejected."""
+    assert ctx.state_dir is not None
+    path = ctx.state_dir / "briefs" / run_id / f"{sid}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    note = (
+        f"\n## Feedback from turn {turn}\n\nThe checks below failed. Fix them, then stop. "
+        f"Do not weaken the checks.\n\n```\n{reason}\n```\n"
+    )
+    with path.open("a", encoding="utf-8") as f:
+        f.write(note)
 
 
 def _post_step_hooks(ctx: Context, run_id: str, sid: str) -> Outcome | None:
