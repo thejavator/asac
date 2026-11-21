@@ -1,6 +1,7 @@
 """End-to-end CLI tests in the sandbox, with the fake harness."""
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from asac.cli import app
+from tests.conftest import init_git
 
 needs_opa = pytest.mark.skipif(shutil.which("opa") is None, reason="opa binary not installed")
 
@@ -146,10 +148,13 @@ def test_claude_code_handoff_flow(sandbox_project: Path) -> None:
     (sandbox_project / "asac.vars.yaml").write_text(
         "ba_harness: claude-code\ndev_harness: fake\nqa_harness: fake\n"
     )
+    init_git(sandbox_project)
     r = asac(sandbox_project, "apply", "-p", "feature", "--run-id", "h1")
     assert r.exit_code == 2  # type: ignore[attr-defined]
     assert "handed to a person" in r.stdout  # type: ignore[attr-defined]
-    assert (sandbox_project / ".claude/skills/spec/SKILL.md").is_file()
+    work = Path(os.environ["ASAC_STATE_DIR"]) / "worktrees" / "h1"
+    assert (work / ".claude/skills/spec/SKILL.md").is_file()
+    assert not (sandbox_project / ".claude").exists()
     # still waiting until the person records the evidence
     r = asac(sandbox_project, "apply", "--resume", "h1")
     assert r.exit_code == 2 and "waiting for evidence" in r.stdout  # type: ignore[attr-defined]

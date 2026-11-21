@@ -47,7 +47,12 @@ def run_hook(
     name: str,
     stdin: str = "",
     env: dict[str, str] | None = None,
+    workdir: Path | None = None,
 ) -> HookResult:
+    """Run a declared hook. The script is always read from ``root`` (the main checkout), so an
+    agent cannot rewrite the check it is judged by. It runs in ``workdir`` (the run's worktree,
+    where the agent's output is); without one, in ``root``.
+    """
     hooks = manifest.hooks
     if hooks is None or name not in hooks.definitions:
         raise HookError(f"hook '{name}' is not declared in the manifest")
@@ -63,7 +68,7 @@ def run_hook(
             input=stdin,
             capture_output=True,
             text=True,
-            cwd=root,
+            cwd=workdir if workdir is not None else root,
             env=clean,
             timeout=TIMEOUT_SECONDS,
             check=False,
@@ -75,10 +80,15 @@ def run_hook(
 
 
 def run_hooks(
-    manifest: Manifest, root: Path, attach: str, stdin: str = "", env: dict[str, str] | None = None
+    manifest: Manifest,
+    root: Path,
+    attach: str,
+    stdin: str = "",
+    env: dict[str, str] | None = None,
+    workdir: Path | None = None,
 ) -> list[HookResult]:
     """Run every hook attached to ``pre_tool`` or ``post_step``, in declaration order."""
     if manifest.hooks is None:
         return []
     names = getattr(manifest.hooks, attach)
-    return [run_hook(manifest, root, n, stdin, env) for n in names]
+    return [run_hook(manifest, root, n, stdin, env, workdir) for n in names]

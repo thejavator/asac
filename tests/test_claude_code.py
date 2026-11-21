@@ -163,3 +163,25 @@ def test_delegate_without_headless_command_is_refused(
             {"step": "s", "capability": "c", "agent": "a", "skill": "x", "mode": "delegate"},
             {"run_id": "r1"},
         )
+
+
+def test_with_a_worktree_agent_files_go_there_and_the_main_checkout_stays_clean(
+    sandbox_project: Path, tmp_path: Path
+) -> None:
+    work = tmp_path / "worktree"
+    work.mkdir()
+    h = ClaudeCodeHarness(
+        AdapterContext(
+            sandbox_project,
+            load_manifest(sandbox_project / "asac.yaml"),
+            tmp_path / "state",
+            work=work,
+        )
+    )
+    h.mount("spec")
+    assert (work / ".claude/skills/spec/SKILL.md").is_file()
+    assert (work / "CLAUDE.md").is_file()
+    assert not (sandbox_project / ".claude").exists()
+    assert not (sandbox_project / "CLAUDE.md").exists()
+    # skill sources and instructions are still read from the main checkout
+    assert "security" in (work / ".claude/skills/spec/SKILL.md").read_text().lower()

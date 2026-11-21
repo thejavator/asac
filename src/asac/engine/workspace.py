@@ -1,0 +1,95 @@
+"""Per-run workspace: a git worktree on its own branch, where the agent does its work.
+
+The main checkout keeps the manifest, the hooks, the policies and the state. The agent only
+ever writes in the worktree, so a rule it could edit in its own checkout cannot be used to
+approve its own work. The worktree starts from ``HEAD``: uncommitted local edits are not part
+of what the agent is asked to change.
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+
+_SAFE_RUN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
+
+
+class WorkspaceError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class Workspace:
+    run_id: str
+    path: Path
+    branch: str
+    base: str  # sha of HEAD when the worktree was created: the starting point of the run
+
+
+def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    if shutil.which("git") is None:
+        raise WorkspaceError("git is not installed (a run needs git to create its worktree)")
+    return subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True, check=False, timeout=120
+    )
+
+
+def _is_repo(root: Path) -> bool:
+    proc = _git(root, "rev-parse", "--is-inside-work-tree")
+    return proc.returncode == 0 and proc.stdout.strip() == "true"
+
+
+def workspace_path(state_dir: Path, run_id: str) -> Path:
+    return state_dir / "worktrees" / run_id
+
+
+def create_workspace(root: Path, state_dir: Path, run_id: str) -> Workspace:
+    """Create ``state_dir/worktrees/<run_id>`` on the new branch ``asac/<run_id>``."""
+    if not _SAFE_RUN.match(run_id):
+        raise WorkspaceError(f"unsafe run id '{run_id}' (letters, digits, '.', '_' or '-')")
+    if not _is_repo(root):
+        raise WorkspaceError(f"{root} is not a git repository: a run needs one to isolate work")
+    path = workspace_path(state_dir, run_id)
+    branch = f"asac/{run_id}"
+    if path.exists():
+        raise WorkspaceError(f"workspace for run '{run_id}' already exists at {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    proc = _git(root, "worktree", "add", "-q", "-b", branch, str(path), "HEAD")
+    if proc.returncode != 0:
+        raise WorkspaceError(f"git worktree add failed: {proc.stderr.strip()}")
+    base = _git(path, "rev-parse", "HEAD").stdout.strip()
+    return Workspace(run_id, path, branch, base)
+
+
+def open_workspace(state_dir: Path, run_id: str, base: str) -> Workspace:
+    """The worktree of an existing run (``--resume``). Never creates one.
+
+    ``base`` is the sha recorded in the audit when the run was created: it is not recomputed.
+    """
+    if not _SAFE_RUN.match(run_id):
+        raise WorkspaceError(f"unsafe run id '{run_id}' (letters, digits, '.', '_' or '-')")
+    path = workspace_path(state_dir, run_id)
+    if not path.is_dir() or not _is_repo(path):
+        raise WorkspaceError(f"the worktree of run '{run_id}' is missing ({path})")
+    head = _git(path, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    if head != f"asac/{run_id}":
+        raise WorkspaceError(f"the worktree of run '{run_id}' is on '{head}', not asac/{run_id}")
+    return Workspace(run_id, path, head, base)
+
+
+def remove_workspace(root: Path, path: Path, branch: str) -> None:
+    """Remove a worktree created by ASAC. The branch is kept: it holds the work to review."""
+    listed = _git(root, "worktree", "list", "--porcelain")
+    known = {
+        Path(line.removeprefix("worktree ")).resolve()
+        for line in listed.stdout.splitlines()
+        if line.startswith("worktree ")
+    }
+    if path.resolve() not in known:
+        raise WorkspaceError(f"{path} is not a worktree of this project")
+    proc = _git(root, "worktree", "remove", "--force", str(path))
+    if proc.returncode != 0:
+        raise WorkspaceError(f"git worktree remove failed: {proc.stderr.strip()}")

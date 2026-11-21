@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from asac.adapters.notify import from_project
 from asac.adapters.opa_policy import OpaPolicyEngine
 from asac.adapters.runner_local import runner_from_vars
 from asac.engine.apply import Context
+from asac.engine.workspace import create_workspace
 from asac.loader.load import load_manifest, load_vars
 from asac.model import Manifest
 from asac.ports.harness import Harness
@@ -79,22 +81,36 @@ def make_context(
     project: str | None = None,
 ) -> Context:
     values = _vars(root)
+    sdir = state_dir(root, project)
+    isolated = _isolation(harness_name, values)
+
+    def workspace(run_id: str) -> tuple[Path, str, str] | None:
+        # The worktree is created with the run; its path and base sha go to the audit.
+        if not isolated:
+            return None
+        ws = create_workspace(root, sdir, run_id)
+        return ws.path, ws.branch, ws.base
+
     adapter_ctx = AdapterContext(
         root=root,
         manifest=manifest,
-        state_dir=state_dir(root, project),
+        state_dir=sdir,
         autorun=_flag(os.environ.get("ASAC_AUTORUN"), bool(values.get("autorun", False))),
         autorun_timeout=int(
             os.environ.get("ASAC_AUTORUN_TIMEOUT", values.get("autorun_timeout", 900))
         ),
     )
-    cache: dict[str, Harness] = {}
+    # One harness per (run, harness): mounted skills accumulate within a run, and a
+    # context shared by several runs (daemon, portal) never writes into another run's tree.
+    cache: dict[tuple[str, str], Harness] = {}
 
-    def harness_for(agent: str) -> Harness:
+    def harness_for(agent: str, run_id: str = "") -> Harness:
         name = harness_name or resolve_harness_name(manifest.agents[agent].harness, values)
-        if name not in cache:  # one instance per harness: mounted skills accumulate
-            cache[name] = harness_factory(name, adapter_ctx)
-        return cache[name]
+        key = (run_id, name)
+        if key not in cache:
+            work = recorded_workspace(store, run_id) if isolated and run_id else None
+            cache[key] = harness_factory(name, replace(adapter_ctx, work=work))
+        return cache[key]
 
     return Context(
         manifest=manifest,
@@ -105,10 +121,35 @@ def make_context(
         policy_engine=OpaPolicyEngine(root),
         runner=runner if runner is not None else runner_from_vars(root, values),
         notifier=from_project(values, dict(os.environ)),
-        artifacts=FsArtifactStore(adapter_ctx.state_dir / "artifacts"),
+        artifacts=FsArtifactStore(sdir / "artifacts"),
         retries=_retries(values),
         parallel=_parallel(values),
+        workspace=workspace if isolated else None,
+        workdir_for=(lambda rid: recorded_workspace(store, rid)) if isolated else None,
     )
+
+
+def recorded_workspace(store: StateStore, run_id: str) -> Path | None:
+    """The worktree of a run, as recorded by ``workspace.created`` (the source of truth)."""
+    for a in store.audit(run_id):
+        if a.action == "workspace.created":
+            fields = dict(p.split("=", 1) for p in a.detail.split() if "=" in p)
+            if "path" in fields:
+                path = Path(fields["path"])
+                if not path.is_dir():
+                    raise StateError(f"the worktree of run '{run_id}' is missing ({path})")
+                return path
+    return None
+
+
+def _isolation(harness_name: str | None, values: dict[str, Any]) -> bool:
+    """Isolation is on for the real tools. ``ASAC_ISOLATE=0|1`` or ``isolate:`` overrides."""
+    env = os.environ.get("ASAC_ISOLATE")
+    if env is not None and env != "":
+        return env.lower() in ("1", "true", "yes")
+    if "isolate" in values:
+        return bool(values["isolate"])
+    return harness_name != "fake"
 
 
 def store_for(manifest_path: Path, project: str | None = None) -> StateStore:

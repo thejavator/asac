@@ -1,5 +1,6 @@
 """examples/real-tools: every supported tool mounts its files and the real hooks run."""
 
+import os
 import shutil
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from asac.cli import app
+from tests.conftest import init_git
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "real-tools"
 MOUNTED = {
@@ -23,10 +25,16 @@ def asac(p: Path, *args: str):  # type: ignore[no-untyped-def]
     return runner.invoke(app, [*args, "-f", str(p / "asac.yaml")])
 
 
+def _work(project: Path, run_id: str) -> Path:
+    """The run's worktree: where a person (or the tool) does the work of a step."""
+    return Path(os.environ["ASAC_STATE_DIR"]) / "worktrees" / run_id
+
+
 @pytest.fixture
 def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     dest = tmp_path / "real-tools"
     shutil.copytree(EXAMPLE, dest)
+    init_git(dest)
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("ASAC_AUTORUN", "0")  # never launch a real tool from the tests
     monkeypatch.setenv("ASAC_STATE_DIR", str(tmp_path / "state"))
@@ -40,27 +48,30 @@ def test_tool_mounts_and_hands_off(project: Path, tool: str) -> None:
     assert asac(project, "validate").exit_code == 0
     r = asac(project, "apply", "-p", "feature", "--run-id", "t1")
     assert r.exit_code == 2 and "handed to a person" in r.stdout
-    mounted = project / MOUNTED[tool]
+    # the tool works in the run's worktree: the files are there, the main checkout is untouched
+    work = Path(os.environ["ASAC_STATE_DIR"]) / "worktrees" / "t1"
+    mounted = work / MOUNTED[tool]
     assert mounted.is_file() and "Keep changes small" in mounted.read_text()
+    assert not (project / MOUNTED[tool]).exists()
 
 
 def test_full_flow_runs_real_tests_in_hook(project: Path) -> None:
     assert asac(project, "apply", "-p", "feature", "--run-id", "t1").exit_code == 2
     # recording evidence and approving continue the run by themselves
-    (project / "SPEC.md").write_text("# Spec\n## Acceptance criteria\n- ok\n")
+    (_work(project, "t1") / "SPEC.md").write_text("# Spec\n## Acceptance criteria\n- ok\n")
     r = asac(project, "evidence", "bootstrap", "t1", "--evidence", "spec_reviewed", "--by", "me")
     assert "gate_t1_requirements is pending" in r.output
     r = asac(project, "approve", "gate_t1_requirements", "--role", "product_owner", "--by", "me")
     assert "development handed to a person" in r.output
     # break the code: the post_step hook runs the project's real tests and blocks
-    (project / "app/todo/__init__.py").write_text("def add(t, x):\n    return 1\n")
+    (_work(project, "t1") / "app/todo/__init__.py").write_text("def add(t, x):\n    return 1\n")
     r = asac(project, "evidence", "bootstrap", "t1", "--evidence", "tests_green", "--by", "me")
     assert "tests-green" in r.output and "blocked" in r.output
 
 
 def test_no_resume_only_records_the_decision(project: Path) -> None:
     asac(project, "apply", "-p", "feature", "--run-id", "t1")
-    (project / "SPEC.md").write_text("# Spec\n## Acceptance criteria\n- ok\n")
+    (_work(project, "t1") / "SPEC.md").write_text("# Spec\n## Acceptance criteria\n- ok\n")
     r = asac(project, "evidence", "bootstrap", "t1", "--evidence", "spec_reviewed", "--no-resume")
     assert "pending" not in r.output
     r = asac(project, "apply", "--resume", "t1")
@@ -86,7 +97,9 @@ def test_autorun_launches_the_tool_but_keeps_the_human_step(
     monkeypatch.setenv("ASAC_AUTORUN", "1")
     r = asac(project, "apply", "-p", "feature", "--run-id", "t1")
     assert r.exit_code == 2 and "gate_t1_requirements is pending" in r.stdout
-    assert "step 'requirements'" in (project / f"launched-{cli}.txt").read_text()
+    work = Path(os.environ["ASAC_STATE_DIR"]) / "worktrees" / "t1"
+    assert "step 'requirements'" in (work / f"launched-{cli}.txt").read_text()
+    assert not (project / f"launched-{cli}.txt").exists()
 
 
 def test_autorun_failure_is_reported(

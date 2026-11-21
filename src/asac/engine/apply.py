@@ -69,7 +69,7 @@ class Context:
     manifest: Manifest
     pipeline_name: str
     store: StateStore
-    harness_for: Callable[[str], Harness]
+    harness_for: Callable[..., Harness]  # (agent, run_id) -> the harness of that run
     actor: str = "cli"
     root: Path | None = None
     policy_engine: PolicyEngine | None = None
@@ -79,6 +79,11 @@ class Context:
     retries: int = 0  # extra attempts after a failed harness or runner step (0 to 5)
     parallel: int = 1  # independent steps of a wave run together, up to this many (1 to 8)
     lock: threading.RLock = field(default_factory=threading.RLock)  # guards harness set-up
+    # Creates the run's worktree and returns (path, branch, base sha), or None when the run
+    # is not isolated. Called once, when the run is created.
+    workspace: Callable[[str], tuple[Path, str, str] | None] | None = None
+    # The worktree of a run, or None when it is not isolated (hooks run there).
+    workdir_for: Callable[[str], Path | None] | None = None
 
     @property
     def pipeline(self) -> Pipeline:
@@ -98,6 +103,20 @@ def create_run(ctx: Context, run_id: str) -> None:
             raise StateError(f"run '{run_id}' belongs to another pipeline") from None
         return
     ctx.store.append_audit(run_id, ctx.actor, "run.created", at, detail=ctx.pipeline_name)
+    if ctx.workspace is None:
+        return
+    try:
+        made = ctx.workspace(run_id)
+    except Exception as exc:  # no worktree means no isolation: the run must not start
+        ctx.store.set_run_status(run_id, "failed")
+        ctx.store.append_audit(run_id, ctx.actor, "workspace.failed", now_iso(), detail=str(exc))
+        raise StateError(f"cannot isolate run '{run_id}': {exc}") from None
+    if made is not None:
+        path, branch, base = made
+        ctx.store.append_audit(
+            run_id, ctx.actor, "workspace.created", now_iso(),
+            detail=f"branch={branch} base={base} path={path}",
+        )  # fmt: skip
 
 
 def execute(ctx: Context, run_id: str, only: str | None = None) -> Outcome:
@@ -263,7 +282,7 @@ def _run_harness(
             return blocked
     try:
         with ctx.lock:  # a harness instance holds per-step state: set-up and run go one at a time
-            harness = ctx.harness_for(step.agent)
+            harness = ctx.harness_for(step.agent, run_id)
             harness.mount(skill_key)
             wanted = list(ctx.manifest.agents[step.agent].tools)
             harness.tools(wanted)
@@ -472,8 +491,12 @@ def _run_hooks(ctx: Context, run_id: str, sid: str, attach: str) -> Outcome | No
     """Run the hooks attached at ``pre_tool`` (before the agent works) or ``post_step``."""
     assert ctx.root is not None
     env = {"ASAC_RUN_ID": run_id, "ASAC_STEP": sid, "ASAC_HOOK_ATTACH": attach}
+    work = ctx.workdir_for(run_id) if ctx.workdir_for is not None else None
+    if work is not None:
+        env["ASAC_WORKTREE"] = str(work)  # where the agent's output is
+        env["ASAC_ROOT"] = str(ctx.root)  # the main checkout: rules, manifest, state
     try:
-        results = run_hooks(ctx.manifest, ctx.root, attach, env=env)
+        results = run_hooks(ctx.manifest, ctx.root, attach, env=env, workdir=work)
     except HookError as exc:
         return _fail(ctx, run_id, sid, f"hook error: {exc}")
     for r in results:

@@ -26,7 +26,7 @@ class _FileMount(ClaudeCodeHarness):
         if skill not in self._ctx.manifest.skills:
             raise HarnessError(f"unknown skill '{skill}'")
         name = safe_name(skill)
-        target = self._ctx.root / self._target(name)
+        target = self._ctx.workdir / self._target(name)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(self._body(name), encoding="utf-8")
         if name not in self._mounted:
@@ -94,7 +94,7 @@ class CodexHarness(_FileMount):
         sandbox = "read-only" if readonly else "workspace-write"
         return [
             "codex", "exec", "-s", sandbox, "--skip-git-repo-check",
-            "-C", str(self._ctx.root), prompt,
+            "-C", str(self._ctx.workdir), prompt,
         ]  # fmt: skip
 
     def mounted_path(self, skill: str) -> str:
@@ -110,10 +110,10 @@ class CodexHarness(_FileMount):
     def _index(self) -> None:
         sections = []
         for n in sorted(self._mounted):
-            body = (self._ctx.root / self._target(n)).read_text(encoding="utf-8")
+            body = (self._ctx.workdir / self._target(n)).read_text(encoding="utf-8")
             sections.append(f"## ASAC skill: {n}\n\n" + body.replace("\n# ", "\n### ", 1))
         block = "\n".join([BEGIN, *sections, END])
-        path = self._ctx.root / "AGENTS.md"
+        path = self._ctx.workdir / "AGENTS.md"
         text = path.read_text(encoding="utf-8") if path.exists() else ""
         if BEGIN in text and END in text:
             head, rest = text.split(BEGIN, 1)

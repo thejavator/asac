@@ -15,11 +15,18 @@ class HarnessError(Exception):
 
 @dataclass(frozen=True)
 class AdapterContext:
-    root: Path
+    root: Path  # the main checkout: manifest, hooks, policies, skill sources (read only here)
     manifest: Manifest
     state_dir: Path
     autorun: bool = False  # launch the tool CLI on assist steps (asac.vars.yaml: autorun)
     autorun_timeout: int = 900
+    # Where the agent writes (skills, CLAUDE.md, .mcp.json, brief, its own edits). The run's
+    # worktree when isolation is on; otherwise the main checkout, as before.
+    work: Path | None = None
+
+    @property
+    def workdir(self) -> Path:
+        return self.work if self.work is not None else self.root
 
 
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")

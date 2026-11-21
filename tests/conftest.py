@@ -14,3 +14,18 @@ def sandbox_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("ASAC_STATE_DIR", str(tmp_path / ".asac-state"))
     return project
+
+
+def init_git(project: Path) -> None:
+    """Make a test project a git repository with one commit (isolated runs need one)."""
+    import subprocess
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            cwd=project, check=True, capture_output=True,
+        )  # fmt: skip
+
+    git("init", "-q", "-b", "main")
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")

@@ -42,7 +42,7 @@ class ClaudeCodeHarness:
         if skill not in manifest.skills:
             raise HarnessError(f"unknown skill '{skill}'")
         name = safe_name(skill)
-        target = self._ctx.root / ".claude" / "skills" / name / "SKILL.md"
+        target = self._ctx.workdir / ".claude" / "skills" / name / "SKILL.md"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(self._skill_md(name), encoding="utf-8")
         if name not in self._mounted:
@@ -123,7 +123,7 @@ class ClaudeCodeHarness:
         timeout = self._ctx.autorun_timeout
         try:
             done = subprocess.run(  # noqa: S603 - fixed argv, no shell
-                cmd, cwd=self._ctx.root, capture_output=True, text=True, timeout=timeout,
+                cmd, cwd=self._ctx.workdir, capture_output=True, text=True, timeout=timeout,
                 stdin=subprocess.DEVNULL,
             )  # fmt: skip
         except FileNotFoundError:
@@ -159,7 +159,7 @@ class ClaudeCodeHarness:
                 else:
                     entry["headers"] = {k: "${" + v + "}" for k, v in names.items()}
             servers[name] = entry
-        path = self._ctx.root / MCP_FILE
+        path = self._ctx.workdir / MCP_FILE
         if path.is_file() and "_asac" not in path.read_text(encoding="utf-8"):
             if servers:
                 raise HarnessError(f"{MCP_FILE} exists and is not managed by asac")
@@ -193,7 +193,7 @@ class ClaudeCodeHarness:
         return HARNESSES[self.harness_id]
 
     def health_check(self) -> bool:
-        return self._ctx.root.is_dir()
+        return self._ctx.workdir.is_dir()
 
     # -- rendering ----------------------------------------------------------
     def _skill_md(self, name: str) -> str:
@@ -232,7 +232,7 @@ class ClaudeCodeHarness:
         return "\n".join(out)
 
     def _write_claude_md(self) -> None:
-        path = self._ctx.root / "CLAUDE.md"
+        path = self._ctx.workdir / "CLAUDE.md"
         block = "\n".join(
             [
                 BEGIN,
