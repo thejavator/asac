@@ -32,6 +32,7 @@ from asac.engine.governance import (
     is_killed,
     permission_for,
 )
+from asac.engine.integrity import changed, snapshot
 from asac.engine.locked import LockedStore
 from asac.engine.plan import waves
 from asac.engine.workspace import WorkspaceError, commit_step
@@ -304,6 +305,7 @@ def _run_harness(
         blocked = _run_hooks(ctx, run_id, sid, "pre_tool")
         if blocked is not None:
             return blocked
+    rules_before = snapshot(ctx.root) if ctx.root is not None else {}
     try:
         with ctx.lock:  # a harness instance holds per-step state: set-up and run go one at a time
             harness = ctx.harness_for(step.agent, run_id)
@@ -333,6 +335,18 @@ def _run_harness(
     escalation = check_escalation(step, [str(r) for r in _as_list(result.get("escalate"))])
     if escalation.action != ALLOW:
         return _govern(ctx, run_id, sid, escalation)
+    if ctx.root is not None:
+        touched = changed(rules_before, snapshot(ctx.root))
+        if touched:
+            _audit(ctx, run_id, "integrity.violated", sid, ", ".join(touched))
+            return _block(
+                ctx,
+                run_id,
+                sid,
+                f"the rules were modified during the step: {', '.join(touched)}",
+                True,
+            )
+        _audit(ctx, run_id, "integrity.verified", sid, f"{len(rules_before)} rule files unchanged")
     launched = result.get("autorun")
     if isinstance(launched, dict):
         # ASAC ran the tool itself: no manual hand-off. Hooks check the result, then the gate.

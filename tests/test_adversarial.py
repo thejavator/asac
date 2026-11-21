@@ -7,7 +7,6 @@ disk afterwards, not what the tool says about itself.
 from __future__ import annotations
 
 import hashlib
-import os
 import shutil
 import subprocess
 from pathlib import Path
