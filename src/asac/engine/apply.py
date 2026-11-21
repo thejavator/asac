@@ -276,6 +276,12 @@ def _run_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None
         attempt = 0
         while True:
             out = _run_harness(ctx, run_id, sid, step, task, handle)
+            while _agent_owes_another_turn(ctx, run_id, sid, step, out):
+                # autorun: nobody is at the keyboard, so ASAC relaunches the agent itself, with
+                # the reason the previous turn was rejected already written into its brief.
+                ctx.store.set_step_status(run_id, sid, "running")
+                ctx.store.set_run_status(run_id, "running")
+                out = _run_harness(ctx, run_id, sid, step, task, handle)
             if out is None or out.code != Exit.ERROR or attempt >= ctx.retries:
                 return out
             attempt += 1
@@ -562,6 +568,27 @@ def _loop_turn(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | Non
     return Outcome(Exit.WAITING, run_id, f"{sid} turn {turn} failed its checks; back to the agent")
 
 
+def _agent_owes_another_turn(
+    ctx: Context, run_id: str, sid: str, step: Step, out: Outcome | None
+) -> bool:
+    """True when a loop turn failed its checks, turns remain, and ASAC launched the tool itself.
+
+    A person doing the work hands back by themselves (assist without autorun): nothing to
+    relaunch. The cap is enforced by _loop_turn, which fails the step: this never loops forever.
+    """
+    if step.loop is None or out is None or out.code != Exit.WAITING:
+        return False
+    if ctx.store.get_step_status(run_id, sid) != "handoff":
+        return False
+    return _autorun_launched(ctx, run_id, sid)
+
+
+def _autorun_launched(ctx: Context, run_id: str, sid: str) -> bool:
+    """The last time the step ran, did ASAC launch the tool (so it can launch it again)?"""
+    last = [a for a in ctx.store.audit(run_id) if a.step_id == sid and a.action == "tool.launched"]
+    return bool(last)
+
+
 def _turns_so_far(ctx: Context, run_id: str, sid: str) -> int:
     return sum(
         1 for a in ctx.store.audit(run_id) if a.action == "step.iteration" and a.step_id == sid
@@ -571,7 +598,7 @@ def _turns_so_far(ctx: Context, run_id: str, sid: str) -> int:
 def _write_feedback(ctx: Context, run_id: str, sid: str, turn: int, reason: str) -> None:
     """The agent's next brief carries the reason its previous turn was rejected."""
     assert ctx.state_dir is not None
-    path = ctx.state_dir / "briefs" / run_id / f"{sid}.md"
+    path = ctx.state_dir / "briefs" / run_id / f"{sid}.feedback.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     note = (
         f"\n## Feedback from turn {turn}\n\nThe checks below failed. Fix them, then stop. "

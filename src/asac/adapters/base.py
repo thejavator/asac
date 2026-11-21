@@ -45,5 +45,10 @@ def safe_name(name: str) -> str:
 def write_brief(ctx: AdapterContext, run_id: str, step: str, text: str) -> Path:
     path = ctx.state_dir / "briefs" / safe_name(run_id) / f"{safe_name(step)}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
+    # A loop sends the reason a turn was rejected back to the agent. The brief is regenerated at
+    # every launch, so the feedback lives in its own file and is appended each time.
+    feedback = path.with_name(f"{safe_name(step)}.feedback.md")
+    if feedback.is_file():
+        text = text.rstrip("\n") + "\n" + feedback.read_text(encoding="utf-8")
     path.write_text(text, encoding="utf-8")
     return path

@@ -128,8 +128,8 @@ def test_a_failing_check_sends_the_reason_back_and_the_agent_retries(
     _drive(root, "l1", "apply", "--resume", "l1")
     logged = _drive(root, "l1", "logs", "l1").output
     assert "step.iteration build  1 of 3 failed" in logged
-    brief = (Path(os.environ["ASAC_STATE_DIR"]) / "briefs" / "l1" / "build.md").read_text()
-    assert "done.txt is missing" in brief
+    briefs = Path(os.environ["ASAC_STATE_DIR"]) / "briefs" / "l1"
+    assert "done.txt is missing" in (briefs / "build.feedback.md").read_text()
     # turn 2: the agent fixes it and hands back; the check passes; the step completes
     (work / "done.txt").write_text("ok")
     _drive(root, "l1", "evidence", "bootstrap", "l1", "--evidence", "built", "--no-resume")
@@ -154,3 +154,46 @@ def test_a_check_that_never_passes_fails_the_step_at_the_cap(loop_env: Path) -> 
     ev = _drive(root, "cap", "evidence", "show", "cap").output
     assert "bootstrapped" in ev and "produced_by=build" not in ev
     assert "failed" in _drive(root, "cap", "status").output
+
+
+def _counting_claude(tmp_path: Path, fix_on_launch: int) -> Path:
+    """A stand-in claude: counts its launches, and creates done.txt from launch N on.
+
+    It reads the feedback in the brief, so a run that does not send the reason back cannot pass.
+    """
+    bindir = tmp_path / "bin"
+    bindir.mkdir(exist_ok=True)
+    counter = tmp_path / "launches.txt"
+    script = (
+        "#!/bin/sh\n"
+        f'echo x >> "{counter}"\n'
+        f'n=$(wc -l < "{counter}")\n'
+        # like a real agent: the brief path is in the prompt ($2), and only a brief that carries
+        # the rejection reason lets this stand-in fix its work
+        "brief=$(echo \"$2\" | grep -o '/[^ ]*\\.md' | head -1)\n"
+        f'if [ "$n" -ge {fix_on_launch} ] && grep -q "done.txt is missing" "$brief"; '
+        "then echo ok > done.txt; fi\n"
+        'echo \'{"type":"result","is_error":false,"total_cost_usd":0.01,'
+        '"usage":{},"result":"x"}\'\n'
+    )
+    (bindir / "claude").write_text(script)
+    (bindir / "claude").chmod(0o755)
+    return bindir
+
+
+def test_with_autorun_the_agent_is_relaunched_by_asac_until_the_check_passes(
+    loop_env: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The point of a loop: nobody is needed between turns. ASAC relaunches the agent."""
+    root = _loop_project(loop_env, max_iterations=4)
+    bindir = _counting_claude(loop_env, fix_on_launch=3)
+    monkeypatch.setenv("PATH", f"{bindir}:/usr/bin:/bin")
+    monkeypatch.setenv("ASAC_AUTORUN", "1")
+    r = _drive(root, "a1", "apply", "-p", "feature", "--harness", "claude-code", "--run-id", "a1")
+    launches = (loop_env / "launches.txt").read_text().count("x")
+    log = _drive(root, "a1", "logs", "a1").output
+    assert launches == 3, (launches, r.output)  # launched, relaunched, relaunched
+    assert "step.iteration build  1 of 4 failed" in log
+    assert "step.iteration build  2 of 4 failed" in log
+    assert "step.iteration build  3 of 4 passed" in log
+    assert "step.completed build" in log
