@@ -384,10 +384,13 @@ def _record_spend(ctx: Context, run_id: str, sid: str, result: dict[str, object]
     """Accumulate the run's spend from the harness report (tokens, cost, iterations)."""
     tokens = int(str(result.get("tokens", 0) or 0))
     cost = float(str(result.get("cost_usd", 0.0) or 0.0))
+    unknown = bool(result.get("cost_unknown"))
     total = _spend_so_far(ctx, run_id)
     total.tokens += tokens
     total.cost_usd += cost
-    _audit(ctx, run_id, "spend.recorded", sid, f"tokens={tokens} cost_usd={cost:.4f}")
+    total.cost_unknown = total.cost_unknown or unknown
+    detail = f"tokens={tokens} cost_usd={cost:.4f}" + (" cost=unknown" if unknown else "")
+    _audit(ctx, run_id, "spend.recorded", sid, detail)
     return total
 
 
@@ -398,6 +401,7 @@ def _spend_so_far(ctx: Context, run_id: str) -> Spend:
             parts = dict(p.split("=", 1) for p in a.detail.split())
             spend.tokens += int(parts["tokens"])
             spend.cost_usd += float(parts["cost_usd"])
+            spend.cost_unknown = spend.cost_unknown or parts.get("cost") == "unknown"
     return spend
 
 

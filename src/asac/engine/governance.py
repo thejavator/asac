@@ -36,6 +36,7 @@ class Spend:
     cost_usd: float = 0.0
     iterations: int = 0
     by_step: dict[str, int] = field(default_factory=dict)
+    cost_unknown: bool = False  # a step ran and did not report its cost
 
 
 def is_killed(store: StateStore, run_id: str) -> bool:
@@ -50,6 +51,8 @@ def check_budget(manifest: Manifest, spent: Spend) -> Verdict:
     pr = b.per_run
     if pr.tokens is not None and spent.tokens > pr.tokens:
         return Verdict(BLOCK, f"token budget exceeded ({spent.tokens:,} > {pr.tokens:,})")
+    if pr.cost_usd is not None and spent.cost_unknown:
+        return Verdict(BLOCK, "cost budget cannot be checked: a step did not report its cost")
     if pr.cost_usd is not None and spent.cost_usd > pr.cost_usd:
         return Verdict(BLOCK, f"cost budget exceeded (${spent.cost_usd:.2f} > ${pr.cost_usd:.2f})")
     return Verdict(ALLOW)

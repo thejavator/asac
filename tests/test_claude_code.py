@@ -122,7 +122,9 @@ def test_mcp_without_servers_leaves_command_unchanged_and_removes_managed_file(
     assert (sandbox_project / ".mcp.json").is_file()
     h.tools([])
     assert not (sandbox_project / ".mcp.json").exists()
-    assert h.command("go", True) == ["claude", "-p", "go", "--permission-mode", "plan"]
+    assert h.command("go", True) == [
+        "claude", "-p", "go", "--permission-mode", "plan", "--output-format", "json"
+    ]
 
 
 def test_mcp_refuses_to_overwrite_a_user_file(sandbox_project: Path, tmp_path: Path) -> None:

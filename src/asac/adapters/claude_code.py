@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,48 @@ from asac.ports.harness import HarnessDescriptor
 MCP_FILE = ".mcp.json"
 BEGIN = "<!-- asac:begin (managed by asac, do not edit) -->"
 END = "<!-- asac:end -->"
+
+
+@dataclass(frozen=True)
+class ClaudeReport:
+    """What ``claude -p --output-format json`` says about one run. ``cost_usd`` is None when
+    the report carries no cost: an unknown cost is never booked as zero."""
+
+    cost_usd: float | None
+    tokens: int
+    is_error: bool
+    result: str
+
+
+def parse_claude_report(raw: str) -> ClaudeReport:
+    """Find the JSON result object in the output (the CLI may print warnings before it)."""
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(raw):
+        if ch != "{":
+            continue
+        try:
+            obj, _ = decoder.raw_decode(raw, i)
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and obj.get("type") == "result":
+            usage = obj.get("usage") or {}
+            tokens = sum(
+                int(usage.get(k) or 0)
+                for k in (
+                    "input_tokens",
+                    "output_tokens",
+                    "cache_read_input_tokens",
+                    "cache_creation_input_tokens",
+                )
+            )
+            cost = obj.get("total_cost_usd")
+            return ClaudeReport(
+                cost_usd=float(cost) if isinstance(cost, int | float) else None,
+                tokens=tokens,
+                is_error=bool(obj.get("is_error")),
+                result=str(obj.get("result", "")),
+            )
+    raise ValueError("no JSON result object in the claude output")
 
 
 class ClaudeCodeHarness:
@@ -92,12 +135,19 @@ class ClaudeCodeHarness:
             launched = self._autorun(task, path)
             if launched is not None:
                 result["autorun"] = launched
+                # the engine books the spend from these two fields
+                if launched.get("cost_usd") is not None:
+                    result["cost_usd"] = launched["cost_usd"]
+                if "tokens" in launched:
+                    result["tokens"] = launched["tokens"]
+                if launched.get("cost") == "unknown":
+                    result["cost_unknown"] = True
         return result
 
     def command(self, prompt: str, readonly: bool) -> list[str] | None:
         """Non-interactive command for this tool, or None for GUI-only tools."""
         mode = "plan" if readonly else "acceptEdits"
-        argv = ["claude", "-p", prompt, "--permission-mode", mode]
+        argv = ["claude", "-p", prompt, "--permission-mode", mode, "--output-format", "json"]
         if self._mcp:
             argv += [
                 "--mcp-config", MCP_FILE, "--strict-mcp-config",
@@ -105,7 +155,7 @@ class ClaudeCodeHarness:
             ]  # fmt: skip
         return argv
 
-    def _autorun(self, task: dict[str, Any], brief: Path) -> dict[str, str] | None:
+    def _autorun(self, task: dict[str, Any], brief: Path) -> dict[str, Any] | None:
         """Opt-in (vars `autorun: true` or ASAC_AUTORUN=1): launch the tool, return what to audit.
 
         The result is checked by the step's hooks and a person decides at the gate.
@@ -134,7 +184,21 @@ class ClaudeCodeHarness:
         if done.returncode != 0:
             raise HarnessError(f"'{cmd[0]}' exited with {done.returncode}; see {log}")
         digest = hashlib.sha256(log.read_bytes()).hexdigest()
-        return {"tool": cmd[0], "exit": "0", "log": str(log), "log_sha256": digest}
+        launched: dict[str, Any] = {
+            "tool": cmd[0], "exit": "0", "log": str(log), "log_sha256": digest,
+        }  # fmt: skip
+        try:
+            report = parse_claude_report(done.stdout)
+        except ValueError:
+            launched["cost"] = "unknown"  # no report: the cost cannot be checked
+            return launched
+        if report.is_error:
+            raise HarnessError(f"'{cmd[0]}' reported an error; see {log}")
+        launched["tokens"] = report.tokens
+        launched["cost_usd"] = report.cost_usd
+        if report.cost_usd is None:
+            launched["cost"] = "unknown"
+        return launched
 
     def mounted_path(self, skill: str) -> str:
         return f".claude/skills/{skill}/SKILL.md"

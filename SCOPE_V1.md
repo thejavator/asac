@@ -71,7 +71,8 @@ Constaté dans le code (lecture) et sur une copie de `examples/real-tools` (exé
 Deux modes seulement :
 
 - **`delegate`** : ASAC lance l'agent dans le worktree et le bac à sable, avec la boucle. C'est le mode principal de la v1.
-- **`assist`** : ASAC prépare le brief et s'arrête ; une personne lance l'outil. L'option `autorun` en `assist` est **supprimée**, car elle fait la même chose que `delegate` sans protection.
+- **`assist`** : ASAC prépare le brief, lance l'outil **dans le worktree** si `autorun` est activé (mesure du coût réel, hooks, puis gate humaine), et s'arrête à la gate. Une personne décide. **Limite actuelle :** sans bac à sable (lot 3), l'agent tourne avec les droits de l'utilisateur ; le worktree isole les fichiers produits, pas les autres accès.
+- **`delegate`** : exécution sans supervision, dans le bac à sable (lot 3). C'est le seul mode où l'agent tourne sans personne devant l'écran.
 
 ### 4.3 Commandes CLI (12)
 
@@ -206,7 +207,7 @@ Réalisés dans `/tmp`, sur des copies, **sans modifier le dépôt**. Coût de l
 
 ### Lot 1. Worktree et exécution réelle
 
-Worktree par run, commit et sha par étape, harness qui écrit dans le worktree, hooks et politiques exécutés depuis le dépôt principal, coût réel, suppression de `autorun` en `assist`, `asac clean`.
+Worktree par run, commit et sha par étape, harness qui écrit dans le worktree, hooks et politiques exécutés depuis le dépôt principal, coût réel (fait : `claude -p --output-format json`, coût inconnu bloqué par un budget de coût), `asac clean`. **Décision corrigée :** `autorun` n'est pas supprimé en `assist` : c'est le mécanisme qui exécute l'agent et mesure son coût.
 
 ### Lot 2. Boucle
 
