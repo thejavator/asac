@@ -13,7 +13,7 @@ from asac.adapters.sandbox import SandboxError, SandboxPolicy, build_settings, w
 def _policy(work: Path, **kw: object) -> SandboxPolicy:
     base = {
         "workdir": work,
-        "allowed_domains": ("api.servicesessentials.ibm.com",),
+        "allowed_domains": ("api.example-gateway.test",),
         "extra_write": (),
         "deny_read": ("~/.ssh", "~/.aws"),
     }
@@ -37,7 +37,7 @@ def test_settings_allow_writes_only_in_the_worktree(tmp_path: Path) -> None:
 
 def test_settings_network_is_a_domain_allowlist_with_a_deny_list(tmp_path: Path) -> None:
     s = build_settings(_policy(tmp_path / "wt"))
-    assert s["network"]["allowedDomains"] == ["api.servicesessentials.ibm.com"]
+    assert s["network"]["allowedDomains"] == ["api.example-gateway.test"]
     assert s["network"]["deniedDomains"] == []  # required key: srt refuses a config without it
 
 

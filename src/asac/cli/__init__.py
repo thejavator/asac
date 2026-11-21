@@ -12,9 +12,13 @@ from pydantic import ValidationError
 from asac.engine.apply import Context, Outcome
 from asac.model import Manifest
 
-app = typer.Typer(help="ASAC: Agentic SDLC as Code (spec v0.4).", no_args_is_help=True)
+app = typer.Typer(
+    help="ASAC: Agentic SDLC as Code (spec v0.4). Version 0.1 supports: doctor, validate, apply, "
+    "approve, gates, status, logs, audit, evidence, clean, kill.",
+    no_args_is_help=True,
+)
 vars_app = typer.Typer(help="Inspect layer 2 (asac.vars.yaml).", no_args_is_help=True)
-app.add_typer(vars_app, name="vars")
+app.add_typer(vars_app, name="vars", hidden=True)
 evidence_app = typer.Typer(help="Inspect and bootstrap evidence.", no_args_is_help=True)
 app.add_typer(evidence_app, name="evidence")
 
@@ -190,7 +194,7 @@ def detect_stack(path: Path) -> str:
     return "generic"
 
 
-@app.command()
+@app.command(hidden=True)
 def init(
     path: Annotated[Path, typer.Argument()] = Path("."),
     name: Annotated[str | None, typer.Option("--name")] = None,
@@ -475,7 +479,7 @@ def _run_engine_with(ctx: Context, run_id: str, *, exit_after: bool = True) -> N
         raise typer.Exit(int(outcome.code))
 
 
-@app.command()
+@app.command(hidden=True)
 def run(
     step: Annotated[str | None, typer.Argument(help="Run only this step.")] = None,
     file: ManifestOpt = Path("asac.yaml"),
@@ -745,7 +749,7 @@ def kill(
     typer.echo(f"run {run_id} killed")
 
 
-@app.command()
+@app.command(hidden=True)
 def learn(
     run_id: Annotated[str, typer.Argument()],
     file: ManifestOpt = Path("asac.yaml"),
@@ -796,7 +800,7 @@ def _serve(application: object, host: str, port: int) -> None:
     uvicorn.run(application, host=host, port=port, log_level="info")  # type: ignore[arg-type]
 
 
-@app.command()
+@app.command(hidden=True)
 def portal(
     data: Annotated[
         Path, typer.Option(help="Portal data folder (projects, sessions, admin).")
@@ -849,7 +853,7 @@ def portal(
 
 
 project_app = typer.Typer(help="Manage the projects of a portal database.", no_args_is_help=True)
-app.add_typer(project_app, name="project")
+app.add_typer(project_app, name="project", hidden=True)
 DataOpt = Annotated[Path, typer.Option(help="Portal data folder (same as `asac portal --data`).")]
 
 
@@ -919,7 +923,7 @@ def project_archive(
     typer.echo(f"project {project_id} {'restored' if restore else 'archived'}")
 
 
-@app.command()
+@app.command(hidden=True)
 def daemon(
     file: ManifestOpt = Path("asac.yaml"),
     host: Annotated[str, typer.Option(help="Bind address.")] = "127.0.0.1",

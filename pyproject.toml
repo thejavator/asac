@@ -1,6 +1,6 @@
 [project]
 name = "asac-cli"
-version = "0.0.1"
+version = "0.1.0"
 description = "Reference implementation of ASAC (Agentic SDLC as Code), spec v0.4"
 readme = "README.md"
 license = { text = "Apache-2.0" }

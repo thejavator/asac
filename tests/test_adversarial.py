@@ -52,7 +52,7 @@ def arena(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("ASAC_FIXED_TIME", "2026-01-01T00:00:00Z")
     monkeypatch.setenv("ASAC_AUTORUN", "1")
     monkeypatch.setenv("ASAC_SANDBOX", "1")
-    monkeypatch.setenv("ASAC_SANDBOX_DOMAINS", "api.servicesessentials.ibm.com")
+    monkeypatch.setenv("ASAC_SANDBOX_DOMAINS", "api.example-gateway.test")
     monkeypatch.setenv("PATH", f"{bindir}:{Path(NODE).parent}:{Path(SRT).parent}:/usr/bin:/bin")
     (tmp_path / "bin_dir").write_text(str(bindir))
     return root

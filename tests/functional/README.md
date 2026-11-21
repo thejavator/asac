@@ -14,7 +14,7 @@ sont utilisés en mode hand-off (`ASAC_AUTORUN=0`).
 
 ## Prérequis
 
-- CLI `asac` installé (dans `$ASAC_HOME/.venv/bin`) : `asac version` → `asac 0.0.1 (spec 0.4)`.
+- CLI `asac` installé (dans `$ASAC_HOME/.venv/bin`) : `asac version` → `asac 0.1.0 (spec 0.4)`.
 - `opa` dans le `PATH` pour les policies `.rego` (sans `opa`, les policies échouent en *fail closed*).
 - `curl` et `openssl` pour les tests du daemon et du portail.
 
