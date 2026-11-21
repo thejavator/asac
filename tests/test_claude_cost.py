@@ -105,7 +105,9 @@ def test_unknown_cost_is_fine_without_a_cost_budget() -> None:
     assert check_budget(M(), Spend(tokens=10, cost_unknown=True)).action == ALLOW  # type: ignore[arg-type]
 
 
-def test_an_unknown_cost_survives_a_resume_and_still_blocks(tmp_path: pytest.TempPathFactory) -> None:
+def test_an_unknown_cost_survives_a_resume_and_still_blocks(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
     """The unknown cost is in the audit: a later resume must not forget it and pass the budget."""
     from types import SimpleNamespace
 

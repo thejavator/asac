@@ -93,3 +93,25 @@ def remove_workspace(root: Path, path: Path, branch: str) -> None:
     proc = _git(root, "worktree", "remove", "--force", str(path))
     if proc.returncode != 0:
         raise WorkspaceError(f"git worktree remove failed: {proc.stderr.strip()}")
+
+
+def commit_step(workdir: Path, run_id: str, step_id: str) -> str:
+    """Make the commit the gate will approve, and return its sha.
+
+    ASAC always writes that commit, so the approved sha is one ASAC created: never a commit the
+    agent made, even when the agent committed everything itself. If there is nothing new, an
+    empty commit records that the step was checked at this point.
+    """
+    if not _is_repo(workdir):
+        raise WorkspaceError(f"{workdir} is not a worktree")
+    _git(workdir, "add", "-A")
+    dirty = _git(workdir, "diff", "--cached", "--quiet").returncode != 0
+    msg = f"asac: {step_id} (run {run_id})"
+    args = ["-c", "user.name=ASAC", "-c", "user.email=asac@localhost",
+            "commit", "-q", "--no-verify", "-m", msg]  # fmt: skip
+    if not dirty:
+        args.insert(args.index("-q"), "--allow-empty")
+    proc = _git(workdir, *args)
+    if proc.returncode != 0:
+        raise WorkspaceError(f"commit failed: {proc.stderr.strip()}")
+    return _git(workdir, "rev-parse", "HEAD").stdout.strip()

@@ -64,6 +64,7 @@ class GateRecord:
     decided_at: str | None = None
     comment: str | None = None
     evidence_ids: tuple[str, ...] = ()
+    subject: str | None = None  # the commit (sha) the approval is about, when there is one
 
 
 @dataclass(frozen=True)

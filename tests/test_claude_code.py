@@ -123,7 +123,13 @@ def test_mcp_without_servers_leaves_command_unchanged_and_removes_managed_file(
     h.tools([])
     assert not (sandbox_project / ".mcp.json").exists()
     assert h.command("go", True) == [
-        "claude", "-p", "go", "--permission-mode", "plan", "--output-format", "json"
+        "claude",
+        "-p",
+        "go",
+        "--permission-mode",
+        "plan",
+        "--output-format",
+        "json",
     ]
 
 

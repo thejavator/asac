@@ -528,7 +528,8 @@ def gates(
     for g in store.list_gates(status_filter):
         role = g.role or "-"
         due = f" due {g.timeout_at}" if g.timeout_at else ""
-        typer.echo(f"{g.gate_id}  {g.status:<9} role={role}{due}")
+        commit = f" commit={g.subject[:12]}" if g.subject else ""
+        typer.echo(f"{g.gate_id}  {g.status:<9} role={role}{due}{commit}")
 
 
 @app.command()

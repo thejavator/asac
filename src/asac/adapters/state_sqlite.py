@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS gates (
     decided_by TEXT,
     decided_at TEXT,
     comment TEXT,
-    evidence_ids TEXT NOT NULL DEFAULT '[]'
+    evidence_ids TEXT NOT NULL DEFAULT '[]',
+    subject TEXT
 );
 CREATE TABLE IF NOT EXISTS audit (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +87,7 @@ def _gate(row: sqlite3.Row) -> GateRecord:
         decided_at=row["decided_at"],
         comment=row["comment"],
         evidence_ids=tuple(json.loads(row["evidence_ids"])),
+        subject=row["subject"],
     )
 
 
@@ -98,6 +100,14 @@ class SqliteStateStore:
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA journal_mode = WAL")
         self._conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Add columns that newer versions need to databases created by older ones."""
+        cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(gates)")}
+        if "subject" not in cols:
+            with self._conn:
+                self._conn.execute("ALTER TABLE gates ADD COLUMN subject TEXT")
 
     def close(self) -> None:
         self._conn.close()
@@ -198,8 +208,8 @@ class SqliteStateStore:
             with self._conn:
                 self._conn.execute(
                     "INSERT INTO gates (gate_id, run_id, step_id, type, role, status, "
-                    "requested_at, timeout_at, evidence_ids) "
-                    "VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)",
+                    "requested_at, timeout_at, evidence_ids, subject) "
+                    "VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)",
                     (
                         gate.gate_id,
                         gate.run_id,
@@ -209,6 +219,7 @@ class SqliteStateStore:
                         gate.requested_at,
                         gate.timeout_at,
                         json.dumps(list(gate.evidence_ids)),
+                        gate.subject,
                     ),
                 )
         except sqlite3.IntegrityError as exc:

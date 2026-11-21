@@ -34,6 +34,7 @@ from asac.engine.governance import (
 )
 from asac.engine.locked import LockedStore
 from asac.engine.plan import waves
+from asac.engine.workspace import WorkspaceError, commit_step
 from asac.hooks import HookError, run_hooks
 from asac.model import Manifest
 from asac.model.manifest import Gate, Pipeline, Step
@@ -481,10 +482,28 @@ def _finish_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | N
         blocked = _post_step_hooks(ctx, run_id, sid)
         if blocked is not None:
             return blocked
+    # The hooks passed on this tree: the gate will approve exactly this commit.
+    sha = _commit_if_isolated(ctx, run_id, sid)
     if step.gate is not None:
-        return _open_gate(ctx, run_id, sid, step.gate, step.producesEvidence)
+        return _open_gate(ctx, run_id, sid, step.gate, step.producesEvidence, sha)
     _complete(ctx, run_id, sid, step, approved_by=None)
     return None
+
+
+def _commit_if_isolated(ctx: Context, run_id: str, sid: str) -> str | None:
+    """Commit the step in its worktree (ASAC does it). Not isolated: nothing to commit."""
+    if ctx.workdir_for is None:
+        return None
+    work = ctx.workdir_for(run_id)
+    if work is None:
+        return None
+    try:
+        sha = commit_step(work, run_id, sid)
+    except WorkspaceError as exc:
+        _audit(ctx, run_id, "commit.failed", sid, str(exc))
+        return None
+    _audit(ctx, run_id, "step.committed", sid, sha)
+    return sha
 
 
 def _post_step_hooks(ctx: Context, run_id: str, sid: str) -> Outcome | None:
@@ -512,7 +531,9 @@ def _run_hooks(ctx: Context, run_id: str, sid: str, attach: str) -> Outcome | No
     return None
 
 
-def _open_gate(ctx: Context, run_id: str, sid: str, gate: Gate, produces: list[str]) -> Outcome:
+def _open_gate(
+    ctx: Context, run_id: str, sid: str, gate: Gate, produces: list[str], subject: str | None = None
+) -> Outcome:
     at = now_iso()
     gid = gate_id_for(run_id, sid)
     try:
@@ -530,6 +551,7 @@ def _open_gate(ctx: Context, run_id: str, sid: str, gate: Gate, produces: list[s
                 requested_at=at,
                 timeout_at=timeout_at,
                 evidence_ids=tuple(produces),
+                subject=subject,
             )
         )
     ctx.store.set_step_status(run_id, sid, "gate_waiting")
