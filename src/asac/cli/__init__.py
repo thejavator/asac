@@ -435,7 +435,7 @@ def _resume(
     run: bool = True,
     exit_after: bool = True,
 ) -> None:
-    from asac.ports.state import NotFound
+    from asac.ports.state import NotFound, StateError
 
     manifest = _load(manifest_path)
     from asac.engine.runtime import make_context, project_root, store_for
@@ -933,3 +933,48 @@ def daemon(
         typer.echo("error: ASAC_WEBHOOK_SECRET is not set", err=True)
         raise typer.Exit(1)
     _serve(create_app(file, harness), host, port)
+
+
+@app.command()
+def clean(
+    run_id: Annotated[str, typer.Argument(help="Run whose worktree to remove.")],
+    file: ManifestOpt = Path("asac.yaml"),
+    force: Annotated[
+        bool, typer.Option("--force", help="Remove it even if the run is not finished.")
+    ] = False,
+) -> None:
+    """Remove a run's worktree. Its branch is kept: that is the work to review and merge."""
+    from asac import clock
+    from asac.engine.runtime import project_root, recorded_workspace
+    from asac.engine.workspace import WorkspaceError, remove_workspace
+    from asac.ports.state import NotFound, StateError
+
+    store = store_for_path(file)
+    try:
+        rec = store.get_run(run_id)
+    except NotFound:
+        typer.echo(f"error: run '{run_id}' not found", err=True)
+        raise typer.Exit(EXIT_ERROR) from None
+    try:
+        path = recorded_workspace(store, run_id)
+    except StateError:
+        path = None  # recorded, but already removed: nothing left to clean
+    if path is None or not path.exists():
+        typer.echo(f"run {run_id}: no worktree to clean")
+        return
+    if rec.status not in ("completed", "failed", "killed") and not force:
+        typer.echo(
+            f"error: run {run_id} is still {rec.status}; its worktree is needed to resume "
+            "(use --force to remove it anyway)",
+            err=True,
+        )
+        raise typer.Exit(EXIT_ERROR)
+    branch = f"asac/{run_id}"
+    try:
+        remove_workspace(project_root(file), path, branch)
+    except WorkspaceError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(EXIT_ERROR) from None
+    store.append_audit(run_id, os.environ.get("USER", "cli"), "workspace.removed",
+                       clock.now_iso(), detail=str(path))  # fmt: skip
+    typer.echo(f"run {run_id}: worktree removed; branch {branch} kept")
