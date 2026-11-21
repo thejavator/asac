@@ -16,9 +16,9 @@ Le manifeste complet vient de `../02-feature/` (étape 5) : `asac init` ne gén�
 ## 0. Préparation
 
 ```bash
-export PATH="/Users/tahrielmedhi/IBM/sldc-agentic/asac/.venv/bin:$PATH"
+export PATH="$ASAC_HOME/.venv/bin:$PATH"
 export ASAC_AUTORUN=0
-SRC=/Users/tahrielmedhi/IBM/sldc-agentic/asac/tests/functional
+SRC=$ASAC_HOME/tests/functional
 WORK=$(mktemp -d) && cp "$SRC/01-new-project/pom.xml" "$WORK/" && cd "$WORK"
 export ASAC_STATE_DIR="$WORK/.asac-state"
 ```

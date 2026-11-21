@@ -14,7 +14,7 @@ sont utilisés en mode hand-off (`ASAC_AUTORUN=0`).
 
 ## Prérequis
 
-- CLI `asac` installé (`/Users/tahrielmedhi/IBM/sldc-agentic/asac/.venv/bin`) : `asac version` → `asac 0.0.1 (spec 0.4)`.
+- CLI `asac` installé (dans `$ASAC_HOME/.venv/bin`) : `asac version` → `asac 0.0.1 (spec 0.4)`.
 - `opa` dans le `PATH` pour les policies `.rego` (sans `opa`, les policies échouent en *fail closed*).
 - `curl` et `openssl` pour les tests du daemon et du portail.
 
@@ -33,3 +33,5 @@ sont utilisés en mode hand-off (`ASAC_AUTORUN=0`).
 | `asac plan --trigger jira:…` et `asac apply --trigger …` | option inexistante (exit 2) | lancement manuel avec `-p` |
 | `init` crée `asac.vars.yaml.example`, `default.rego`, `.gitignore` | seulement `asac.yaml` | à copier à la main |
 | Cursor « IDE seulement » (non headless) | catalogue : `cursor` headless, ASAC013 ne se déclenche pas | seuls `copilot` et `antigravity` sont refusés en `delegate` |
+
+> `ASAC_HOME` désigne la racine de ce dépôt (le dossier qui contient `pyproject.toml`) : `export ASAC_HOME="$(pwd)"` depuis cette racine.

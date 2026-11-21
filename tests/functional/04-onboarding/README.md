@@ -17,9 +17,9 @@ puis valide, consulte le statut et le plan. Le manifeste est celui de `payments-
 ## 0. Préparation
 
 ```bash
-export PATH="/Users/tahrielmedhi/IBM/sldc-agentic/asac/.venv/bin:$PATH"
+export PATH="$ASAC_HOME/.venv/bin:$PATH"
 export ASAC_AUTORUN=0
-SRC=/Users/tahrielmedhi/IBM/sldc-agentic/asac/tests/functional/04-onboarding
+SRC=$ASAC_HOME/tests/functional/04-onboarding
 WORK=$(mktemp -d) && cp -R "$SRC/." "$WORK" && cd "$WORK"
 export ASAC_STATE_DIR="$WORK/.asac-state"
 ```

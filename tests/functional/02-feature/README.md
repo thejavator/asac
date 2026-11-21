@@ -27,10 +27,10 @@ sauf la section 5 qui utilise les vrais harnais en mode *hand-off*.
 On travaille toujours sur une **copie** pour ne pas polluer le dépôt.
 
 ```bash
-export ASAC_BIN=/Users/tahrielmedhi/IBM/sldc-agentic/asac/.venv/bin
+export ASAC_BIN="$ASAC_HOME/.venv/bin"
 export PATH="$ASAC_BIN:$PATH"
 export ASAC_AUTORUN=0   # n'exécute jamais un vrai outil, même si le vars le demande
-SRC=/Users/tahrielmedhi/IBM/sldc-agentic/asac/tests/functional/02-feature
+SRC=$ASAC_HOME/tests/functional/02-feature
 WORK=$(mktemp -d) && cp -R "$SRC/." "$WORK" && cd "$WORK"
 export ASAC_STATE_DIR="$WORK/.asac-state"
 cp vars/team.yaml asac.vars.yaml
