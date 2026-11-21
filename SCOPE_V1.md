@@ -6,6 +6,25 @@ Statut : proposition révisée, 2026-11-21. Remplace l'ordre de priorités de `T
 
 **Précision du 2026-11-21.** Ce qui est hors v1 n'est pas secondaire : c'est ce qui distingue ASAC d'Archon (identité des approbateurs, registre signé, neutralité vis-à-vis de l'agent, preuves et politiques avancées, gouvernance d'entreprise). La v1 le **diffère** sans le sacrifier : voir le § 6, qui impose des règles de conservation et fixe ce que la v1 doit garantir pour ne pas le perdre.
 
+## État d'avancement (2026-11-21, fin de session)
+
+**Fait et vérifié** (suite : 568 tests, `ruff`, `mypy --strict`, docs `--strict`) : worktree par run,
+coût réel, commit par étape lié à la gate, `asac clean`, `step.loop` avec relance automatique,
+bac à sable `srt` (preuve par contrôle inverse), contrôle d'intégrité des règles (audité),
+`asac doctor`, RUNBOOK suivi à la lettre, chemins personnels retirés, `--help` limité, version 0.1.0.
+Deux runs réels de bout en bout avec Claude Code sous le bac à sable (coût 0,13 et 0,16 USD).
+
+**Non fait, à ne pas présenter comme fait :**
+- Aucun test d'intégration réel **automatisé** (marqueur `integration`) avec le vrai `claude` ni sur un dépôt qui n'est pas l'exemple : les deux runs réels ont été faits à la main, sur `real-tools`.
+- La boucle n'a pas tourné avec le vrai agent (seulement avec un faux outil).
+- Quand l'agent a reçu la consigne d'attaquer les règles, il a **refusé** : la preuve que le bac à sable bloque vient des faux outils hostiles, pas du vrai agent.
+- Le bac à sable ne couvre ni `delegate` ni les autres outils ; réseau limité à la passerelle du modèle ; macOS seulement ; Linux non testé.
+- Les tentatives refusées par l'OS (lecture de clés, réseau) ne sont **pas** dans l'audit ; seules les modifications de règles le sont (`integrity.violated`).
+- Vérification avec IBM (propriété intellectuelle, noms Bob, wxO, ICA, textes TLT) : **décision humaine**, voir `TACHES.md`.
+- Un test de la suite a échoué une fois sans être reproduit (voir le commit `0e653f9`).
+- Nommage du schéma : `max_iterations` (snake_case) contre `dependsOn` (camelCase), mais aussi `on_fail`, `per_run`, `cost_usd` : le langage mélange déjà les deux. À trancher avant de geler.
+- Rien n'est publié : tag local seulement, aucun push.
+
 ## 1. Objectif
 
 Livrer une version que **quelqu'un d'autre que son auteur peut installer et faire tourner sur un vrai dépôt en 30 minutes, avec la garantie que l'agent n'a pas pu tricher**.
