@@ -161,10 +161,14 @@ class ClaudeCodeHarness:
         The result is checked by the step's hooks and a person decides at the gate.
         """
         step = task["step"]
+        # The brief lives in the state folder, outside the worktree: a sandboxed agent cannot read
+        # it (Claude Code refuses paths outside its working directories). Its content is therefore
+        # put in the prompt, which is always readable; the file stays as the audit copy.
         prompt = (
-            f"You are the '{task['agent']}' agent of an ASAC pipeline. Read the brief "
-            f"{brief} and the mounted skill ({self.mounted_path(task['skill'])}), then do the "
-            f"work of the step '{step}' only. Do not do the work of any other step."
+            f"You are the '{task['agent']}' agent of an ASAC pipeline. Read the mounted skill "
+            f"({self.mounted_path(task['skill'])}), then do the work of the step '{step}' only. "
+            f"Do not do the work of any other step.\n\n"
+            f"{brief.read_text(encoding='utf-8').strip()}"
         )
         cmd = self.command(prompt, self._mode == "readonly")
         if cmd is None:

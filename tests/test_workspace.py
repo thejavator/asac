@@ -89,3 +89,22 @@ def test_remove_refuses_a_path_that_is_not_a_worktree_of_the_project(
     with pytest.raises(WorkspaceError, match="not a worktree"):
         remove_workspace(repo, outside, "asac/run_1")
     assert outside.is_dir()
+
+
+def test_a_step_commit_leaves_out_build_artefacts_and_asac_state(
+    repo: Path, tmp_path: Path
+) -> None:
+    """The branch is what a person reviews and merges: bytecode and ASAC's own files stay out."""
+    from asac.engine.workspace import commit_step
+
+    ws = create_workspace(repo, tmp_path / "state", "run_1")
+    (ws.path / "feature.py").write_text("x = 1\n", encoding="utf-8")
+    (ws.path / "__pycache__").mkdir()
+    (ws.path / "__pycache__" / "feature.cpython-313.pyc").write_bytes(b"\x00")
+    (ws.path / "sub" / "__pycache__").mkdir(parents=True)
+    (ws.path / "sub" / "__pycache__" / "m.pyc").write_bytes(b"\x00")
+    (ws.path / ".asac-state").mkdir()
+    (ws.path / ".asac-state" / "scope.sha").write_text("abc", encoding="utf-8")
+    commit_step(ws.path, "run_1", "build")
+    files = _git(ws.path, "show", "--name-only", "--format=", "HEAD").splitlines()
+    assert files == ["feature.py"]

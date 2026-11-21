@@ -168,10 +168,9 @@ def _counting_claude(tmp_path: Path, fix_on_launch: int) -> Path:
         "#!/bin/sh\n"
         f'echo x >> "{counter}"\n'
         f'n=$(wc -l < "{counter}")\n'
-        # like a real agent: the brief path is in the prompt ($2), and only a brief that carries
-        # the rejection reason lets this stand-in fix its work
-        "brief=$(echo \"$2\" | grep -o '/[^ ]*\\.md' | head -1)\n"
-        f'if [ "$n" -ge {fix_on_launch} ] && grep -q "done.txt is missing" "$brief"; '
+        # A real agent cannot read files outside its worktree (Claude Code refuses), so the
+        # rejection reason must be in the prompt itself ($2). This stand-in reads only that.
+        f'if [ "$n" -ge {fix_on_launch} ] && echo "$2" | grep -q "done.txt is missing"; '
         "then echo ok > done.txt; fi\n"
         'echo \'{"type":"result","is_error":false,"total_cost_usd":0.01,'
         '"usage":{},"result":"x"}\'\n'

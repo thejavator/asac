@@ -17,6 +17,15 @@ from pathlib import Path
 _SAFE_RUN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
 
 
+# What a step commit never contains: the branch is what a person reviews and merges. Bytecode is
+# a build artefact, and .asac-state holds ASAC's own bookkeeping (never the agent's work).
+EXCLUDE_FROM_COMMIT = (
+    ":(exclude).asac-state",
+    ":(exclude)**/__pycache__",
+    ":(exclude)*.pyc",
+)
+
+
 class WorkspaceError(Exception):
     pass
 
@@ -104,7 +113,7 @@ def commit_step(workdir: Path, run_id: str, step_id: str) -> str:
     """
     if not _is_repo(workdir):
         raise WorkspaceError(f"{workdir} is not a worktree")
-    _git(workdir, "add", "-A")
+    _git(workdir, "add", "-A", "--", ".", *EXCLUDE_FROM_COMMIT)
     dirty = _git(workdir, "diff", "--cached", "--quiet").returncode != 0
     msg = f"asac: {step_id} (run {run_id})"
     args = ["-c", "user.name=ASAC", "-c", "user.email=asac@localhost",
