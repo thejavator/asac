@@ -246,3 +246,84 @@ def test_a_project_whose_manifest_is_missing_is_refused(
                          f"x={tmp_path / 'nope' / 'asac.yaml'}")  # fmt: skip
     assert r.exit_code == 1 and "does not exist" in r.output
     assert "app" not in served
+
+
+# -- a run started from the portal goes through the engine (worktree, isolation) -------------
+
+
+def _tool(tmp_path: Path) -> Path:
+    bindir = tmp_path / "bin"
+    bindir.mkdir(exist_ok=True)
+    exe = bindir / "claude"
+    exe.write_text(
+        "#!/bin/sh\n"
+        'printf "# Spec\\n## Acceptance criteria\\n- ok\\n" > SPEC.md\n'
+        'echo \'{"type":"result","is_error":false,"total_cost_usd":0.01,'
+        '"usage":{},"result":"x"}\'\n'
+    )
+    exe.chmod(0o755)
+    return bindir
+
+
+def _portal_on(project: Path, tmp_path: Path) -> TestClient:
+    settings = PortalSettings(
+        data_dir=seed_single(tmp_path / "portal-data", project / "asac.yaml"),
+        dev_personas=PERSONAS, harness="claude-code", secure_cookie=False,
+        shared_state=True, run_inline=True,
+    )  # fmt: skip
+    c = TestClient(create_app(settings), follow_redirects=False)
+    c.get("/login?persona=dev")
+    return c
+
+
+def _start(c: TestClient) -> str:
+    csrf = c.get("/api/v1/me").json()["csrf"]
+    r = c.post("/api/v1/projects/default/runs", json={"pipeline": "feature"},
+               headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert r.status_code in (200, 201, 202), r.text
+    return str(r.json()["run_id"])
+
+
+@pytest.fixture
+def real_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    import shutil
+
+    root = tmp_path / "rt"
+    shutil.copytree(Path(__file__).resolve().parent.parent / "examples" / "real-tools", root,
+                    ignore=shutil.ignore_patterns(".DS_Store", ".asac-state"))  # fmt: skip
+    shutil.copy(root / "vars" / "claude-code.yaml", root / "asac.vars.yaml")
+    init_git(root)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ASAC_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("ASAC_ENV", "dev")
+    monkeypatch.setenv("ASAC_FIXED_TIME", "2026-01-01T00:00:00Z")
+    monkeypatch.setenv("ASAC_AUTORUN", "1")
+    monkeypatch.setenv("ASAC_SANDBOX", "0")
+    monkeypatch.setenv("PATH", f"{_tool(tmp_path)}:/usr/bin:/bin")
+    return root
+
+
+def test_a_run_started_from_the_portal_gets_its_own_worktree(
+    real_tools: Path, tmp_path: Path
+) -> None:
+    run_id = _start(_portal_on(real_tools, tmp_path))
+    work = tmp_path / "state" / "worktrees" / run_id
+    assert work.is_dir(), "the portal run has no worktree: the agent worked in the main checkout"
+    assert (work / "SPEC.md").is_file()
+
+
+def test_a_run_started_from_the_portal_leaves_the_main_checkout_clean(
+    real_tools: Path, tmp_path: Path
+) -> None:
+    _start(_portal_on(real_tools, tmp_path))
+    status = subprocess.run(["git", "status", "--porcelain"], cwd=real_tools,
+                            capture_output=True, text=True).stdout  # fmt: skip
+    assert status == "", status
+
+
+def test_a_portal_run_is_audited_like_a_cli_run(real_tools: Path, tmp_path: Path) -> None:
+    from asac.engine.runtime import store_for
+
+    run_id = _start(_portal_on(real_tools, tmp_path))
+    actions = [a.action for a in store_for(real_tools / "asac.yaml").audit(run_id)]
+    assert "workspace.created" in actions and "step.committed" in actions, actions

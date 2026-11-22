@@ -393,6 +393,8 @@ class ApiDeps:
     roles_in: Callable[[Project, Directory, set[str]], set[str]]
     open_store: Callable[[Project], AbstractContextManager[StateStore]]
     resume: Callable[[StateStore, Project, str], str]
+    #: create a run through the engine (worktree, audit): (store, project, pipeline, run id, who)
+    create: Callable[[StateStore, Project, str, str, str], None]
     logout: Callable[[str], None]
     decision_allowed: Callable[[str], bool]
     now: Callable[[], str]
@@ -889,8 +891,12 @@ def create_api(deps: ApiDeps) -> FastAPI:
             while f"run_{body.pipeline}_{n:04d}" in taken:
                 n += 1
             run_id = f"run_{body.pipeline}_{n:04d}"
-            store.create_run(run_id, body.pipeline, deps.now())
-            store.append_audit(run_id, who, "run.created", deps.now(), detail=body.pipeline)
+            # Through the engine, like `asac apply`: it creates the run's worktree. Creating the
+            # row by hand left the agent working in the main checkout, unisolated.
+            try:
+                deps.create(store, project, body.pipeline, run_id, who)
+            except StateError as exc:
+                raise HTTPException(409, str(exc)) from None
 
         def job() -> None:
             with deps.open_store(project) as s:

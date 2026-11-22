@@ -24,7 +24,7 @@ from asac.adapters.forge_factory import forge_from_vars
 from asac.adapters.links_factory import tracker_from_vars, wiki_from_vars
 from asac.adapters.projects_sqlite import SqliteProjectRegistry
 from asac.adapters.vars_file import FileVarsStore
-from asac.engine.apply import execute
+from asac.engine.apply import create_run, execute
 from asac.engine.runtime import make_context, open_store, project_root
 from asac.loader.load import load_manifest
 from asac.portal.oidc import Identity, OidcClient, OidcConfig, OidcError, new_verifier
@@ -230,6 +230,18 @@ def create_app(settings: PortalSettings, oidc_client: OidcClient | None = None) 
         set_cookie(resp, sid)
         return resp
 
+    def _create_with(
+        store: StateStore, project: Project, pipeline: str, run_id: str, who: str
+    ) -> None:
+        """A run started in the portal is created like one started by `asac apply`."""
+        manifest = load_manifest(project.manifest)
+        ctx = make_context(
+            manifest, pipeline, store, project_root(project.manifest),
+            settings.harness, project=state_key(project),
+        )  # fmt: skip
+        ctx.actor = who
+        create_run(ctx, run_id)
+
     def _resume_with(store: StateStore, project: Project, run_id: str) -> str:
         """An approval resumes the run with the same function as ``asac apply --resume``."""
         try:
@@ -282,6 +294,7 @@ def create_app(settings: PortalSettings, oidc_client: OidcClient | None = None) 
             roles_in=roles_in,
             open_store=_store_of,
             resume=_resume_with,
+            create=_create_with,
             logout=lambda sid: sessions.delete(sid),
             spawn=_inline if settings.run_inline else _thread,
             login_options=_login_options,
