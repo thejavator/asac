@@ -2,6 +2,15 @@
 
 See [docs/project/changelog.md](docs/project/changelog.md) for the specification changelog.
 
+## Unreleased
+
+- Hooks per step: `steps.<id>.hooks.pre_tool` and `.post_step` list the declared hooks a step runs,
+  after the global ones. A step no longer has to guard its script by step name.
+- `asac validate` refuses a duplicated key in a manifest instead of keeping only the last one.
+- The audit records when a hook ran (`pre_tool` or `post_step`), and the portal shows it.
+- A run started from the portal now gets its own worktree, like one started by the CLI.
+- `asac portal --local` for a developer, `asac portal --project ID=PATH` for a shared portal.
+
 ## 0.1.0 (2026-11-21): first supported path
 
 Version 0.1 supports one path end to end: `doctor`, `validate`, `apply`, `approve`, `gates`,

@@ -234,6 +234,12 @@ def validate(manifest: Manifest, root: Path, vars_file: VarsFile | None = None) 
             for pol in step.policies:
                 if pol not in BUILTIN_POLICIES:
                     check_local(f".asac/policies/{pol}.rego", f"{at}.policies")
+            if step.hooks is not None:
+                known = set(manifest.hooks.definitions) if manifest.hooks else set()
+                for point in ("pre_tool", "post_step"):
+                    for hn in getattr(step.hooks, point):
+                        if hn not in known:
+                            err("ASAC012", f"{at}.hooks.{point}", f"unknown hook '{hn}'")
             if step.loop is not None:
                 declared_hooks = set(manifest.hooks.definitions) if manifest.hooks else set()
                 for check in step.loop.until:
@@ -257,8 +263,9 @@ def validate(manifest: Manifest, root: Path, vars_file: VarsFile | None = None) 
                 )
         if pipe.specLevel == 3:
             # specLevel 3: something machine-checkable runs on the spec (a hook or a policy).
-            hooks_on = manifest.hooks is not None and (
-                manifest.hooks.post_step or manifest.hooks.pre_tool
+            hooks_on = any(st.hooks is not None for st in pipe.steps.values()) or (
+                manifest.hooks is not None
+                and bool(manifest.hooks.post_step or manifest.hooks.pre_tool)
             )
             if not hooks_on and not any(st.policies for st in pipe.steps.values()):
                 warn(

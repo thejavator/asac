@@ -645,7 +645,9 @@ def _run_hooks(ctx: Context, run_id: str, sid: str, attach: str) -> Outcome | No
         env["ASAC_WORKTREE"] = str(work)  # where the agent's output is
         env["ASAC_ROOT"] = str(ctx.root)  # the main checkout: rules, manifest, state
     try:
-        results = run_hooks(ctx.manifest, ctx.root, attach, env=env, workdir=work)
+        results = run_hooks(
+            ctx.manifest, ctx.root, attach, env=env, workdir=work, step=ctx.pipeline.steps[sid]
+        )
     except HookError as exc:
         return _fail(ctx, run_id, sid, f"hook error: {exc}")
     for r in results:

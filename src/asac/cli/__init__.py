@@ -43,12 +43,15 @@ def _vars_path(manifest: Path, vars_opt: Path | None) -> Path:
 
 
 def _load(manifest: Path):  # type: ignore[no-untyped-def]
-    from asac.loader.load import load_manifest
+    from asac.loader.load import DuplicateKey, load_manifest
 
     try:
         return load_manifest(manifest)
     except FileNotFoundError:
         typer.echo(f"error: {manifest} not found", err=True)
+        raise typer.Exit(1) from None
+    except DuplicateKey as exc:
+        typer.echo(f"error {manifest.name}: {exc}", err=True)
         raise typer.Exit(1) from None
     except ValidationError as e:
         from asac.loader.load import describe_validation_error

@@ -55,11 +55,11 @@ def test_each_hook_result_says_when_it_ran(project: Path) -> None:
     runner.invoke(
         app, ["apply", "-p", "feature", "--run-id", "m1", "-f", str(project / "asac.yaml")]
     )
+    # requirements runs the global hook, then its own; tests-green belongs to development only
     assert _hooks(project, "m1") == [
         ("pre_tool", "no-secrets"),
         ("pre_tool", "step-scope"),
         ("post_step", "step-scope"),
-        ("post_step", "tests-green"),
     ]
 
 

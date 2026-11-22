@@ -116,6 +116,13 @@ class HookDefinition(_Strict):
 
 class Hooks(_Strict):
     definitions: dict[str, HookDefinition] = Field(default_factory=dict)
+    pre_tool: list[str] = Field(default_factory=list)  # every step, before the agent
+    post_step: list[str] = Field(default_factory=list)  # every step, after it
+
+
+class StepHooks(_Strict):
+    """Hooks one step runs, on top of the global ones. Scripts are declared once, globally."""
+
     pre_tool: list[str] = Field(default_factory=list)
     post_step: list[str] = Field(default_factory=list)
 
@@ -160,6 +167,7 @@ class Step(_Strict):
     escalation: dict[str, str] | None = None
     policies: list[str] = Field(default_factory=list)
     loop: Loop | None = None
+    hooks: StepHooks | None = None
 
 
 class Pipeline(_Strict):

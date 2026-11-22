@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from asac.model import Manifest
+from asac.model.manifest import Step
 
 TIMEOUT_SECONDS = 60
 # Nothing from the caller's environment leaks into a hook except these.
@@ -79,6 +80,17 @@ def run_hook(
     return HookResult(name, proc.returncode == 0, d.on_fail, out)
 
 
+def hooks_for(manifest: Manifest, step: Step | None, attach: str) -> list[str]:
+    """The hooks one step runs at ``attach``: the global ones first, then the step's own.
+
+    A hook listed in both runs once, at its global place.
+    """
+    names = list(getattr(manifest.hooks, attach)) if manifest.hooks is not None else []
+    if step is not None and step.hooks is not None:
+        names += [n for n in getattr(step.hooks, attach) if n not in names]
+    return names
+
+
 def run_hooks(
     manifest: Manifest,
     root: Path,
@@ -86,12 +98,12 @@ def run_hooks(
     stdin: str = "",
     env: dict[str, str] | None = None,
     workdir: Path | None = None,
+    step: Step | None = None,
 ) -> list[HookResult]:
-    """Run every hook attached to ``pre_tool`` or ``post_step``, in declaration order."""
-    if manifest.hooks is None:
-        return []
-    names = getattr(manifest.hooks, attach)
-    return [run_hook(manifest, root, n, stdin, env, workdir) for n in names]
+    """Run the hooks of ``step`` at ``pre_tool`` or ``post_step``, in order (global, then step)."""
+    return [
+        run_hook(manifest, root, n, stdin, env, workdir) for n in hooks_for(manifest, step, attach)
+    ]
 
 
 def run_hooks_named(

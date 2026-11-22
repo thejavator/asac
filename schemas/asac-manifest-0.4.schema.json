@@ -775,6 +775,17 @@
             }
           ],
           "default": null
+        },
+        "hooks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StepHooks"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -782,6 +793,28 @@
         "agent"
       ],
       "title": "Step",
+      "type": "object"
+    },
+    "StepHooks": {
+      "additionalProperties": false,
+      "description": "Hooks one step runs, on top of the global ones. Scripts are declared once, globally.",
+      "properties": {
+        "pre_tool": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pre Tool",
+          "type": "array"
+        },
+        "post_step": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Post Step",
+          "type": "array"
+        }
+      },
+      "title": "StepHooks",
       "type": "object"
     },
     "Trigger": {

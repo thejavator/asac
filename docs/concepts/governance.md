@@ -42,6 +42,35 @@ hooks:
 
 `on_fail` is `block` (default) or `warn`. A local hook runs only when its path is inside the repository and listed in the manifest; it is never discovered. A registry hook requires a verified digest.
 
+### Hooks for one step
+
+`hooks.pre_tool` and `hooks.post_step` run on **every** step. A check that only makes sense for
+one step is attached to that step instead. The script is still declared once, in
+`hooks.definitions`; the step only says which ones it runs:
+
+```yaml
+hooks:
+  definitions:
+    no-secrets:  { run: .asac/hooks/no-secrets.sh }
+    step-scope:  { run: .asac/hooks/step-scope.sh }
+    tests-green: { run: .asac/hooks/tests-green.sh }
+  pre_tool: [no-secrets]                 # every step
+
+pipelines:
+  feature:
+    steps:
+      requirements:
+        hooks: { pre_tool: [step-scope], post_step: [step-scope] }
+      development:
+        hooks: { post_step: [tests-green] }   # never runs on requirements
+```
+
+A step runs the global hooks first, then its own, in the order written. A hook listed in both runs
+once, at its global place. `asac validate` refuses a step hook that is not declared (`ASAC012`),
+and a manifest that writes the same key twice (YAML would otherwise keep only the last one, and
+silently drop a check). In the audit, each result says when it ran: `pre_tool <hook>` or
+`post_step <hook>`.
+
 ## Autonomy
 
 A step attribute, orthogonal to `mode`:

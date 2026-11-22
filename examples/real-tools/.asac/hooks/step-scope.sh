@@ -1,7 +1,7 @@
 #!/bin/sh
-# pre_tool + post_step hook. Checks the result of a step, not who produced it.
-# requirements: SPEC.md must exist with acceptance criteria and app/ must be unchanged.
-[ "$ASAC_STEP" = "requirements" ] || exit 0
+# Attached to the requirements step (pre_tool and post_step), in asac.yaml.
+# Checks the result of the step, not who produced it: SPEC.md must exist with acceptance
+# criteria, and app/ must be unchanged.
 snap=".asac-state/scope-$ASAC_RUN_ID-$ASAC_STEP.sha"
 fingerprint() {
   find app -type f -not -path '*/__pycache__/*' | sort | xargs shasum | shasum | cut -d' ' -f1

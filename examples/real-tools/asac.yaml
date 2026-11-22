@@ -50,8 +50,8 @@ hooks:
     no-secrets:  { run: .asac/hooks/no-secrets.sh, on_fail: block }
     tests-green: { run: .asac/hooks/tests-green.sh, on_fail: block }
     step-scope:  { run: .asac/hooks/step-scope.sh, on_fail: block }
-  pre_tool:  [no-secrets, step-scope]
-  post_step: [step-scope, tests-green]
+  # Global: every step, before the agent works.
+  pre_tool:  [no-secrets]
 
 pipelines:
   feature:
@@ -62,6 +62,8 @@ pipelines:
         agent: analyst
         mode: assist
         producesEvidence: [spec_reviewed]
+        # This step only: SPEC.md exists with acceptance criteria, and app/ is unchanged.
+        hooks: { pre_tool: [step-scope], post_step: [step-scope] }
         gate: { type: human, role: product_owner, timeout: 24h }
       development:
         capability: implementation
@@ -70,4 +72,6 @@ pipelines:
         dependsOn: [requirements]
         requiresEvidence: [spec_reviewed]
         producesEvidence: [tests_green]
+        # This step only: the project's real tests must pass.
+        hooks: { post_step: [tests-green] }
         gate: { type: human, role: product_owner, timeout: 24h }
