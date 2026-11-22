@@ -87,6 +87,7 @@ class Context:
     # The worktree of a run, or None when it is not isolated (hooks run there).
     workdir_for: Callable[[str], Path | None] | None = None
     state_dir: Path | None = None  # where briefs live (loops write feedback into them)
+    autorun: bool = False  # ASAC launches the tool itself: it can relaunch the agent
 
     @property
     def pipeline(self) -> Pipeline:
@@ -199,6 +200,11 @@ def _advance(
     if status == "handoff":
         return _check_handoff(ctx, run_id, sid, step)
     if status == "gate_waiting":
+        rejected = _rejected_gate(ctx, run_id, sid)
+        if rejected is not None and _can_relaunch_after_rejection(ctx, run_id, sid, step):
+            # The reviewer rejected with a reason and attempts remain: the agent goes again.
+            _retry_after_rejection(ctx, run_id, sid, step, rejected)
+            return _run_step(ctx, run_id, sid, step)
         return _resolve_gate(ctx, run_id, sid, step)
     unmet = [d for d in step.dependsOn if store.get_step_status(run_id, d) != "completed"]
     if unmet:
@@ -298,6 +304,9 @@ def _run_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None
 def _run_harness(
     ctx: Context, run_id: str, sid: str, step: Step, task: dict[str, Any], handle: str | None = None
 ) -> Outcome | None:
+    if _follows_a_rejection(ctx, run_id, sid):
+        _audit(ctx, run_id, "attempt.after_rejection", sid,
+               f"launch {_rejections_so_far(ctx, run_id, sid) + 1}")  # fmt: skip
     skill_key = task["skill"]
     permission = permission_for(step)
     task["permission"] = permission
@@ -585,12 +594,13 @@ def _loop_turn(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | Non
 def _agent_owes_another_turn(
     ctx: Context, run_id: str, sid: str, step: Step, out: Outcome | None
 ) -> bool:
-    """True when a loop turn failed its checks, turns remain, and ASAC launched the tool itself.
+    """True when ASAC must launch the tool again for this step.
 
-    A person doing the work hands back by themselves (assist without autorun): nothing to
-    relaunch. The cap is enforced by _loop_turn, which fails the step: this never loops forever.
+    Two cases: a loop turn failed its checks, or a human rejected the result with a reason.
+    Both only when ASAC launched the tool itself (autorun): a person doing the work hands back
+    by themselves. Both are capped, so this never loops forever.
     """
-    if step.loop is None or out is None or out.code != Exit.WAITING:
+    if out is None or out.code != Exit.WAITING:
         return False
     if ctx.store.get_step_status(run_id, sid) != "handoff":
         return False
@@ -696,7 +706,95 @@ def _resolve_gate(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | 
         ctx.store.set_run_status(run_id, "running")
         _complete(ctx, run_id, sid, step, approved_by=gate.decided_by)
         return None
+    if gate.status == "rejected" and _can_relaunch_after_rejection(ctx, run_id, sid, step):
+        retry = _retry_after_rejection(ctx, run_id, sid, step, gate)
+        if retry is not None:
+            return retry
     return _fail(ctx, run_id, sid, f"gate {gid} {gate.status}")
+
+
+def rejection_cap(step: Step) -> int:
+    """Attempts allowed after a human rejection. The loop's cap when the step has one, else 2."""
+    return step.loop.max_iterations if step.loop is not None else 2
+
+
+def _retry_after_rejection(
+    ctx: Context, run_id: str, sid: str, step: Step, gate: GateRecord
+) -> Outcome | None:
+    """A rejection with a reason sends the step back to the agent, up to the cap.
+
+    The reason goes into the step's feedback, so the next launch carries it. Each rejection is
+    audited. Past the cap the run fails as before: a human who keeps rejecting cannot loop forever.
+    """
+    attempts = _rejections_so_far(ctx, run_id, sid)
+    if attempts >= rejection_cap(step) or ctx.state_dir is None:
+        return None
+    reason = gate.comment or "no reason given"
+    _write_rejection_feedback(ctx, run_id, sid, attempts + 1, reason)
+    _audit(ctx, run_id, "rejection.handled", sid,
+           f"rejection {attempts + 1} of {rejection_cap(step)}: {reason[:300]}")  # fmt: skip
+    ctx.store.reopen_gate(gate.gate_id)
+    ctx.store.set_step_status(run_id, sid, "handoff")
+    ctx.store.set_run_status(run_id, "gate_waiting")
+    return Outcome(Exit.WAITING, run_id, f"{sid} rejected: sent back to the agent with the reason")
+
+
+def _rejections_so_far(ctx: Context, run_id: str, sid: str) -> int:
+    """How many times the agent was launched again after a rejection, whatever the outcome.
+
+    Counted from the launches, not from the step's status: a relaunch that is then blocked by a
+    hook is still an attempt, and the cap must see it.
+    """
+    return sum(
+        1 for a in ctx.store.audit(run_id)
+        if a.action == "attempt.after_rejection" and a.step_id == sid
+    )  # fmt: skip
+
+
+def _rejected_gate(ctx: Context, run_id: str, sid: str) -> GateRecord | None:
+    """The step's gate, if the reviewer has rejected it (and it has not been reopened)."""
+    try:
+        gate = ctx.store.get_gate(gate_id_for(run_id, sid))
+    except NotFound:
+        return None
+    return gate if gate.status == "rejected" else None
+
+
+def _can_relaunch_after_rejection(ctx: Context, run_id: str, sid: str, step: Step) -> bool:
+    """ASAC relaunches the agent after a rejection only when it launches the tool itself
+    (autorun), and only while the cap allows it. Otherwise the rejection keeps its old meaning:
+    the run fails, and the reason stays in the audit."""
+    if not ctx.autorun:
+        return False
+    return _rejections_so_far(ctx, run_id, sid) < rejection_cap(step)
+
+
+def _follows_a_rejection(ctx: Context, run_id: str, sid: str) -> bool:
+    """True when the last rejection of this step has not been answered by a launch yet."""
+    last_reject = last_launch = -1
+    for a in ctx.store.audit(run_id):
+        if a.step_id != sid:
+            continue
+        if a.action == "rejection.handled":
+            last_reject = a.seq
+        elif a.action in ("tool.launched", "attempt.after_rejection"):
+            last_launch = a.seq
+    return last_reject > last_launch
+
+
+def _write_rejection_feedback(
+    ctx: Context, run_id: str, sid: str, attempt: int, reason: str
+) -> None:
+    assert ctx.state_dir is not None
+    path = ctx.state_dir / "briefs" / run_id / f"{sid}.feedback.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    note = (
+        f"\n## Rejected by the reviewer (attempt {attempt})\n\n"
+        f"The reviewer rejected your previous result with this reason. Address it, then stop.\n\n"
+        f"```\n{reason}\n```\n"
+    )
+    with path.open("a", encoding="utf-8") as f:
+        f.write(note)
 
 
 def _resolve_escalation(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None:

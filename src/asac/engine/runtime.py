@@ -129,6 +129,7 @@ def make_context(
         workspace=workspace if isolated else None,
         workdir_for=(lambda rid: recorded_workspace(store, rid)) if isolated else None,
         state_dir=sdir,
+        autorun=adapter_ctx.autorun,
     )
 
 
