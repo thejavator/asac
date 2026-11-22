@@ -157,3 +157,41 @@ def test_the_rejection_cap_is_on_rejections_not_on_hook_failures(
     assert "waiting for gate" in outcomes[0] and "rejected" not in outcomes[0]
     assert "failed at requirements" in outcomes[2], outcomes[2]
     assert _launches(tmp_path) == 3  # the first run + two relaunches, never a fourth
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="defect, confirmed: a resume of a failed run relaunches the step and reopens its "
+    "rejected gate with no decision. The broad fix (failed steps are terminal) breaks escalation "
+    "and policy paths; a narrow fix is needed first",
+)
+def test_resuming_a_failed_run_never_reopens_a_rejected_gate(project: Path, tmp_path: Path) -> None:
+    """A run that failed after its rejections is finished. A resume must not reopen its gate
+    and relaunch the agent: only an explicit --reopen by a person may do that."""
+    asac(project, "apply", "-p", "feature", "--run-id", "f1")
+    for n in range(1, 4):  # the third rejection exhausts the cap and fails the run
+        asac(project, "approve", "gate_f1_requirements", "--role", "product_owner", "--by", "po",
+             "--reject", "--comment", f"REJECTED-REASON: {n}", "--no-resume")  # fmt: skip
+        asac(project, "apply", "--resume", "f1")
+    assert "failed" in asac(project, "status").output
+    launches = _launches(tmp_path)
+    r = asac(project, "apply", "--resume", "f1")
+    assert _launches(tmp_path) == launches, "a failed run was relaunched without a decision"
+    assert "gate_waiting" not in asac(project, "status").output
+    assert "failed" in asac(project, "status").output, r.output
+    assert asac(project, "gates").output.count("pending") == 0
+
+
+def test_a_step_waiting_for_evidence_moves_on_when_the_evidence_arrives(
+    project: Path, tmp_path: Path
+) -> None:
+    """The one legitimate resume: the person supplies the evidence the step waits for, then the
+    run continues to the next gate. Nothing is relaunched without that evidence."""
+    asac(project, "apply", "-p", "feature", "--run-id", "ev1")
+    before = _launches(tmp_path)
+    asac(project, "evidence", "bootstrap", "ev1", "--evidence", "spec_reviewed", "--no-resume")
+    asac(project, "approve", "gate_ev1_requirements", "--role", "product_owner", "--by", "po",
+         "--no-resume")  # fmt: skip
+    r = asac(project, "apply", "--resume", "ev1")
+    assert "gate_ev1_development" in r.output, r.output  # moved on to the next gate
+    assert _launches(tmp_path) >= before  # the agent may run for the next step only

@@ -67,16 +67,44 @@ If the spec is good, approve. This records the evidence `spec_reviewed` and star
 asac approve gate_demo_requirements --role product_owner --by you
 ```
 
-If it is not, reject with a reason (the reason is part of the audit):
+If it is not, reject with a reason. The reason is part of the audit, and with `autorun` (on in
+this example) ASAC sends it back to the agent:
 
 ```bash
 asac approve gate_demo_requirements --role product_owner --by you --reject --comment "criteria are vague"
+asac apply --resume demo
 ```
 
-A rejection ends the run (`failed`). It does **not** send the reason back to the agent: the
-branch `asac/demo` keeps what was produced, for you to look at. `asac apply --resume demo --reopen`
-reopens the same gate on the same commit; to get a better result, start a new run
-(`--run-id demo2`), or put the check you care about in a `loop` (below) so the agent is told why.
+What happens:
+
+- The rejection is recorded, but the run still shows `gate_waiting` until the next `apply --resume`.
+  That resume is what relaunches the agent. It is not automatic.
+- The agent is launched again in the same worktree. Its prompt contains a section
+  `Rejected by the reviewer` with your reason, so it can address it.
+- The new result goes back to the same gate, `gate_demo_requirements`, on its new commit. Check it
+  again with `asac gates` and `git -C "$ASAC_STATE_DIR/worktrees/demo" show --stat HEAD`.
+- A rejection is answered by at most **two relaunches** (three attempts in total). The cap is the
+  step's `loop.max_iterations` when the step has a `loop`. Each relaunch is audited as
+  `rejection.handled` and `attempt.after_rejection`; a relaunch that is blocked by a hook counts too.
+- After the cap, the next rejection ends the run (`failed`). The branch `asac/demo` keeps what was
+  produced, for you to look at.
+- **Known defect:** a later `asac apply --resume demo` on that failed run relaunches the agent and
+  reopens the gate, without a decision from you. Do not resume a failed run; start a new run with
+  `--run-id demo2` instead. This is being fixed (see the open points below).
+
+Without `autorun` (`ASAC_AUTORUN=0`) ASAC does not relaunch anything. A rejection ends the run as
+before, and the reason is only in the audit. To retry, run `asac apply --resume demo --reopen` (the
+same gate, the same commit) or start a new run with `--run-id demo2`.
+
+Open points, **not decided yet**, and not covered by the behaviour above:
+
+- Without `autorun`, the reason is not put in the brief you read, and a resume can stop on a hook
+  before you have had a chance to act. Use `asac logs demo` to read the reason.
+- A relaunch that a hook blocks is retried on the next `apply --resume`, without a new decision
+  from you. Watch the number of attempts in `asac logs demo`.
+- A step blocked by a hook is also relaunched on each `apply --resume`, whether or not a rejection
+  happened. A narrow fix for failed steps was tried and reverted: it broke the escalation and
+  policy paths.
 
 The `development` step runs next, and stops at `gate_demo_development`. Its `tests-green` hook
 ran the project's real tests in the worktree before the gate opened: a failing test blocks the
@@ -101,7 +129,7 @@ The work is on the branch `asac/demo`. Review and merge it yourself, then free t
 asac clean demo
 ```
 
-## Retry until the checks pass
+## Retry until the checks pass (automatic checks)
 
 A step can loop: when its checks fail, ASAC relaunches the agent with the reason, up to a hard
 cap. In `asac.yaml`, on the step:
@@ -111,7 +139,7 @@ loop: { until: [tests-green], max_iterations: 3 }
 ```
 
 Each turn is audited as `step.iteration`. If the checks never pass, the step fails; it is never
-validated.
+validated. Unlike a rejection, a failing check relaunches the agent by itself, without a `resume`.
 
 ## Limits you should know
 
@@ -129,4 +157,5 @@ validated.
 
 Without `autorun`, ASAC prepares the brief and stops. You run the tool yourself in the worktree,
 then record the evidence with `asac evidence bootstrap demo --evidence <id> --by you` and approve.
-The hooks still check the result; ASAC cannot prove the tool was run.
+The hooks still check the result; ASAC cannot prove the tool was run. A rejection in this mode
+does not relaunch anything (see *Decide*).
