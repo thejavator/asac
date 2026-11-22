@@ -30,7 +30,8 @@ spec:
       containers:
         - name: portal
           image: ghcr.io/example/asac:0.0.1
-          args: ["portal", "--host", "0.0.0.0", "--port", "8080"]
+          # /project is read-only: the portal keeps its data in /state, and registers the project.
+          args: ["portal", "--host", "0.0.0.0", "--port", "8080", "--data", "/state/portal", "--project", "default=/project/asac.yaml"]
           envFrom: [{ secretRef: { name: asac-config } }]
           env: [{ name: ASAC_STATE_DIR, value: /state }]
           ports: [{ containerPort: 8080 }]

@@ -114,7 +114,25 @@ step (exit 3) instead of reaching you as finished work.
 asac approve gate_demo_development --role product_owner --by you
 ```
 
-## 5. Look at the result
+## 5. Follow the run in the portal (optional)
+
+The portal shows the same runs and gates as the CLI, and you can decide from it. On your own
+machine, one command, from the project folder:
+
+```bash
+asac portal --local            # http://127.0.0.1:8080/
+```
+
+`--local` registers the project of `./asac.yaml`, reads the state the CLI writes (the same
+`ASAC_STATE_DIR`), and needs no sign-in: you pick a role (`po`, `dev`, `auditor`, `admin`) on the
+login page. It listens on `127.0.0.1` only and refuses any other address, because anyone who can
+reach it can decide a gate. Its own data lives in `~/.asac/portal/`, never in your repository.
+
+Without `--local`, `asac portal` starts with **no project**: the portal has its own database and a
+project must be registered in it. Use `--project ID=PATH` (see the deployment guide), or create it
+in **Administration**. If you see an empty portal, this is why.
+
+## 6. Look at the result
 
 ```bash
 asac status

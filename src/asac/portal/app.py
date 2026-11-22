@@ -63,6 +63,9 @@ class PortalSettings:
     tracker_factory: Callable[[Project], Tracker | None] | None = None
     wiki_factory: Callable[[Project], Wiki | None] | None = None
     run_inline: bool = False  # tests: run a started run in the request instead of a thread
+    #: local mode: every project reads the state the CLI writes (no folder or schema per project),
+    #: so a run started with `asac apply` shows up here. Central mode leaves this off.
+    shared_state: bool = False
 
 
 def dev_mode_allowed() -> bool:
@@ -143,7 +146,7 @@ def create_app(settings: PortalSettings, oidc_client: OidcClient | None = None) 
         )
 
     def state_key(project: Project) -> str | None:
-        return project.id
+        return None if settings.shared_state else project.id
 
     def scope(request: Request, pid: str) -> tuple[dict[str, Any], Project, Directory, set[str]]:
         _, data = require(request)

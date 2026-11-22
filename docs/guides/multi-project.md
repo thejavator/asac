@@ -11,6 +11,20 @@ asac portal --data /var/lib/asac-portal
 the admin log. It starts empty. Sign in as an organisation admin (the claim `admin`), open
 **Administration** and create the first project.
 
+## Registering projects at startup
+
+A shared portal starts empty. Pass each project once, as `ID=PATH`; the flag is repeatable and safe
+to repeat, so a restarting pod can keep it in its command line:
+
+```bash
+asac portal --data /var/lib/asac-portal \
+  --project payments=/project/asac.yaml --project billing=/projects/billing/asac.yaml
+```
+
+An id that already exists is left alone (its name, team and access may have been edited in the
+portal). `compose.yaml` and `deploy/kubernetes/asac.yaml` do this for the project they mount, and
+keep the portal's own data in `/state/portal`, because `/project` is read-only.
+
 ## Creating the first project from the command line
 
 ```bash

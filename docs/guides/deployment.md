@@ -2,6 +2,20 @@
 
 ASAC ships one container image. The same image runs the CLI, the portal (`asac portal`) and the webhook daemon (`asac daemon`). Nothing in it is tied to a vendor: identity is any standard OIDC provider, state is SQLite or Postgres, notifications are configured by URL.
 
+## Two ways to run the portal
+
+| | On a developer's machine | Central, for the organisation |
+|---|---|---|
+| Command | `asac portal --local` | `asac portal --data <dir> --project ID=PATH`, behind TLS |
+| Sign-in | None: you pick a role. Listens on `127.0.0.1` only | Any OIDC provider |
+| Projects | The project of `./asac.yaml`, registered for you | Registered by `--project` or by an admin |
+| State | The CLI's own (`asac status` and the portal agree) | One per project, in Postgres or `/state/<id>` |
+| Portal data | `~/.asac/portal/` | `--data` (a volume) |
+
+`--local` refuses a public address and refuses to run with OIDC set: it has no identity, so it must
+never leave the machine. The central portal keeps projects apart, so a developer's local runs are
+not visible in it.
+
 ## What you need
 
 | Need | Choice |

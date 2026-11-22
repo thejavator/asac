@@ -810,12 +810,30 @@ def portal(
     ] = "127.0.0.1",
     port: Annotated[int, typer.Option(help="Listen port.")] = 8080,
     harness: Annotated[str | None, typer.Option(help="Harness used to resume runs.")] = None,
+    local: Annotated[
+        bool,
+        typer.Option(
+            "--local",
+            help="Developer mode: serve the project of --file on this machine, no sign-in.",
+        ),
+    ] = False,
+    file: ManifestOpt = Path("asac.yaml"),
+    project: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--project",
+            help="Register a project at startup, as ID=PATH-TO-asac.yaml (repeatable, idempotent).",
+        ),
+    ] = None,
 ) -> None:
     """Serve the governance portal. OIDC settings come from ASAC_OIDC_* variables."""
     from asac.portal.app import PortalSettings, create_app
     from asac.portal.oidc import OidcConfig
 
     env = os.environ
+    if local:
+        _portal_local(file, host, port, harness)
+        return
     oidc = None
     if env.get("ASAC_OIDC_ISSUER"):
         try:
@@ -842,6 +860,8 @@ def portal(
             "dev": Identity("dev-dev", "Dev Developer", frozenset({"developer"})),
             "admin": Identity("dev-admin", "Dev Admin", frozenset({"admin"})),
         }
+    if project:
+        _register_projects(data, project)
     settings = PortalSettings(
         data_dir=data,
         oidc=oidc,
@@ -850,6 +870,107 @@ def portal(
         secure_cookie=oidc is not None,
     )
     _serve(create_app(settings), host, port)
+
+
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def local_portal_dir(manifest: Path) -> Path:
+    """Where the local portal keeps its own data: outside the repository, one folder per project."""
+    import hashlib
+
+    root = manifest.resolve().parent
+    tag = hashlib.sha256(str(root).encode()).hexdigest()[:10]
+    return Path.home() / ".asac" / "portal" / f"{root.name}-{tag}"
+
+
+def _portal_local(manifest: Path, host: str, port: int, harness: str | None) -> None:
+    """The developer's portal: this project, this machine, no sign-in."""
+    from asac.adapters.projects_sqlite import SqliteProjectRegistry
+    from asac.portal.app import PortalSettings, create_app
+    from asac.portal.oidc import Identity
+    from asac.ports.projects import Project
+
+    if os.environ.get("ASAC_OIDC_ISSUER"):
+        typer.echo("error: --local has no sign-in, so it cannot be combined with OIDC", err=True)
+        raise typer.Exit(1)
+    if host not in LOCAL_HOSTS:
+        typer.echo(
+            f"error: --local has no sign-in and must stay on 127.0.0.1 (got {host}); "
+            "for a shared portal use OIDC",
+            err=True,
+        )
+        raise typer.Exit(1)
+    path = manifest.resolve()
+    if not path.is_file():
+        typer.echo(f"error: {path} does not exist", err=True)
+        raise typer.Exit(1)
+    data = local_portal_dir(path)
+    data.mkdir(parents=True, exist_ok=True)
+    registry = SqliteProjectRegistry(data / "portal-admin.db")
+    pid = _project_id(path.parent.name)
+    known = {p.id for p in registry.load(include_archived=True).projects}
+    if pid not in known:
+        registry.create(Project(pid, path.parent.name, path))
+    personas = {
+        "po": Identity("local-po", "Product owner", frozenset({"product_owner"})),
+        "dev": Identity("local-dev", "Developer", frozenset({"developer"})),
+        "auditor": Identity("local-auditor", "Auditor", frozenset({"auditor", "manager"})),
+        "admin": Identity("local-admin", "Admin", frozenset({"admin"})),
+    }
+    os.environ["ASAC_ENV"] = "dev"  # this process only: the dev personas need it
+    typer.echo(
+        f"ASAC portal (local mode): http://{host}:{port}/  project '{pid}' from {path}\n"
+        "No sign-in: choose a role on the login page. Reachable from this machine only. "
+        "For a shared portal, use OIDC instead.\n"
+        f"Portal data: {data}"
+    )
+    settings = PortalSettings(
+        data_dir=data, dev_personas=personas, harness=harness, secure_cookie=False,
+        shared_state=True,
+    )  # fmt: skip
+    _serve(create_app(settings), host, port)
+
+
+def _register_projects(data: Path, specs: list[str]) -> None:
+    """``--project ID=PATH``: make sure each project is in the portal database.
+
+    Safe to repeat: a pod that restarts passes the same flags. An existing id is left as it is
+    (its name, team and access may have been edited in the portal since).
+    """
+    from asac.adapters.projects_sqlite import SqliteProjectRegistry
+    from asac.ports.projects import PROJECT_ID, Project
+
+    parsed: list[tuple[str, Path]] = []
+    for spec in specs:
+        pid, sep, raw = spec.partition("=")
+        if not sep or not raw or not PROJECT_ID.match(pid):
+            typer.echo(
+                f"error: --project '{spec}' must be ID=PATH "
+                "(id: lower case letters, digits, dashes)",
+                err=True,
+            )
+            raise typer.Exit(1)
+        path = Path(raw).resolve()
+        if not path.is_file():
+            typer.echo(f"error: --project {pid}: {path} does not exist", err=True)
+            raise typer.Exit(1)
+        parsed.append((pid, path))
+    data.mkdir(parents=True, exist_ok=True)
+    registry = SqliteProjectRegistry(data / "portal-admin.db")
+    known = {p.id for p in registry.load(include_archived=True).projects}
+    for pid, path in parsed:
+        if pid not in known:
+            registry.create(Project(pid, pid, path))
+            typer.echo(f"registered project {pid} ({path})")
+
+
+def _project_id(name: str) -> str:
+    """A folder name as a portal project id (lower case, digits, dashes, starting with a letter)."""
+    import re
+
+    pid = re.sub(r"[^a-z0-9-]+", "-", name.lower()).strip("-")[:40] or "project"
+    return pid if pid[0].isalpha() else f"p-{pid}"[:41]
 
 
 project_app = typer.Typer(help="Manage the projects of a portal database.", no_args_is_help=True)

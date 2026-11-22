@@ -15,7 +15,14 @@ services:
 
   portal:
     build: .
-    command: ["portal", "--host", "0.0.0.0", "--port", "8080"]
+    # The project is mounted read-only, so the portal keeps its own data in the state volume, and
+    # registers the mounted project at startup (otherwise it opens empty).
+    command:
+      - portal
+      - "--host=0.0.0.0"
+      - "--port=8080"
+      - "--data=/state/portal"
+      - "--project=${ASAC_PROJECT_ID:-default}=/project/asac.yaml"
     environment: &env
       ASAC_STATE_URL: postgresql://asac:${POSTGRES_PASSWORD}@postgres:5432/asac
       ASAC_STATE_DIR: /state
