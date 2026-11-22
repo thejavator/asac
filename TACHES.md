@@ -1,6 +1,6 @@
 # Liste globale des tâches ASAC
 
-Mise à jour : 2026-11-20. Ordre des priorités : celui accepté dans la décision de positionnement (parcours de bout en bout, sécurité des agents, harnais headless, portail, FinOps et Postgres). Chaque tâche livrée doit passer `ruff`, `mypy`, `pytest -n auto` et `zensical build --strict`.
+Mise à jour : 2026-11-22. Ordre des priorités : celui accepté dans la décision de positionnement (parcours de bout en bout, sécurité des agents, harnais headless, portail, FinOps et Postgres). Chaque tâche livrée doit passer `ruff`, `mypy`, `pytest -n auto` et `zensical build --strict`.
 
 Légende : [ ] à faire, [~] en cours, [x] fait.
 
@@ -69,6 +69,32 @@ Ordre proposé (reste) : KPI de flux et de coût → connexions par projet + adm
 - [ ] Test navigateur du téléchargement de l'onglet Hooks.
 - [ ] Tester les adaptateurs de forge contre de vrais serveurs (GitLab CE, Gitea en conteneur).
 - [ ] `npm audit` : avis vitest (dev seulement).
+
+## 5bis. D'où vient la demande (ajouté le 2026-11-22)
+
+Aujourd'hui la demande est un fichier du dépôt (`REQUEST.md`), lu par le skill de spec. Un run
+lancé du portail ou du CLI ne peut pas dire quoi construire. Ordre décidé :
+
+- [ ] **1. Run déclenché par un ticket (parcours principal).** Le PO crée un ticket (Jira, Monday ou
+  autre) ; le ticket lance le run et son texte est la demande.
+  - Existe : webhooks Jira, GitHub, GitLab (HMAC, filtres type et label, id stable
+    `run_<pipeline>_<clé>`) ; adaptateurs de tracker qui lisent un ticket (Jira, GitHub, GitLab).
+  - Manque : le titre et la description du ticket n'atteignent jamais l'agent (le webhook ne garde
+    que la clé) ; pas d'adaptateur Monday ; pas de retour du statut vers le ticket ; le daemon
+    répond HTTP 500 si le projet n'est pas un dépôt git (voir l'analyse de `tests/functional`).
+- [ ] **2. Demande saisie au lancement.** Un champ dans le formulaire de lancement du portail (et
+  `asac apply --request`) pour les runs qui ne partent pas d'un ticket ; écrit dans le worktree du
+  run, là où le skill de spec le lit ; l'audit garde l'auteur et l'empreinte.
+- [ ] **3. Conversation avec l'agent (chat).** Un fil par run et par étape, pour préciser la demande
+  avant ou pendant une étape. Le rejet avec motif (relance sous autorun) en est déjà une forme
+  ponctuelle. À concevoir : quand un message relance l'agent, quand il attend une gate.
+
+Règle commune : la demande est une entrée du run, comme le commit de départ. Elle est enregistrée
+une fois, avec sa source (clé de ticket, utilisateur du portail, auteur du message) et une
+empreinte, pour qu'une gate approuve un travail face à une demande qui ne peut pas changer.
+
+- [x] Correctif préalable : un run lancé du portail passait à côté du moteur et travaillait dans le
+  dépôt principal, sans worktree (`74a1fed`).
 
 ## 6. Registre, données, FinOps
 

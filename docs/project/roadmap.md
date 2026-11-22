@@ -20,6 +20,22 @@
 
 The detailed task list is `TACHES.md` at the repository root.
 
+## Next: where the request comes from
+
+Today the request an agent works on is a file in the repository (`REQUEST.md` in the example),
+read by the spec skill. A run started from the portal or the CLI cannot say what to build. The
+main flow should instead start from the tool the product owner already uses. In order:
+
+| # | Item | What exists | What is missing |
+|---|---|---|---|
+| 1 | **Run from a ticket** (main flow). The product owner creates a ticket in Jira, Monday or another tracker; the ticket starts the run, and its text is the request. | Webhooks for Jira, GitHub and GitLab start a run with a stable id (`run_<pipeline>_<key>`), HMAC check, label and type filters. Tracker adapters read an issue (Jira, GitHub, GitLab). | The ticket's title and description never reach the agent: the webhook keeps only the key. Monday (and other trackers) have no adapter. Status is not written back to the ticket. The daemon returns HTTP 500 when the project is not a git repository. |
+| 2 | **Request typed at launch.** A field in the portal's launch form (and `asac apply --request`), for runs that do not start from a ticket. | The portal can start a run (`POST /runs`, pipeline only). | A request field; writing it into the run's worktree where the spec skill reads it; the audit records who wrote it and its digest. |
+| 3 | **Conversation with the agent.** A chat in the run page to clarify the request before or during a step. | Rejection with a reason relaunches the agent with that reason (under autorun), which is a one-shot form of it. | A thread per run and step; each message appended to the agent's feedback and to the audit; a design for when a message relaunches the agent and when it waits for a gate. |
+
+Rule for all three: the request is an input of the run, like the commit it starts from. It is
+recorded once, with its source (ticket key, portal user, chat author) and a digest, so a gate
+approves work against a request that cannot change behind it.
+
 ## v0.5 backlog
 
 | Item | Reason deferred | Destination |
