@@ -650,7 +650,9 @@ def _run_hooks(ctx: Context, run_id: str, sid: str, attach: str) -> Outcome | No
         return _fail(ctx, run_id, sid, f"hook error: {exc}")
     for r in results:
         shown = r.output.strip()[:2000]
-        detail = r.name + (f"\n{shown}" if shown else "")
+        # First line: "<moment> <hook>", so a reader knows whether it ran before the agent
+        # (pre_tool) or after the step (post_step). The hook's output follows.
+        detail = f"{attach} {r.name}" + (f"\n{shown}" if shown else "")
         _audit(ctx, run_id, "hook.passed" if r.passed else "hook.failed", sid, detail)
         if not r.passed and r.on_fail == "block":
             return _block(ctx, run_id, sid, f"hook '{r.name}' failed: {r.output}", True)

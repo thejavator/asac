@@ -147,12 +147,13 @@ export function RunDetailPage({ pid, runId, go }: { pid: string; runId: string; 
           <div className="section">
             <h3>Hook results</h3>
             {hooks.length === 0 ? <p className="soft">No hook has run for this run.</p> : hooks.map((h) => {
-              const [name, ...rest] = h.detail.split("\n");
+              const [head, ...rest] = h.detail.split("\n");
+              const { name, moment } = hookMoment(head);
               return (
                 <div key={h.seq}>
                   <p className="soft">
                     <Chip state={h.action === "hook.passed" ? "ok" : "bad"}>{h.action === "hook.passed" ? "Passed" : "Failed"}</Chip>{" "}
-                    <span className="mono">{name}</span> after step <b>{h.step_id}</b>
+                    <span className="mono">{name}</span> {moment} <b>{h.step_id}</b>
                   </p>
                   {rest.length > 0 && <pre className="source output" tabIndex={0}>{rest.join("\n")}</pre>}
                 </div>
@@ -197,4 +198,13 @@ export function RunDetailPage({ pid, runId, go }: { pid: string; runId: string; 
       </article>
     </>
   );
+}
+
+/** "pre_tool no-secrets" -> before the agent of the step; "post_step x" -> after the step.
+ *  Audits written before the moment was recorded have only the name: say "during". */
+export function hookMoment(head: string): { name: string; moment: string } {
+  const [first, ...more] = head.split(" ");
+  if (more.length > 0 && first === "pre_tool") return { name: more.join(" "), moment: "before the agent of step" };
+  if (more.length > 0 && first === "post_step") return { name: more.join(" "), moment: "after step" };
+  return { name: head, moment: "during step" };
 }
