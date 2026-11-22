@@ -928,6 +928,7 @@ def _portal_local(manifest: Path, host: str, port: int, harness: str | None) -> 
         "For a shared portal, use OIDC instead.\n"
         f"Portal data: {data}"
     )
+    _say_which_state(path)
     settings = PortalSettings(
         data_dir=data, dev_personas=personas, harness=harness, secure_cookie=False,
         shared_state=True,
@@ -966,6 +967,35 @@ def _register_projects(data: Path, specs: list[str]) -> None:
         if pid not in known:
             registry.create(Project(pid, pid, path))
             typer.echo(f"registered project {pid} ({path})")
+
+
+def _say_which_state(manifest: Path) -> None:
+    """Name the state the portal reads and how many runs it holds.
+
+    The CLI and the portal are two processes that must read the same state. When
+    ASAC_STATE_DIR differs between their shells they silently read different ones, and the portal
+    looks empty. Saying so at startup turns that into something the user can see.
+    """
+    from asac.adapters import state_dir
+    from asac.engine.runtime import store_for
+
+    where = state_dir(manifest.resolve().parent)
+    try:
+        store = store_for(manifest)
+        runs = len(store.list_runs())
+        close = getattr(store, "close", None)
+        if callable(close):
+            close()
+    except Exception as exc:  # an unreadable state is worth saying, not worth crashing for
+        typer.echo(f"State read: {where} (cannot be read: {exc})")
+        return
+    typer.echo(f"State read: {where} ({runs} run{'' if runs == 1 else 's'})")
+    if runs == 0 and not os.environ.get("ASAC_STATE_DIR"):
+        typer.echo(
+            "No runs here. If your CLI runs wrote their state somewhere else (ASAC_STATE_DIR was "
+            "set in that shell), export the same ASAC_STATE_DIR here and restart: another state "
+            "may exist."
+        )
 
 
 def _project_id(name: str) -> str:

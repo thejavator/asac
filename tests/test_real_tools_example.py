@@ -33,7 +33,10 @@ def _work(project: Path, run_id: str) -> Path:
 @pytest.fixture
 def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     dest = tmp_path / "real-tools"
-    shutil.copytree(EXAMPLE, dest)
+    # The example is copied without any asac.vars.yaml (it is git-ignored, a user's own file): the
+    # tests that need values copy one from vars/, like a person following the runbook.
+    shutil.copytree(EXAMPLE, dest, ignore=shutil.ignore_patterns("asac.vars.yaml", ".DS_Store"))
+    shutil.copy(dest / "vars" / "claude-code.yaml", dest / "asac.vars.yaml")
     init_git(dest)
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("ASAC_AUTORUN", "0")  # never launch a real tool from the tests

@@ -327,3 +327,35 @@ def test_a_portal_run_is_audited_like_a_cli_run(real_tools: Path, tmp_path: Path
     run_id = _start(_portal_on(real_tools, tmp_path))
     actions = [a.action for a in store_for(real_tools / "asac.yaml").audit(run_id)]
     assert "workspace.created" in actions and "step.committed" in actions, actions
+
+
+# -- the local portal tells which state it reads, so an empty portal is explained ---------------
+
+
+def test_the_local_portal_says_which_state_it_reads_and_how_many_runs(
+    sandbox_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ASAC_FIXED_TIME", "2026-01-01T00:00:00Z")
+    init_git(sandbox_project)
+    _cli(sandbox_project, "apply", "-p", "feature", "--harness", "fake", "--run-id", "seen1")
+    r, _ = _local(sandbox_project, monkeypatch)
+    assert "State read:" in r.output and "1 run" in r.output, r.output
+
+
+def test_an_empty_state_with_a_state_variable_unset_warns_that_another_may_exist(
+    sandbox_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The reported case: the CLI wrote to $ASAC_STATE_DIR, the portal shell did not have it."""
+    monkeypatch.delenv("ASAC_STATE_DIR", raising=False)
+    r, _ = _local(sandbox_project, monkeypatch)
+    assert "0 run" in r.output
+    assert "ASAC_STATE_DIR" in r.output and "same" in r.output.lower(), r.output
+
+
+def test_an_empty_state_with_the_variable_set_does_not_warn(
+    sandbox_project: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ASAC_STATE_DIR", str(tmp_path / "chosen"))
+    r, _ = _local(sandbox_project, monkeypatch)
+    assert "State read:" in r.output and str(tmp_path / "chosen") in r.output
+    assert "another state" not in r.output.lower()

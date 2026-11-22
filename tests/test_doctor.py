@@ -92,3 +92,23 @@ def test_an_optional_problem_does_not_fail_the_command(
 def test_run_checks_covers_every_prerequisite(tmp_path: Path) -> None:
     names = {c.name for c in run_checks(tmp_path)}
     assert {"git", "opa", "node", "srt", "claude", "git repository"} <= names
+
+
+def test_asacs_own_state_folder_does_not_count_as_uncommitted_work(tmp_path: Path) -> None:
+    """The default state lives in .asac-state/ inside the project: doctor must not blame the user
+    for it after the first run, or it contradicts the next `asac apply`, which works."""
+    import subprocess
+
+    def git(*a: str) -> None:
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *a], cwd=tmp_path,
+                       check=True, capture_output=True)  # fmt: skip
+
+    git("init", "-q", "-b", "main")
+    (tmp_path / "a.txt").write_text("x")
+    git("add", "-A")
+    git("commit", "-q", "-m", "b")
+    (tmp_path / ".asac-state").mkdir()
+    (tmp_path / ".asac-state" / "state.db").write_text("db")
+    assert check_git_repo(tmp_path).ok is True
+    (tmp_path / "a.txt").write_text("changed")  # a real change must still be reported
+    assert check_git_repo(tmp_path).ok is False

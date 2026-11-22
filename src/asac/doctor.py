@@ -58,7 +58,13 @@ def check_git_repo(root: Path) -> Check:
         return Check("git repository", False, f"{root} is not a git repository: run `git init`")
     if git("rev-parse", "--verify", "HEAD").returncode != 0:
         return Check("git repository", False, "no commit yet: commit your files first")
-    if git("status", "--porcelain").stdout.strip():
+    # .asac-state/ is ASAC's own folder (the default state): after a first run it is untracked,
+    # and a run copies from HEAD, so it is never part of what the agent works on.
+    dirty = [
+        line for line in git("status", "--porcelain").stdout.splitlines()
+        if not line[3:].startswith(".asac-state")
+    ]  # fmt: skip
+    if dirty:
         return Check("git repository", False, "uncommitted changes: a run starts from HEAD, "
                      "so they would not be part of what the agent works on")  # fmt: skip
     return Check("git repository", True, "clean, with at least one commit")

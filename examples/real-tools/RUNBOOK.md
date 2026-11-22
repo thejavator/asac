@@ -28,7 +28,7 @@ export WORK="$(mktemp -d)/real-tools"
 cp -R examples/real-tools "$WORK" && cd "$WORK"
 cp vars/claude-code.yaml asac.vars.yaml
 git init -q && git add -A && git commit -qm "start"
-export ASAC_STATE_DIR="$WORK/../asac-state"
+export ASAC_STATE="$WORK/.asac-state"   # where ASAC keeps its state: the default, written out
 asac doctor
 asac validate
 ```
@@ -50,13 +50,13 @@ asac apply -p feature --run-id demo
 ```
 
 Expected: exit code 2, `waiting for gate gate_demo_requirements`. ASAC created the worktree
-`$ASAC_STATE_DIR/worktrees/demo` on branch `asac/demo`, launched Claude Code there, ran the
+`$ASAC_STATE/worktrees/demo` on branch `asac/demo`, launched Claude Code there, ran the
 hooks, and made a commit. Look at what it produced and at the commit the gate is about:
 
 ```bash
 asac gates                    # the commit the gate approves is shown as commit=<sha>
-git -C "$ASAC_STATE_DIR/worktrees/demo" show --stat HEAD
-cat "$ASAC_STATE_DIR/worktrees/demo/SPEC.md"
+git -C "$ASAC_STATE/worktrees/demo" show --stat HEAD
+cat "$ASAC_STATE/worktrees/demo/SPEC.md"
 ```
 
 ## 4. Decide
@@ -82,7 +82,7 @@ What happens:
 - The agent is launched again in the same worktree. Its prompt contains a section
   `Rejected by the reviewer` with your reason, so it can address it.
 - The new result goes back to the same gate, `gate_demo_requirements`, on its new commit. Check it
-  again with `asac gates` and `git -C "$ASAC_STATE_DIR/worktrees/demo" show --stat HEAD`.
+  again with `asac gates` and `git -C "$ASAC_STATE/worktrees/demo" show --stat HEAD`.
 - A rejection is answered by at most **two relaunches** (three attempts in total). The cap is the
   step's `loop.max_iterations` when the step has a `loop`. Each relaunch is audited as
   `rejection.handled` and `attempt.after_rejection`; a relaunch that is blocked by a hook counts too.
@@ -123,10 +123,17 @@ machine, one command, from the project folder:
 asac portal --local            # http://127.0.0.1:8080/
 ```
 
-`--local` registers the project of `./asac.yaml`, reads the state the CLI writes (the same
-`ASAC_STATE_DIR`), and needs no sign-in: you pick a role (`po`, `dev`, `auditor`, `admin`) on the
+`--local` registers the project of `./asac.yaml`, reads the state the CLI writes, and needs no
+sign-in: you pick a role (`po`, `dev`, `auditor`, `admin`) on the
 login page. It listens on `127.0.0.1` only and refuses any other address, because anyone who can
 reach it can decide a gate. Its own data lives in `~/.asac/portal/`, never in your repository.
+
+**The portal and the CLI must read the same state.** By default both use `.asac-state/` in the
+project, so you set nothing, as in this runbook. The portal prints the folder it reads and how many
+runs it found. If it says `0 runs` and you know you started one, the state is somewhere else:
+you set `ASAC_STATE_DIR` in the shell where you ran the CLI. Export the same value in the shell
+where you start the portal, then restart it. (`.asac-state/` is ASAC's own folder: add it to your
+`.gitignore`, though `asac doctor` does not count it as uncommitted work.)
 
 Without `--local`, `asac portal` starts with **no project**: the portal has its own database and a
 project must be registered in it. Use `--project ID=PATH` (see the deployment guide), or create it
