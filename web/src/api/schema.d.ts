@@ -634,6 +634,31 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** ChangedFileOut */
+        ChangedFileOut: {
+            /** Path */
+            path: string;
+            /** Change */
+            change: string;
+            /**
+             * Mounted
+             * @default false
+             */
+            mounted: boolean;
+        };
+        /** CheckOut */
+        CheckOut: {
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Moment */
+            moment: string;
+            /** Passed */
+            passed: boolean;
+            /** Output */
+            output: string;
+        };
         /** ConflictOut */
         ConflictOut: {
             /** Title */
@@ -838,6 +863,37 @@ export interface components {
             project_id: string;
             /** Project Name */
             project_name: string;
+            /**
+             * Pipeline
+             * @default
+             */
+            pipeline: string;
+            /** Run Started At */
+            run_started_at?: string | null;
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            /** Subject */
+            subject?: string | null;
+            /**
+             * Urgency
+             * @default none
+             */
+            urgency: string;
+            /** Seconds Left */
+            seconds_left?: number | null;
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["CheckOut"][];
+            /**
+             * Files
+             * @default []
+             */
+            files: components["schemas"]["ChangedFileOut"][];
         };
         /** Persona */
         Persona: {

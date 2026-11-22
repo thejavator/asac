@@ -2071,6 +2071,62 @@
         ],
         "title": "AuditPage"
       },
+      "ChangedFileOut": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "change": {
+            "type": "string",
+            "title": "Change"
+          },
+          "mounted": {
+            "type": "boolean",
+            "title": "Mounted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "change"
+        ],
+        "title": "ChangedFileOut"
+      },
+      "CheckOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "moment": {
+            "type": "string",
+            "title": "Moment"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "output": {
+            "type": "string",
+            "title": "Output"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "moment",
+          "passed",
+          "output"
+        ],
+        "title": "CheckOut"
+      },
       "ConflictOut": {
         "properties": {
           "title": {
@@ -2658,6 +2714,70 @@
           "project_name": {
             "type": "string",
             "title": "Project Name"
+          },
+          "pipeline": {
+            "type": "string",
+            "title": "Pipeline",
+            "default": ""
+          },
+          "run_started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Started At"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "default": 0.0
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "urgency": {
+            "type": "string",
+            "title": "Urgency",
+            "default": "none"
+          },
+          "seconds_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds Left"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckOut"
+            },
+            "type": "array",
+            "title": "Checks",
+            "default": []
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ChangedFileOut"
+            },
+            "type": "array",
+            "title": "Files",
+            "default": []
           }
         },
         "type": "object",

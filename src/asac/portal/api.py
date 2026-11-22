@@ -33,8 +33,10 @@ from asac.engine.pipeline_edit import (
     validate_text,
 )
 from asac.engine.plan import build_plan, topo_order
+from asac.engine.runtime import recorded_workspace
 from asac.loader.load import load_manifest
 from asac.model import Manifest
+from asac.portal.decision import changed_files, checks_from_audit, started_at, urgency
 from asac.ports.admin import PROJECT_ROLES, AdminStore, Mapping
 from asac.ports.artifacts import ArtifactError, ArtifactStore
 from asac.ports.drafts import Draft, DraftStore
@@ -138,9 +140,31 @@ class GateOut(BaseModel):
     can_decide: bool
 
 
+class CheckOut(BaseModel):
+    kind: str  # "hook"
+    name: str
+    moment: str  # "pre_tool" | "post_step"; empty for an audit that did not record it
+    passed: bool
+    output: str
+
+
+class ChangedFileOut(BaseModel):
+    path: str
+    change: str  # added | modified | deleted | renamed
+    mounted: bool = False  # mounted by ASAC for the tool, not written by the agent
+
+
 class PendingDecision(GateOut):
     project_id: str
     project_name: str
+    pipeline: str = ""
+    run_started_at: str | None = None
+    cost_usd: float = 0.0
+    subject: str | None = None  # the commit this gate approves
+    urgency: str = "none"  # late | soon | none
+    seconds_left: int | None = None  # until the gate is due; negative when late
+    checks: list[CheckOut] = []
+    files: list[ChangedFileOut] = []  # what the approved commit changed
 
 
 #: audit actions that mean something went wrong or needs a person (the Errors page)
@@ -570,6 +594,40 @@ def create_api(deps: ApiDeps) -> FastAPI:
             )
         return out
 
+    def files_of(p: Project, g: Any, rows: list[Any]) -> list[Any]:
+        """Files of the approved commit, read in the run's own worktree (never the main one)."""
+        if not g.subject:
+            return []
+        try:
+            with deps.open_store(p) as store:
+                work = recorded_workspace(store, g.run_id)
+        except Exception:
+            return []
+        return changed_files(work, g.subject) if work is not None else []
+
+    def decision_item(p: Project, g: Any, base: GateOut) -> PendingDecision:
+        """A pending gate with what the person needs: urgency, cost, commit and checks."""
+        try:
+            with deps.open_store(p) as store:
+                rows = store.audit(g.run_id)
+                pipeline = store.get_run(g.run_id).pipeline
+        except Exception:  # a run that cannot be read still shows its gate
+            rows, pipeline = [], ""
+        level, left = urgency(g.timeout_at, deps.now())
+        return PendingDecision(
+            **base.model_dump(),
+            project_id=p.id,
+            project_name=p.name,
+            pipeline=pipeline,
+            run_started_at=started_at(rows),
+            cost_usd=spend_of(rows).cost_usd,
+            subject=g.subject,
+            urgency=level,
+            seconds_left=left,
+            checks=[CheckOut(**c.__dict__) for c in checks_from_audit(rows, g.step_id)],
+            files=[ChangedFileOut(**f.__dict__) for f in files_of(p, g, rows)],
+        )
+
     @api.get("/decisions", response_model=list[PendingDecision], operation_id="listDecisions")
     def decisions(
         request: Request, project: str | None = None, mine: bool = False
@@ -592,11 +650,10 @@ def create_api(deps: ApiDeps) -> FastAPI:
             except Exception:  # one broken project must not hide the others
                 continue
             for g in waiting:
-                item = PendingDecision(
-                    **gate_out(g, roles).model_dump(), project_id=p.id, project_name=p.name
-                )
-                if item.can_decide or not mine:
-                    out.append(item)
+                base = gate_out(g, roles)
+                if mine and not base.can_decide:
+                    continue
+                out.append(decision_item(p, g, base))
         return sorted(out, key=lambda x: x.requested_at)
 
     @api.get("/projects/{pid}/runs", response_model=RunPage, operation_id="listRuns")

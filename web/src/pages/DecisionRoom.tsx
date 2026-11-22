@@ -5,6 +5,7 @@ import { Chip } from "../components/Chip";
 import { FlowGraph } from "../components/FlowGraph";
 import { Link } from "../components/Link";
 import { TriggerLink } from "../components/TriggerLink";
+import { dueText, money, signatureNote } from "./decisionView";
 
 export function DecisionRoom({ pid, me, go }: { pid?: string; me: string; go: (to: string) => void }) {
   const [onlyMine, setOnlyMine] = useState(false);
@@ -55,10 +56,15 @@ export function DecisionRoom({ pid, me, go }: { pid?: string; me: string; go: (t
             <ol>
               {list.map((g) => (
                 <li key={g.gate_id}>
-                  <a className="item" href={`#${g.gate_id}`} data-urgency="none" aria-current={g.gate_id === gate.gate_id ? "true" : undefined}
+                  <a className="item" href={`#${g.gate_id}`} data-urgency={g.urgency} aria-current={g.gate_id === gate.gate_id ? "true" : undefined}
                      onClick={(e) => { e.preventDefault(); setPicked(g.gate_id); }}>
-                    <span className="title">{g.step_id}</span>
-                    <span className="meta">{!pid && <span>{g.project_name}</span>}<span className="mono">{g.run_id}</span><span>{g.role ?? "any role"}</span></span>
+                    <span className="title">Approve {g.step_id}</span>
+                    <span className="meta">
+                      {!pid && <span>{g.project_name}</span>}
+                      <span className="mono">{g.run_id}</span>
+                      {g.pipeline && <span>{g.pipeline}</span>}
+                      {dueText(g.seconds_left) && <span className="due">{dueText(g.seconds_left)}</span>}
+                    </span>
                   </a>
                 </li>
               ))}
@@ -71,11 +77,54 @@ export function DecisionRoom({ pid, me, go }: { pid?: string; me: string; go: (t
               <dl className="facts">
                 {!pid && <div><dt>Project</dt><dd>{gate.project_name}</dd></div>}
                 <div><dt>Run</dt><dd className="mono"><Link to={`/p/${gate.project_id}/runs/${gate.run_id}`} go={go}>{gate.run_id}</Link></dd></div>
+                {gate.pipeline && <div><dt>Pipeline</dt><dd>{gate.pipeline}</dd></div>}
                 {run.data?.trigger && <div><dt>Trigger</dt><dd><TriggerLink trigger={run.data.trigger} /></dd></div>}
+                {gate.run_started_at && <div><dt>Started</dt><dd className="mono">{gate.run_started_at}</dd></div>}
                 <div><dt>Requested</dt><dd className="mono">{gate.requested_at}</dd></div>
-                {gate.timeout_at && <div><dt>Due</dt><dd className="mono">{gate.timeout_at}</dd></div>}
+                {gate.timeout_at && <div><dt>Due</dt><dd className="mono">{gate.timeout_at}{dueText(gate.seconds_left) && ` (${dueText(gate.seconds_left)})`}</dd></div>}
+                <div><dt>Cost so far</dt><dd>{money(gate.cost_usd)}</dd></div>
+                {gate.subject && <div><dt>Commit</dt><dd className="mono" title={gate.subject}>{gate.subject.slice(0, 12)}</dd></div>}
               </dl>
             </header>
+            {gate.checks.length > 0 && (
+              <div className="section">
+                <h3>Checks made before this decision</h3>
+                <ul className="checks">
+                  {gate.checks.map((c, i) => (
+                    <li key={i} data-state={c.passed ? "ok" : "bad"}>
+                      <span className="sym" aria-hidden="true">{c.passed ? "✓" : "✗"}</span>
+                      <span className="what">
+                        <b>{c.name}</b>
+                        <span>{c.moment === "pre_tool" ? "Hook, before the agent" : c.moment === "post_step" ? "Hook, after the step" : "Hook"}</span>
+                        {c.output && <pre className="source output" tabIndex={0}>{c.output}</pre>}
+                      </span>
+                      <Chip state={c.passed ? "ok" : "bad"}>{c.passed ? "Passed" : "Failed"}</Chip>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {gate.files.length > 0 && (
+              <div className="section">
+                <h3>What this step changed</h3>
+                <ul className="checks">
+                  {gate.files.filter((f) => !f.mounted).map((f) => (
+                    <li key={f.path} data-state={f.change === "deleted" ? "bad" : "ok"}>
+                      <span className="sym" aria-hidden="true">{f.change === "added" ? "+" : f.change === "deleted" ? "−" : "~"}</span>
+                      <span className="what"><b className="mono">{f.path}</b><span>{f.change} in commit {gate.subject?.slice(0, 12)}</span></span>
+                    </li>
+                  ))}
+                </ul>
+                {gate.files.some((f) => f.mounted) && (
+                  <p className="soft">
+                    Also in this commit, set up by ASAC for the tool, not written by the agent:{" "}
+                    {gate.files.filter((f) => f.mounted).map((f, i) => (
+                      <span key={f.path}>{i > 0 && ", "}<span className="mono">{f.path}</span></span>
+                    ))}
+                  </p>
+                )}
+              </div>
+            )}
             {run.data && (
               <>
                 <div className="section"><h3>Where this run stands</h3><FlowGraph steps={run.data.run.steps} /></div>
@@ -84,7 +133,9 @@ export function DecisionRoom({ pid, me, go }: { pid?: string; me: string; go: (t
                   <ol className="ledger">
                     {run.data.evidence.map((e) => (
                       <li key={e.evidence_id} className="entry" data-kind={e.bootstrapped ? "boot" : "agent"}>
-                        <div className="line"><b>{e.evidence_id}</b><span className="kind">{e.bootstrapped ? "bootstrapped" : `produced by ${e.produced_by}`}</span></div>
+                        <div className="line"><b>{e.evidence_id}</b><span className="kind">{e.bootstrapped ? signatureNote(e) : `produced by agent · ${e.produced_by}`}</span></div>
+                        <div className="produced">{e.at}{!e.bootstrapped && signatureNote(e) ? ` · ${signatureNote(e)}` : ""}</div>
+                        {e.bootstrapped && <div className="produced">Not produced by an agent: recorded by a person.</div>}
                       </li>
                     ))}
                     <li className="entry" data-kind="pending">
