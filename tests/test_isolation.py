@@ -200,14 +200,14 @@ def test_a_run_with_no_worktree_record_never_advances_unisolated(project: Path) 
     """A run created before isolation existed has no worktree record. Isolation is then not
     recorded, so the run is not isolated: the guard only applies to runs that *were* isolated.
     Here the record is missing on a run that was isolated: resuming must stop, not continue."""
-    from asac.engine.apply import _was_isolated
+    from asac.engine.run_state import RunState
     from asac.engine.runtime import store_for
 
     asac(project, "apply", "-p", "feature", "--harness", "claude-code", "--run-id", "norec")
     asac(project, "evidence", "bootstrap", "norec", "--evidence", "spec_reviewed", "--no-resume")
     store = store_for(project / "asac.yaml")
     # the audit is append-only: a run recorded as isolated keeps that fact
-    assert _was_isolated(store, "norec") is True
+    assert RunState(store.audit("norec")).isolated is True
     # a run that was never isolated (fake harness, no worktree) is not forced into isolation
     asac(project, "apply", "-p", "feature", "--harness", "fake", "--run-id", "plain2")
-    assert _was_isolated(store, "plain2") is False
+    assert RunState(store.audit("plain2")).isolated is False

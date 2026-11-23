@@ -35,6 +35,7 @@ from asac.engine.governance import (
 from asac.engine.integrity import changed, snapshot
 from asac.engine.locked import LockedStore
 from asac.engine.plan import waves
+from asac.engine.run_state import RunState
 from asac.engine.workspace import WorkspaceError, commit_step
 from asac.hooks import HookError, run_hooks, run_hooks_named
 from asac.model import Manifest
@@ -123,11 +124,6 @@ def create_run(ctx: Context, run_id: str) -> None:
         )  # fmt: skip
 
 
-def _was_isolated(store: StateStore, run_id: str) -> bool:
-    """A run that started in a worktree, or whose isolation failed, stays isolated."""
-    return any(a.action in ("workspace.created", "workspace.failed") for a in store.audit(run_id))
-
-
 def execute(ctx: Context, run_id: str, only: str | None = None) -> Outcome:
     pipe = ctx.pipeline
     store = ctx.store
@@ -142,7 +138,7 @@ def execute(ctx: Context, run_id: str, only: str | None = None) -> Outcome:
             recorded = ctx.workdir_for(run_id)
         except StateError as exc:
             return Outcome(Exit.ERROR, run_id, f"cannot resume {run_id}: {exc}")
-        if recorded is None and _was_isolated(store, run_id):
+        if recorded is None and RunState(store.audit(run_id)).isolated:
             return Outcome(
                 Exit.ERROR, run_id,
                 f"cannot resume {run_id}: its worktree was never created (isolation required)",
@@ -219,6 +215,11 @@ def _advance(
         defer.append(sid)
         return None
     return _run_step(ctx, run_id, sid, step)
+
+
+def _state(ctx: Context, run_id: str) -> RunState:
+    """The run as its audit says it stands right now (read again at every call: it changes)."""
+    return RunState(ctx.store.audit(run_id))
 
 
 def _audit(ctx: Context, run_id: str, action: str, step: str | None, detail: str = "") -> None:
@@ -304,9 +305,10 @@ def _run_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None
 def _run_harness(
     ctx: Context, run_id: str, sid: str, step: Step, task: dict[str, Any], handle: str | None = None
 ) -> Outcome | None:
-    if _follows_a_rejection(ctx, run_id, sid):
+    state = _state(ctx, run_id)
+    if state.awaiting_relaunch(sid):
         _audit(ctx, run_id, "attempt.after_rejection", sid,
-               f"launch {_rejections_so_far(ctx, run_id, sid) + 1}")  # fmt: skip
+               f"launch {state.rejection_attempts(sid) + 1}")  # fmt: skip
     skill_key = task["skill"]
     permission = permission_for(step)
     task["permission"] = permission
@@ -435,24 +437,13 @@ def _record_spend(ctx: Context, run_id: str, sid: str, result: dict[str, object]
     tokens = int(str(result.get("tokens", 0) or 0))
     cost = float(str(result.get("cost_usd", 0.0) or 0.0))
     unknown = bool(result.get("cost_unknown"))
-    total = _spend_so_far(ctx, run_id)
+    total = _state(ctx, run_id).spend  # what was booked before this step
     total.tokens += tokens
     total.cost_usd += cost
     total.cost_unknown = total.cost_unknown or unknown
     detail = f"tokens={tokens} cost_usd={cost:.4f}" + (" cost=unknown" if unknown else "")
     _audit(ctx, run_id, "spend.recorded", sid, detail)
     return total
-
-
-def _spend_so_far(ctx: Context, run_id: str) -> Spend:
-    spend = Spend()
-    for a in ctx.store.audit(run_id):
-        if a.action == "spend.recorded" and a.detail.startswith("tokens="):
-            parts = dict(p.split("=", 1) for p in a.detail.split())
-            spend.tokens += int(parts["tokens"])
-            spend.cost_usd += float(parts["cost_usd"])
-            spend.cost_unknown = spend.cost_unknown or parts.get("cost") == "unknown"
-    return spend
 
 
 def _as_list(value: object) -> list[object]:
@@ -514,7 +505,7 @@ def _handoff(ctx: Context, run_id: str, sid: str, brief: str) -> Outcome:
 
 
 def _check_handoff(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None:
-    if _submitted(ctx, run_id, sid):
+    if _state(ctx, run_id).submitted(sid):
         # The person handed the step back: check it. Its evidence is written only if the checks
         # pass (by _complete, after the gate when there is one), never before.
         return _finish_step(ctx, run_id, sid, step)
@@ -527,19 +518,6 @@ def _check_handoff(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome |
             f"{sid} is with a person. When the work is done: asac submit {run_id}",
         )
     return _finish_step(ctx, run_id, sid, step)
-
-
-def _submitted(ctx: Context, run_id: str, sid: str) -> bool:
-    """True when the last hand-over of this step to a person was answered by `asac submit`."""
-    last_handoff = last_submit = -1
-    for a in ctx.store.audit(run_id):
-        if a.step_id != sid:
-            continue
-        if a.action == "step.handoff":
-            last_handoff = a.seq
-        elif a.action == "step.submitted":
-            last_submit = a.seq
-    return last_submit > last_handoff
 
 
 def submit_step(ctx: Context, run_id: str, by: str) -> Outcome:
@@ -564,7 +542,7 @@ def _finish_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | N
     if ctx.root is not None:
         blocked = _post_step_hooks(ctx, run_id, sid)
         if blocked is not None:
-            if _submitted(ctx, run_id, sid):
+            if _state(ctx, run_id).submitted(sid):
                 # A person submitted it: hand it back to them, with the reason, to fix and submit.
                 ctx.store.set_step_status(run_id, sid, "handoff")
                 ctx.store.set_run_status(run_id, "gate_waiting")
@@ -601,7 +579,7 @@ def _loop_turn(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | Non
     step fails: a check that never passes never validates the step.
     """
     assert step.loop is not None and ctx.root is not None
-    turn = _turns_so_far(ctx, run_id, sid) + 1
+    turn = _state(ctx, run_id).loop_turns(sid) + 1
     env = {"ASAC_RUN_ID": run_id, "ASAC_STEP": sid, "ASAC_HOOK_ATTACH": "loop"}
     work = ctx.workdir_for(run_id) if ctx.workdir_for is not None else None
     if work is not None:
@@ -642,19 +620,7 @@ def _agent_owes_another_turn(
         return False
     if ctx.store.get_step_status(run_id, sid) != "handoff":
         return False
-    return _autorun_launched(ctx, run_id, sid)
-
-
-def _autorun_launched(ctx: Context, run_id: str, sid: str) -> bool:
-    """The last time the step ran, did ASAC launch the tool (so it can launch it again)?"""
-    last = [a for a in ctx.store.audit(run_id) if a.step_id == sid and a.action == "tool.launched"]
-    return bool(last)
-
-
-def _turns_so_far(ctx: Context, run_id: str, sid: str) -> int:
-    return sum(
-        1 for a in ctx.store.audit(run_id) if a.action == "step.iteration" and a.step_id == sid
-    )
+    return _state(ctx, run_id).tool_launched(sid)
 
 
 def _write_feedback(ctx: Context, run_id: str, sid: str, turn: int, reason: str) -> None:
@@ -768,7 +734,7 @@ def _retry_after_rejection(
     The reason goes into the step's feedback, so the next launch carries it. Each rejection is
     audited. Past the cap the run fails as before: a human who keeps rejecting cannot loop forever.
     """
-    attempts = _rejections_so_far(ctx, run_id, sid)
+    attempts = _state(ctx, run_id).rejection_attempts(sid)
     if attempts >= rejection_cap(step) or ctx.state_dir is None:
         return None
     reason = gate.comment or "no reason given"
@@ -779,18 +745,6 @@ def _retry_after_rejection(
     ctx.store.set_step_status(run_id, sid, "handoff")
     ctx.store.set_run_status(run_id, "gate_waiting")
     return Outcome(Exit.WAITING, run_id, f"{sid} rejected: sent back to the agent with the reason")
-
-
-def _rejections_so_far(ctx: Context, run_id: str, sid: str) -> int:
-    """How many times the agent was launched again after a rejection, whatever the outcome.
-
-    Counted from the launches, not from the step's status: a relaunch that is then blocked by a
-    hook is still an attempt, and the cap must see it.
-    """
-    return sum(
-        1 for a in ctx.store.audit(run_id)
-        if a.action == "attempt.after_rejection" and a.step_id == sid
-    )  # fmt: skip
 
 
 def _rejected_gate(ctx: Context, run_id: str, sid: str) -> GateRecord | None:
@@ -808,20 +762,7 @@ def _can_relaunch_after_rejection(ctx: Context, run_id: str, sid: str, step: Ste
     the run fails, and the reason stays in the audit."""
     if not ctx.autorun:
         return False
-    return _rejections_so_far(ctx, run_id, sid) < rejection_cap(step)
-
-
-def _follows_a_rejection(ctx: Context, run_id: str, sid: str) -> bool:
-    """True when the last rejection of this step has not been answered by a launch yet."""
-    last_reject = last_launch = -1
-    for a in ctx.store.audit(run_id):
-        if a.step_id != sid:
-            continue
-        if a.action == "rejection.handled":
-            last_reject = a.seq
-        elif a.action in ("tool.launched", "attempt.after_rejection"):
-            last_launch = a.seq
-    return last_reject > last_launch
+    return _state(ctx, run_id).rejection_attempts(sid) < rejection_cap(step)
 
 
 def _write_rejection_feedback(

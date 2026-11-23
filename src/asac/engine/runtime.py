@@ -15,6 +15,7 @@ from asac.adapters.notify import from_project
 from asac.adapters.opa_policy import OpaPolicyEngine
 from asac.adapters.runner_local import runner_from_vars
 from asac.engine.apply import Context
+from asac.engine.run_state import RunState
 from asac.engine.workspace import create_workspace
 from asac.loader.load import load_manifest, load_vars
 from asac.model import Manifest
@@ -134,16 +135,11 @@ def make_context(
 
 
 def recorded_workspace(store: StateStore, run_id: str) -> Path | None:
-    """The worktree of a run, as recorded by ``workspace.created`` (the source of truth)."""
-    for a in store.audit(run_id):
-        if a.action == "workspace.created":
-            fields = dict(p.split("=", 1) for p in a.detail.split() if "=" in p)
-            if "path" in fields:
-                path = Path(fields["path"])
-                if not path.is_dir():
-                    raise StateError(f"the worktree of run '{run_id}' is missing ({path})")
-                return path
-    return None
+    """The worktree of a run, as its audit records it; an error if that folder is gone."""
+    path = RunState(store.audit(run_id)).workspace
+    if path is not None and not path.is_dir():
+        raise StateError(f"the worktree of run '{run_id}' is missing ({path})")
+    return path
 
 
 def _domains(env: str | None, values: dict[str, Any]) -> tuple[str, ...]:

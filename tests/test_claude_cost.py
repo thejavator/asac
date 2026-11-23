@@ -112,8 +112,8 @@ def test_an_unknown_cost_survives_a_resume_and_still_blocks(
     from types import SimpleNamespace
 
     from asac.adapters.state_sqlite import SqliteStateStore
-    from asac.engine.apply import _spend_so_far
     from asac.engine.governance import BLOCK, check_budget
+    from asac.engine.run_state import RunState
     from asac.model.manifest import Budgets, PerRun
 
     store = SqliteStateStore(tmp_path / "s.db")  # type: ignore[operator]
@@ -121,7 +121,7 @@ def test_an_unknown_cost_survives_a_resume_and_still_blocks(
     store.append_audit("rr", "cli", "spend.recorded", "2026-01-01T00:00:00Z",
                        detail="tokens=10 cost_usd=0.0000 cost=unknown")  # fmt: skip
 
-    spend = _spend_so_far(SimpleNamespace(store=store), "rr")  # type: ignore[arg-type]
+    spend = RunState(store.audit("rr")).spend
     assert spend.cost_unknown is True
     manifest = SimpleNamespace(budgets=Budgets(per_run=PerRun(cost_usd=5)))
     assert check_budget(manifest, spend).action == BLOCK  # type: ignore[arg-type]

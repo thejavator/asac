@@ -33,6 +33,7 @@ from asac.engine.pipeline_edit import (
     validate_text,
 )
 from asac.engine.plan import build_plan, topo_order
+from asac.engine.run_state import RunState
 from asac.engine.runtime import recorded_workspace
 from asac.loader.load import load_manifest
 from asac.model import Manifest
@@ -725,13 +726,8 @@ def create_api(deps: ApiDeps) -> FastAPI:
         ]
 
     def spend_of(rows: list[Any]) -> SpendOut:
-        tokens, cost = 0, 0.0
-        for a in rows:
-            if a.action == "spend.recorded" and a.detail.startswith("tokens="):
-                parts = dict(p.split("=", 1) for p in a.detail.split())
-                tokens += int(parts["tokens"])
-                cost += float(parts["cost_usd"])
-        return SpendOut(tokens=tokens, cost_usd=round(cost, 4))
+        spend = RunState(rows).spend  # the one reading of the audit, shared with the engine
+        return SpendOut(tokens=spend.tokens, cost_usd=round(spend.cost_usd, 4))
 
     @api.get(
         "/projects/{pid}/runs/{run_id}/artifacts/{name}",
