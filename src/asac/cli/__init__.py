@@ -745,6 +745,10 @@ def logs(
         typer.echo(f"{a.at}  {a.actor:<10} {a.action}{step}{detail}")
 
 
+#: audit events whose detail is the point of the line, so the default view prints it
+SHOWN_WITH_DETAIL = frozenset({"sandbox.denied", "integrity.violated", "gate.denied"})
+
+
 @app.command()
 def audit(
     file: ManifestOpt = Path("asac.yaml"),
@@ -770,7 +774,10 @@ def audit(
         typer.echo(f"error: unknown format '{fmt}'", err=True)
         raise typer.Exit(EXIT_ERROR)
     for a in records:
-        typer.echo(f"{a.seq:>4} {a.at}  {a.actor:<10} {a.action}  {a.run_id or '-'}")
+        line = f"{a.seq:>4} {a.at}  {a.actor:<10} {a.action}  {a.run_id or '-'}"
+        if a.action in SHOWN_WITH_DETAIL:  # a reviewer must see what was refused or tampered with
+            line += f"  {a.detail.splitlines()[0] if a.detail else ''}"
+        typer.echo(line)
 
 
 @app.command()

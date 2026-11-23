@@ -127,3 +127,73 @@ def test_the_sandbox_is_off_by_default_and_on_when_asked(
     )  # fmt: skip
     assert _domains(None, {"sandbox_domains": ["a.example.com"]}) == ("a.example.com",)
     assert _domains(None, {}) == ()  # no domain listed: no network at all
+
+
+# -- refusals are read back, so they can be audited --------------------------------------------
+
+
+def test_a_blocked_connection_is_read_from_srts_own_log() -> None:
+    from asac.adapters.sandbox import parse_denials
+
+    err = (
+        "[SandboxDebug] No matching rule, denying: www.wikipedia.org:443\n"
+        "[SandboxDebug] Connection blocked to www.wikipedia.org:443\n"
+    )
+    assert [(d.kind, d.target) for d in parse_denials(err)] == [
+        ("network", "www.wikipedia.org:443")
+    ]
+
+
+@pytest.mark.parametrize(
+    "line,target",
+    [
+        ("/bin/bash: /tmp/x/out.txt: Operation not permitted", "/tmp/x/out.txt"),
+        ("cat: /Users/me/.ssh/id_rsa: Operation not permitted", "/Users/me/.ssh/id_rsa"),
+        ("ls: /Users/me/.ssh: Operation not permitted", "/Users/me/.ssh"),
+        ("rm: /tmp/x/state.db: Operation not permitted", "/tmp/x/state.db"),
+        ("(eval):1: operation not permitted: /tmp/x/hook.sh", "/tmp/x/hook.sh"),
+        # a shell running a script prefixes "<script>: line N:": that is not part of the path
+        (
+            "/tmp/dn/bin/claude: line 2: /tmp/dn/rt/hook.sh: Operation not permitted",
+            "/tmp/dn/rt/hook.sh",
+        ),
+        ("/bin/sh: 3: cannot create /tmp/o.txt: Permission denied", None),  # not an OS refusal
+    ],
+)
+def test_a_refused_file_operation_is_read_from_the_tools_output(
+    line: str, target: str | None
+) -> None:
+    from asac.adapters.sandbox import parse_denials
+
+    want = [("filesystem", target)] if target else []
+    assert [(d.kind, d.target) for d in parse_denials(line)] == want
+
+
+def test_the_same_refusal_is_listed_once_and_noise_is_ignored() -> None:
+    from asac.adapters.sandbox import parse_denials
+
+    err = (
+        "[SandboxDebug] Mux proxy listening\nrunning tests... ok\n"
+        "cat: /k: Operation not permitted\ncat: /k: Operation not permitted\n"
+        "an unrelated line that says permitted\n"
+    )
+    assert [(d.kind, d.target) for d in parse_denials(err)] == [("filesystem", "/k")]
+
+
+def test_a_flood_of_refusals_is_capped_and_says_so() -> None:
+    from asac.adapters.sandbox import MAX_DENIALS, parse_denials
+
+    err = "\n".join(f"cat: /f{i}: Operation not permitted" for i in range(MAX_DENIALS + 30))
+    got = parse_denials(err)
+    assert len(got) == MAX_DENIALS + 1
+    assert got[-1].kind == "more" and got[-1].target == "30 more not listed"
+
+
+def test_the_wrapper_asks_srt_for_its_log_only_when_told_to(tmp_path: Path) -> None:
+    work = tmp_path / "wt"
+    work.mkdir()
+    p = _policy(work)
+    plain = wrap_command(["claude", "-p", "go"], p, settings_path=tmp_path / "s.json")
+    logged = wrap_command(["claude", "-p", "go"], p, settings_path=tmp_path / "s.json", debug=True)
+    assert "-d" not in plain
+    assert logged[1] == "-d" and logged[2:4] == ["-s", str(tmp_path / "s.json")]

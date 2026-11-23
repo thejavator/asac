@@ -4,6 +4,10 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- The sandbox's refusals are in the audit: `sandbox.denied` with the file or host the tool was
+  refused, read from the tool's own output and srt's log, capped at 20 per step. `asac audit` prints
+  the detail of `sandbox.denied`, `integrity.violated` and `gate.denied`.
+
 - `asac validate` warns (`ASAC027`) about keys it accepts but 0.1 does not apply: `knowledge`,
   `specLevel` and a provider's `config.model`. Before, they were accepted without a word.
 

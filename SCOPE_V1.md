@@ -19,7 +19,7 @@ Deux runs réels de bout en bout avec Claude Code sous le bac à sable (coût 0,
 - La boucle n'a pas tourné avec le vrai agent (seulement avec un faux outil).
 - Quand l'agent a reçu la consigne d'attaquer les règles, il a **refusé** : la preuve que le bac à sable bloque vient des faux outils hostiles, pas du vrai agent.
 - Le bac à sable ne couvre ni `delegate` ni les autres outils ; réseau limité à la passerelle du modèle ; macOS seulement ; Linux non testé.
-- Les tentatives refusées par l'OS (lecture de clés, réseau) ne sont **pas** dans l'audit ; seules les modifications de règles le sont (`integrity.violated`).
+- ~~Les tentatives refusées par l'OS ne sont pas dans l'audit.~~ **Corrigé (2026-11-23)** : chaque refus du bac à sable est écrit dans l'audit (`sandbox.denied`, avec le fichier ou l'hôte), et `asac audit` l'affiche. Limite : il est relu dans la sortie de l'outil et le journal de `srt`, donc un refus que l'outil n'imprime pas (il peut avaler l'erreur) n'est pas vu.
 - Vérification avec IBM (propriété intellectuelle, noms Bob, wxO, ICA, textes TLT) : **décision humaine**, voir `TACHES.md`.
 - Un test de la suite a échoué une fois sans être reproduit (voir le commit `0e653f9`).
 - Nommage du schéma : `max_iterations` (snake_case) contre `dependsOn` (camelCase), mais aussi `on_fail`, `per_run`, `cost_usd` : le langage mélange déjà les deux. À trancher avant de geler.

@@ -364,6 +364,9 @@ def _run_harness(
             f"{launched.get('tool')} exit={launched.get('exit')} "
             f"log={launched.get('log')} sha256={launched.get('log_sha256')}",
         )  # fmt: skip
+        for d in launched.get("denials") or []:
+            # What the OS sandbox refused the tool, as the tool and srt reported it
+            _audit(ctx, run_id, "sandbox.denied", sid, f"{d['kind']} {d['target']}")
     elif result.get("status") == "handoff":
         return _handoff(ctx, run_id, sid, str(result.get("brief", "")))
     if ctx.root is not None and (step.policies or (step.gate and step.gate.policy)):

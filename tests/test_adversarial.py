@@ -15,6 +15,7 @@ import pytest
 from typer.testing import CliRunner
 
 from asac.cli import app
+from asac.engine.runtime import store_for
 from tests.conftest import init_git
 
 SRT = shutil.which("srt") or "/tmp/spike/b/node_modules/.bin/srt"
@@ -143,3 +144,61 @@ def test_a_domain_that_is_not_allowed_is_unreachable(arena: Path, tmp_path: Path
     assert ran(tmp_path, "n1"), "the hostile tool never ran: this test proves nothing"
     marker = tmp_path / "state" / "worktrees" / "n1" / "reached.txt"
     assert marker.read_text().strip() == "BLOCKED"
+
+
+# -- the refusals are in the audit (the scope's criterion) -------------------------------------
+
+
+def _denied(tmp_path: Path, run_id: str) -> list[str]:
+    return [
+        a.detail for a in store_for(tmp_path / "proj" / "asac.yaml").audit(run_id)
+        if a.action == "sandbox.denied"
+    ]  # fmt: skip
+
+
+def test_a_refused_write_to_a_hook_is_in_the_audit(arena: Path, tmp_path: Path) -> None:
+    hook = arena / ".asac" / "hooks" / "tests-green.sh"
+    hostile_tool(tmp_path, f'echo "exit 0" > "{hook}"')
+    asac(arena, "apply", "-p", "feature", "--run-id", "da1")
+    assert ran(tmp_path, "da1")
+    assert any(str(hook.name) in d and d.startswith("filesystem") for d in _denied(tmp_path, "da1"))
+
+
+def test_a_refused_read_of_a_key_is_in_the_audit(arena: Path, tmp_path: Path) -> None:
+    key = tmp_path / "home" / ".ssh" / "id_rsa"
+    hostile_tool(tmp_path, f'cat "{key}"')
+    asac(arena, "apply", "-p", "feature", "--run-id", "da2")
+    assert ran(tmp_path, "da2")
+    assert f"filesystem {key}" in _denied(tmp_path, "da2")
+
+
+def test_a_refused_deletion_of_the_state_is_in_the_audit(arena: Path, tmp_path: Path) -> None:
+    db = tmp_path / "state" / "state.db"
+    hostile_tool(tmp_path, f'rm -f "{db}"')
+    asac(arena, "apply", "-p", "feature", "--run-id", "da3")
+    assert ran(tmp_path, "da3")
+    assert any("state.db" in d for d in _denied(tmp_path, "da3"))
+
+
+def test_a_refused_connection_to_a_host_is_in_the_audit(arena: Path, tmp_path: Path) -> None:
+    hostile_tool(tmp_path, "curl -s -o /dev/null --max-time 8 https://www.wikipedia.org")
+    asac(arena, "apply", "-p", "feature", "--run-id", "da4")
+    assert ran(tmp_path, "da4")
+    assert "network www.wikipedia.org:443" in _denied(tmp_path, "da4")
+
+
+def test_a_clean_run_records_no_denial(arena: Path, tmp_path: Path) -> None:
+    hostile_tool(tmp_path, 'printf "# Spec\\n## Acceptance criteria\\n- ok\\n" > SPEC.md')
+    asac(arena, "apply", "-p", "feature", "--run-id", "da5")
+    assert _denied(tmp_path, "da5") == []
+
+
+def test_the_default_audit_view_says_what_was_refused(arena: Path, tmp_path: Path) -> None:
+    """`asac audit` printed "sandbox.denied" four times and nothing else: a reviewer could not
+    tell a refused read of a key from a refused connection."""
+    key = tmp_path / "home" / ".ssh" / "id_rsa"
+    hostile_tool(tmp_path, f'cat "{key}"')
+    asac(arena, "apply", "-p", "feature", "--run-id", "dv1")
+    out = asac(arena, "audit", "--run-id", "dv1").output
+    line = next(ln for ln in out.splitlines() if "sandbox.denied" in ln)
+    assert str(key) in line, line

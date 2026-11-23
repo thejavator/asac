@@ -166,3 +166,18 @@ def test_project_commands(tmp_path: Path) -> None:
         == 0
     )
     assert runner.invoke(app, ["project", "archive", "nope", "--data", data]).exit_code == 1
+
+
+def test_the_audit_text_view_shows_the_detail_of_a_security_event(sandbox_project: Path) -> None:
+    from asac.engine.runtime import store_for
+
+    store = store_for(sandbox_project / "asac.yaml")
+    store.create_run("v1", "feature", "2026-01-01T00:00:00Z")
+    store.append_audit("v1", "cli", "sandbox.denied", "2026-01-01T00:00:00Z", "s",
+                       "filesystem /home/me/.ssh/id_rsa")  # fmt: skip
+    store.append_audit("v1", "cli", "step.started", "2026-01-01T00:00:00Z", "s", "analyst")
+    out = run(sandbox_project, "audit", "--run-id", "v1").stdout
+    denied = next(ln for ln in out.splitlines() if "sandbox.denied" in ln)
+    started = next(ln for ln in out.splitlines() if "step.started" in ln)
+    assert "filesystem /home/me/.ssh/id_rsa" in denied
+    assert "analyst" not in started  # ordinary events keep their short line

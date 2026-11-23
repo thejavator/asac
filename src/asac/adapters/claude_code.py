@@ -193,6 +193,13 @@ class ClaudeCodeHarness:
         launched: dict[str, Any] = {
             "tool": cmd[0], "exit": "0", "log": str(log), "log_sha256": digest,
         }  # fmt: skip
+        if self._ctx.sandbox:
+            from asac.adapters.sandbox import parse_denials
+
+            launched["denials"] = [
+                {"kind": d.kind, "target": d.target}
+                for d in parse_denials(done.stdout + "\n" + done.stderr)
+            ]
         try:
             report = parse_claude_report(done.stdout)
         except ValueError:
@@ -221,7 +228,7 @@ class ClaudeCodeHarness:
         settings = self._ctx.state_dir / "sandbox" / f"{brief.parent.name}.json"
         settings.parent.mkdir(parents=True, exist_ok=True)
         settings.write_text(json.dumps(build_settings(policy)), encoding="utf-8")
-        return wrap_command(cmd, policy, settings)
+        return wrap_command(cmd, policy, settings, debug=True)  # debug: srt logs what it refuses
 
     def mounted_path(self, skill: str) -> str:
         return f".claude/skills/{skill}/SKILL.md"
