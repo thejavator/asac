@@ -19,7 +19,12 @@ _state: dict[str, str] = {}
 def _docker_ok() -> bool:
     if shutil.which("docker") is None:
         return False
-    return subprocess.run(["docker", "info"], capture_output=True).returncode == 0
+    try:
+        # A Docker daemon that is installed but stuck never answers: treat it as absent, so the
+        # Postgres tests are skipped instead of blocking the whole session.
+        return subprocess.run(["docker", "info"], capture_output=True, timeout=15).returncode == 0
+    except subprocess.TimeoutExpired:
+        return False
 
 
 def _start() -> str:

@@ -17,11 +17,14 @@ IMAGE = "postgres:16-alpine"  # already used by the Postgres conformance run; ha
 def _ready() -> bool:
     if shutil.which("docker") is None:
         return False
-    if subprocess.run(["docker", "info"], capture_output=True).returncode != 0:
+    try:
+        # A Docker daemon that is installed but stuck never answers: treat it as absent.
+        if subprocess.run(["docker", "info"], capture_output=True, timeout=15).returncode != 0:
+            return False
+        probe = ["docker", "image", "inspect", IMAGE]
+        return subprocess.run(probe, capture_output=True, timeout=15).returncode == 0
+    except subprocess.TimeoutExpired:
         return False
-    return (
-        subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True).returncode == 0
-    )
 
 
 @pytest.fixture
