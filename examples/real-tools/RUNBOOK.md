@@ -180,7 +180,26 @@ validated. Unlike a rejection, a failing check relaunches the agent by itself, w
 
 ## Doing a step by hand
 
-Without `autorun`, ASAC prepares the brief and stops. You run the tool yourself in the worktree,
-then record the evidence with `asac evidence bootstrap demo --evidence <id> --by you` and approve.
-The hooks still check the result; ASAC cannot prove the tool was run. A rejection in this mode
-does not relaunch anything (see *Decide*).
+Without `autorun` (`ASAC_AUTORUN=0`), ASAC prepares the step and stops. `asac apply` says where
+to work and how to hand it back:
+
+```text
+work in: .../.asac-state/worktrees/demo
+  cd .../.asac-state/worktrees/demo
+when done: asac submit demo
+```
+
+Open your tool there (`claude`, `codex`), do the work, then:
+
+```bash
+asac submit demo
+```
+
+`submit` runs the step's checks. If one fails, nothing is recorded: the step comes back to you
+with the reason, you fix it and submit again. If they pass, the step goes to its gate, and its
+evidence is recorded when the gate is approved. You never name the evidence; the step says what it
+produces. ASAC still cannot prove which tool did the work, only that the checks passed on this
+commit. A rejection in this mode does not relaunch anything (see *Decide*).
+
+`asac evidence bootstrap` is for something else: a fact produced outside ASAC (an imported
+security review). It is marked as bootstrapped, not as the step's work.

@@ -4,6 +4,12 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- `asac submit <run>`: hand back the step you worked on. Its checks run first; its evidence is
+  recorded only if they pass. A failed check returns the step to you with the reason.
+- `asac apply` says where to work (the run's worktree) and how to hand the step back.
+- Fixed: `asac evidence bootstrap` used to record a step's evidence before its hooks ran, so a
+  `tests_green` evidence existed while the tests failed, and `evidence verify` said ok.
+
 - Hooks per step: `steps.<id>.hooks.pre_tool` and `.post_step` list the declared hooks a step runs,
   after the global ones. A step no longer has to guard its script by step name.
 - `asac validate` refuses a duplicated key in a manifest instead of keeping only the last one.

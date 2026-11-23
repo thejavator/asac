@@ -157,7 +157,8 @@ def test_claude_code_handoff_flow(sandbox_project: Path) -> None:
     assert not (sandbox_project / ".claude").exists()
     # still waiting until the person records the evidence
     r = asac(sandbox_project, "apply", "--resume", "h1")
-    assert r.exit_code == 2 and "waiting for evidence" in r.stdout  # type: ignore[attr-defined]
+    # still with the person: the message says how to hand it back
+    assert r.exit_code == 2 and "asac submit h1" in r.stdout  # type: ignore[attr-defined]
     asac(
         sandbox_project,
         "evidence",

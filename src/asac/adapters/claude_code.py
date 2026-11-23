@@ -111,9 +111,9 @@ class ClaudeCodeHarness:
             "## Evidence this step must produce",
             *[f"- {e}" for e in task.get("produces", [])],
             "",
-            f"Open {self.tool_name} in this repository (e.g. `{self.launch_hint}`), "
-            "do the work, then continue with "
-            "`asac approve <gate-id>` and `asac apply --resume <run-id>`.",
+            f"Open {self.tool_name} in the run's worktree (e.g. `{self.launch_hint}`), do the "
+            f"work, then hand it back with `asac submit {context.get('run_id', '<run-id>')}`: "
+            "the step's checks run, and its evidence is recorded only if they pass.",
         ]
         run_id = str(context.get("run_id", "run"))
         text = "\n".join(lines) + "\n"

@@ -511,16 +511,46 @@ def _handoff(ctx: Context, run_id: str, sid: str, brief: str) -> Outcome:
 
 
 def _check_handoff(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None:
+    if _submitted(ctx, run_id, sid):
+        # The person handed the step back: check it. Its evidence is written only if the checks
+        # pass (by _complete, after the gate when there is one), never before.
+        return _finish_step(ctx, run_id, sid, step)
     missing = [e for e in step.producesEvidence if not ctx.store.has_evidence(run_id, e)]
     if missing:
         ctx.store.set_run_status(run_id, "gate_waiting")
         return Outcome(
             Exit.WAITING,
             run_id,
-            f"{sid} is waiting for evidence: {', '.join(missing)} "
-            f"(record it with: asac evidence bootstrap {run_id} --evidence <id>)",
+            f"{sid} is with a person. When the work is done: asac submit {run_id}",
         )
     return _finish_step(ctx, run_id, sid, step)
+
+
+def _submitted(ctx: Context, run_id: str, sid: str) -> bool:
+    """True when the last hand-over of this step to a person was answered by `asac submit`."""
+    last_handoff = last_submit = -1
+    for a in ctx.store.audit(run_id):
+        if a.step_id != sid:
+            continue
+        if a.action == "step.handoff":
+            last_handoff = a.seq
+        elif a.action == "step.submitted":
+            last_submit = a.seq
+    return last_submit > last_handoff
+
+
+def submit_step(ctx: Context, run_id: str, by: str) -> Outcome:
+    """A person hands back the step they worked on. Records it, then lets the run go on.
+
+    Nothing is written as evidence here: the step's checks decide, then the gate.
+    """
+    rec = ctx.store.get_run(run_id)  # NotFound surfaces to the caller
+    waiting = [s for s, st in ctx.store.list_steps(run_id).items() if st == "handoff"]
+    if not waiting:
+        raise StateError(f"run '{run_id}' is not waiting for a person (status {rec.status})")
+    sid = waiting[0]
+    ctx.store.append_audit(run_id, by, "step.submitted", now_iso(), step_id=sid)
+    return execute(ctx, run_id)
 
 
 def _finish_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None:
@@ -531,6 +561,11 @@ def _finish_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | N
     if ctx.root is not None:
         blocked = _post_step_hooks(ctx, run_id, sid)
         if blocked is not None:
+            if _submitted(ctx, run_id, sid):
+                # A person submitted it: hand it back to them, with the reason, to fix and submit.
+                ctx.store.set_step_status(run_id, sid, "handoff")
+                ctx.store.set_run_status(run_id, "gate_waiting")
+                _audit(ctx, run_id, "step.handoff", sid, "returned: the checks failed")
             return blocked
     # The hooks passed on this tree: the gate will approve exactly this commit.
     sha = _commit_if_isolated(ctx, run_id, sid)
@@ -867,6 +902,7 @@ def decide_gate(
 
 
 __all__ = [
+    "submit_step",
     "Context",
     "Exit",
     "Forbidden",

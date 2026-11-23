@@ -308,10 +308,27 @@ def _pick_pipeline(manifest: Manifest, pipeline: str | None) -> str:
     return pipeline
 
 
-def _report(outcome: Outcome) -> None:
+def _report(outcome: Outcome, manifest_path: Path | None = None) -> None:
     typer.echo(f"run {outcome.run_id}: {outcome.message}")
     for g in outcome.gates:
         typer.echo(f"gate {g} is pending. Approve with: asac approve {g}")
+    if manifest_path is not None:
+        _tell_where_the_work_is(manifest_path, outcome.run_id)
+
+
+def _tell_where_the_work_is(manifest_path: Path, run_id: str) -> None:
+    """When a step waits for a person: the worktree to work in, and how to hand it back."""
+    from asac.engine.runtime import recorded_workspace
+
+    try:
+        store = store_for_path(manifest_path)
+        waiting = "handoff" in store.list_steps(run_id).values()
+        work = recorded_workspace(store, run_id) if waiting else None
+    except Exception:  # a report must never fail the command it reports on
+        return
+    if work is None:
+        return
+    typer.echo(f"work in: {work}\n  cd {work}\nwhen done: asac submit {run_id}")
 
 
 def _run_engine(
@@ -332,7 +349,7 @@ def _run_engine(
     except StateError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(EXIT_ERROR) from None
-    _report(outcome)
+    _report(outcome, manifest_path)
     raise typer.Exit(int(outcome.code))
 
 
@@ -477,7 +494,7 @@ def _run_engine_with(ctx: Context, run_id: str, *, exit_after: bool = True) -> N
     except StateError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(EXIT_ERROR) from None
-    _report(outcome)
+    _report(outcome, (ctx.root / "asac.yaml") if ctx.root is not None else None)
     if exit_after:
         raise typer.Exit(int(outcome.code))
 
@@ -573,6 +590,36 @@ def approve(
         typer.echo(f"continue with: asac apply --resume {g.run_id}")
     elif g.status == "approved":
         _auto_resume(file, g.run_id, harness)
+
+
+@app.command()
+def submit(
+    run_id: Annotated[str, typer.Argument(help="Run whose step you worked on.")],
+    file: ManifestOpt = Path("asac.yaml"),
+    by: Annotated[str | None, typer.Option("--by", help="Who hands the step back.")] = None,
+    harness: HarnessOpt = None,
+) -> None:
+    """Hand back the step you worked on. Its checks run; its evidence is recorded if they pass."""
+    from asac.engine.apply import submit_step
+    from asac.engine.runtime import make_context, project_root
+    from asac.ports.state import NotFound, StateError
+
+    manifest = _load(file)
+    store = store_for_path(file)
+    who = by or os.environ.get("USER", "unknown")
+    try:
+        rec = store.get_run(run_id)
+    except NotFound:
+        typer.echo(f"error: run '{run_id}' not found", err=True)
+        raise typer.Exit(EXIT_ERROR) from None
+    ctx = make_context(manifest, rec.pipeline, store, project_root(file), harness)
+    try:
+        outcome = submit_step(ctx, run_id, who)
+    except StateError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(EXIT_ERROR) from None
+    _report(outcome, file)
+    raise typer.Exit(int(outcome.code))
 
 
 @evidence_app.command("show")
