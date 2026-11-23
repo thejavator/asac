@@ -4,6 +4,9 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- `tests/test_real_claude.py`: the real `claude` on a project that is not the example, skipped unless
+  `ASAC_REAL_CLAUDE=1`. See the contributing guide.
+
 - The sandbox's refusals are in the audit: `sandbox.denied` with the file or host the tool was
   refused, read from the tool's own output and srt's log, capped at 20 per step. `asac audit` prints
   the detail of `sandbox.denied`, `integrity.violated` and `gate.denied`.

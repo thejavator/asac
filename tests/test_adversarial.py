@@ -18,11 +18,25 @@ from asac.cli import app
 from asac.engine.runtime import store_for
 from tests.conftest import init_git
 
-SRT = shutil.which("srt") or "/tmp/spike/b/node_modules/.bin/srt"
-NODE = "/opt/homebrew/bin/node"  # srt needs Node >= 22.12; an older node on PATH makes it crash
+SRT = shutil.which("srt")
+
+
+def _node_ok() -> bool:
+    """srt needs Node >= 22.12; an older node on PATH makes it crash and proves nothing."""
+    from asac.doctor import MIN_NODE, parse_node_version
+
+    node = shutil.which("node")
+    if node is None:
+        return False
+    out = subprocess.run([node, "--version"], capture_output=True, text=True).stdout
+    got = parse_node_version(out)
+    return got is not None and got >= MIN_NODE
+
+
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(not Path(SRT).exists(), reason="srt (sandbox-runtime) is not installed"),
+    pytest.mark.skipif(SRT is None, reason="srt (sandbox-runtime) is not installed"),
+    pytest.mark.skipif(not _node_ok(), reason="node >= 22.12 is needed by srt"),
 ]
 runner = CliRunner()
 EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "real-tools"
@@ -54,7 +68,8 @@ def arena(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("ASAC_AUTORUN", "1")
     monkeypatch.setenv("ASAC_SANDBOX", "1")
     monkeypatch.setenv("ASAC_SANDBOX_DOMAINS", "api.example-gateway.test")
-    monkeypatch.setenv("PATH", f"{bindir}:{Path(NODE).parent}:{Path(SRT).parent}:/usr/bin:/bin")
+    node_dir = Path(shutil.which("node") or "").parent  # the node doctor just accepted
+    monkeypatch.setenv("PATH", f"{bindir}:{node_dir}:{Path(SRT or '').parent}:/usr/bin:/bin")
     (tmp_path / "bin_dir").write_text(str(bindir))
     return root
 

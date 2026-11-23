@@ -15,7 +15,7 @@ bac à sable `srt` (preuve par contrôle inverse), contrôle d'intégrité des r
 Deux runs réels de bout en bout avec Claude Code sous le bac à sable (coût 0,13 et 0,16 USD).
 
 **Non fait, à ne pas présenter comme fait :**
-- Aucun test d'intégration réel **automatisé** (marqueur `integration`) avec le vrai `claude` ni sur un dépôt qui n'est pas l'exemple : les deux runs réels ont été faits à la main, sur `real-tools`.
+- ~~Aucun test d'intégration réel automatisé.~~ **Fait (2026-11-23)** : `tests/test_real_claude.py`, trois tests avec le vrai `claude` sur un projet qui n'est pas l'exemple (spécification, hook, gate, preuve). Ignorés sauf `ASAC_REAL_CLAUDE=1` (ils coûtent environ 0,12 à 0,30 USD l'un). Le test du bac à sable prouve que l'outil réel **fonctionne** sous `srt`, pas que le bac à sable **bloque** : l'agent réel refuse de lui-même de sortir du worktree, avec ou sans bac à sable (contrôle fait). Le blocage est prouvé par `tests/test_adversarial.py`.
 - La boucle n'a pas tourné avec le vrai agent (seulement avec un faux outil).
 - Quand l'agent a reçu la consigne d'attaquer les règles, il a **refusé** : la preuve que le bac à sable bloque vient des faux outils hostiles, pas du vrai agent.
 - Le bac à sable ne couvre ni `delegate` ni les autres outils ; réseau limité à la passerelle du modèle ; macOS seulement ; Linux non testé.
