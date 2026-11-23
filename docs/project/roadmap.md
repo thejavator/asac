@@ -15,7 +15,8 @@
 2. `plan` / `apply` engine, local state backend: **done**.
 3. Headless runner (Docker) and Claude Code delegation: **done**. MCP servers per step (`.mcp.json`, allow list, audit): **done** for Claude Code. MCP gateway: not started.
 4. Portal (SPA, API, OIDC, Decision Room, administration, pipeline editor, forges, tracker and wiki, deliverables and costs): **done**. DORA and token metrics: not started.
-5. Public registry, provider SDKs: not started. Other headless harnesses, parallel steps: not started.
+5. Public registry, provider SDKs: not started. Other headless harnesses: not started. Parallel steps: the code exists (`parallel`, 1 to 8) but no real test covers it; not in 0.1.
+5b. Worker that consumes the job queue, and `mode: delegate` through the Docker runner: planned for 0.1.x (SCOPE_V1, lot 5). Multi-agent orchestration (frameworks, `critic`, `routing`): deferred, see the backlog below.
 6. Multi-team (multi-project portal): **done**. Agent identity and audit export aids: partly done (CSV export).
 
 The detailed task list is `TACHES.md` at the repository root.
@@ -40,8 +41,10 @@ approves work against a request that cannot change behind it.
 
 | Item | Reason deferred | Destination |
 |---|---|---|
+| Multi-agent orchestration (agents that call or hand off to other agents, a planner that delegates; frameworks such as LangGraph, CrewAI, AutoGen) | ASAC orchestrates the steps of the cycle and their guarantees; each agent organises its own work (Claude Code and Codex do it internally). A framework would move the process into Python code and bypass the harnesses. Revisit only if a need appears that steps and gates cannot express | Engine, if needed |
+| Durable workflow engine (Temporal, Prefect, Hatchet) | Only if runs must survive worker crashes over long timers, many hosts or many concurrent runs; SQLite state, resume and `SKIP LOCKED` cover the small case | Engine |
 | `routing` (multi-model) | Routing by capability, sensitivity and cost with fallback; design undecided | Layer 2 |
-| `critic` pattern | "QA ≠ dev" exists as policy; the declared pattern does not | Step |
+| `critic` pattern | "QA ≠ dev" exists as policy; the declared pattern does not. The most aligned with ASAC's promise: a second agent, ideally from another provider, that cannot approve its own work | Step |
 | `integration_green`, `e2e_green` | Extensions of `tests_green`; just evidence types | Spec or module |
 | `canary_healthy`, `post_deploy_verified` | Needs a progressive-delivery model | Release step |
 | `monitor.signal` event | Remediation from production; Monitor → Plan loop | Spec |
