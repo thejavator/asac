@@ -4,6 +4,9 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- `asac validate` warns (`ASAC027`) about keys it accepts but 0.1 does not apply: `knowledge`,
+  `specLevel` and a provider's `config.model`. Before, they were accepted without a word.
+
 - `asac submit <run>`: hand back the step you worked on. Its checks run first; its evidence is
   recorded only if they pass. A failed check returns the step to you with the reason.
 - `asac apply` says where to work (the run's worktree) and how to hand the step back.

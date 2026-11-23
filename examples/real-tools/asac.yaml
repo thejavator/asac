@@ -10,7 +10,7 @@ providers:
   llm:
     source: asac/claude
     version: "~> 1.0"
-    config: { model: whatever-the-tool-uses }
+    config: {}   # the tool picks its own model: a model set here would not reach it
 
 capabilities:
   specification_engineering:

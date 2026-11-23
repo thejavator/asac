@@ -1,3 +1,6 @@
 error ASAC024 providers.jira.mcp: give exactly one of 'command' or 'url'
-1 error(s), 4 warning(s)
+warning ASAC027 knowledge.project-okf: accepted but not applied in 0.1: knowledge sources are not given to the agent
+warning ASAC027 pipelines.feature.specLevel: accepted but not applied in 0.1: specLevel is checked by validate only; the engine does not enforce it
+warning ASAC027 providers.llm.config.model: accepted but not applied in 0.1: the model chosen in a provider's config does not reach the tool
+1 error(s), 7 warning(s)
 exit=1

@@ -43,5 +43,9 @@ Pipeline attributes: `description`, `timeout`, `trigger`, `steps`, and (v0.4) `s
 - `ASAC024`: a provider `mcp` block needs exactly one of `command` (stdio) or `url` (`https://`).
 - `ASAC025`: a value in `providers.<name>.mcp.env` is not a `${vault...}` reference. Secrets are never written in the manifest.
 - `ASAC026` (warning): `specLevel` is not backed. Level 2 needs a gated step whose evidence a later step requires. Level 3 also needs a hook or a step policy that checks the spec. Level 1 asks for nothing.
+- `ASAC027` (warning): a key the manifest accepts but version 0.1 does not apply. Today: `knowledge`
+  (and an agent's `knowledge` list), `specLevel` (checked by `validate` only, not enforced), and a
+  `model` in a provider's `config` (it does not reach the tool). The manifest stays valid; the
+  warning only says the rule is not in force.
 
 At run time, `budgets.per_run.wall_clock` and `pipeline.timeout` are measured from the creation of the run and block it (exit code 3) when exceeded.

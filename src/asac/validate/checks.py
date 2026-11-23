@@ -8,6 +8,7 @@ from pathlib import Path
 from asac.catalog import BUILTIN_POLICIES, HARNESSES
 from asac.clock import parse_duration
 from asac.model import Manifest, VarsFile
+from asac.validate.unapplied import unapplied_in
 
 VAR_RE = re.compile(r"^var\.([A-Za-z_][A-Za-z0-9_]*)$")
 VAULT_RE = re.compile(r"^\$\{vault\.[A-Za-z0-9_./-]+\}$")
@@ -168,6 +169,10 @@ def validate(manifest: Manifest, root: Path, vars_file: VarsFile | None = None) 
         for sname, st in pipe.steps.items():
             if st.gate:
                 check_duration(st.gate.timeout, f"pipelines.{pname}.steps.{sname}.gate.timeout")
+
+    # Keys accepted but not applied by this version: said, never silently ignored
+    for where, message in unapplied_in(manifest):
+        warn("ASAC027", where, message)
 
     # Hooks
     hooks = manifest.hooks
