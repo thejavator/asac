@@ -13,6 +13,8 @@ def sandbox_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     shutil.copytree(EXAMPLE, project)
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("ASAC_STATE_DIR", str(tmp_path / ".asac-state"))
+    # The example's delegate steps declare a Docker runner; offline tests use the in-memory one.
+    monkeypatch.setenv("ASAC_RUNNER", "fake")
     return project
 
 

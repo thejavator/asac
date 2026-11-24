@@ -220,6 +220,13 @@ def validate(manifest: Manifest, root: Path, vars_file: VarsFile | None = None) 
                 h = harness_of.get(step.agent)
                 if h and step.mode == "delegate" and not HARNESSES[h].headless:
                     err("ASAC013", f"{at}.mode", f"harness '{h}' is not headless, cannot delegate")
+            has_runner = step.execution is not None and step.execution.runner is not None
+            if step.mode == "delegate" and not has_runner:
+                err(
+                    "ASAC028",
+                    f"{at}.execution",
+                    "a delegate step needs an execution runner (execution: { runner: docker })",
+                )
             for d in step.dependsOn:
                 if d not in pipe.steps:
                     err("ASAC007", f"{at}.dependsOn", f"unknown step '{d}'")

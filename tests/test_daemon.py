@@ -89,12 +89,10 @@ def test_docker_command_is_locked_down(tmp_path: Path) -> None:
 def _delegate_project(project: Path, fallback: bool) -> None:
     f = project / "asac.yaml"
     text = f.read_text()
-    extra = "        execution: { runner: docker" + (", fallback: assist }" if fallback else " }")
-    text = text.replace(
-        "        mode: delegate\n        autonomy: review\n        dependsOn: [requirements]",
-        "        mode: delegate\n" + extra + "\n        autonomy: review\n"
-        "        dependsOn: [requirements]",
-    )
+    if fallback:  # the example declares the runner; only the development step falls back
+        text = text.replace(
+            "execution: { runner: docker }", "execution: { runner: docker, fallback: assist }", 1
+        )
     f.write_text(text)
 
 

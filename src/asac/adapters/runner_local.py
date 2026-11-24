@@ -142,6 +142,8 @@ def runner_from_vars(root: Path, values: dict[str, str]) -> Runner | None:
     kind = os.environ.get("ASAC_RUNNER") or values.get("runner_kind", "")
     if not kind:
         return None
+    if kind == "fake":  # a test double, like the fake harness: starts nothing, runs nothing
+        return FakeRunner()
     if kind not in ("docker", "kubernetes"):
         raise RuntimeError(f"unknown runner_kind '{kind}' (available: docker, kubernetes)")
     names = [n.strip() for n in values.get("runner_env", "").split(",") if n.strip()]

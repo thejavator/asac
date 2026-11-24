@@ -141,15 +141,16 @@ asac status --run-id K-1                          # K-1  feature  killed
 asac apply --resume K-1 --harness fake            # exit 3, "run K-1: run was killed; it cannot be resumed"
 ```
 
-### 4e. Step `delegate` sans runner
+### 4e. Step `delegate`, runner non configuré
 
 ```bash
 asac apply -p feature --run-id DEL-1 --harness fake
 ASAC_FAKE_DELEGATE=1 asac approve gate_DEL-1_requirements --role product_owner --by po1 --harness fake
 ```
 
-Attendu : `run DEL-1: failed at development: harness delegated the step but no runner is placed`.
-L'`approve` sort en 0 (il reprend le run) ; c'est `asac status --run-id DEL-1` qui montre `failed`.
+Le manifeste déclare `execution: { runner: docker }` (sans cela `asac validate` donne `ASAC028`), mais aucun
+runner n'est configuré dans les vars : attendu `run DEL-1: blocked at development: no runner available and no fallback`.
+L'`approve` sort en 0 (il reprend le run) ; c'est `asac status --run-id DEL-1` qui montre `blocked`.
 Avec un runner (`runner_kind: docker` dans les vars ou `ASAC_RUNNER=docker`), la commande est exécutée dans le conteneur.
 
 ### 4f. Expiration d'une gate

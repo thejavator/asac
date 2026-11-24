@@ -106,3 +106,75 @@ def test_init_then_validate(tmp_path: Path) -> None:
     assert runner.invoke(app, ["init", str(tmp_path / "p")]).exit_code == 0
     assert runner.invoke(app, ["validate", "-f", str(tmp_path / "p" / "asac.yaml")]).exit_code == 0
     assert runner.invoke(app, ["init", str(tmp_path / "p")]).exit_code == 1
+
+
+# --- F63: a delegate step needs a runner, caught when the manifest is written -----------------
+
+
+def _issues(project: Path, mutate):  # type: ignore[no-untyped-def]
+    data = yaml.safe_load((project / "asac.yaml").read_text())
+    mutate(data)
+    (project / "asac.yaml").write_text(yaml.safe_dump(data))
+    return [i for i in validate(load_manifest(project / "asac.yaml"), project)]
+
+
+def _step(data: dict, name: str) -> dict:  # type: ignore[type-arg]
+    step: dict = data["pipelines"]["feature"]["steps"][name]  # type: ignore[type-arg]
+    return step
+
+
+def test_a_delegate_step_without_a_runner_is_an_error_with_its_path(sandbox_project: Path) -> None:
+    issues = _issues(sandbox_project, lambda d: _step(d, "development").pop("execution"))
+    hits = [i for i in issues if i.code == "ASAC028"]
+    assert [(i.severity, i.path) for i in hits] == [
+        (Severity.ERROR, "pipelines.feature.steps.development.execution")
+    ]
+
+
+def test_a_delegate_step_with_an_empty_execution_block_is_also_an_error(
+    sandbox_project: Path,
+) -> None:
+    issues = _issues(sandbox_project, lambda d: _step(d, "development").update(execution={}))
+    assert any(i.code == "ASAC028" for i in issues)  # a fallback alone does not name a runner
+    issues = _issues(
+        sandbox_project,
+        lambda d: _step(d, "development").update(execution={"fallback": "assist"}),
+    )
+    assert any(i.code == "ASAC028" for i in issues)
+
+
+def test_a_delegate_step_with_a_runner_is_valid(sandbox_project: Path) -> None:
+    issues = _issues(sandbox_project, lambda d: None)
+    assert [i for i in issues if i.code == "ASAC028"] == []
+    assert [i for i in issues if i.severity is Severity.ERROR] == []
+
+
+def test_the_fallback_stays_accepted_next_to_a_runner(sandbox_project: Path) -> None:
+    issues = _issues(
+        sandbox_project,
+        lambda d: _step(d, "development").update(
+            execution={"runner": "docker", "fallback": "assist"}
+        ),
+    )
+    assert [i for i in issues if i.severity is Severity.ERROR] == []
+
+
+def test_an_assist_step_needs_no_runner(sandbox_project: Path) -> None:
+    def make_assist(d: dict) -> None:  # type: ignore[type-arg]
+        step = _step(d, "development")
+        step["mode"] = "assist"
+        step.pop("execution")
+
+    assert [i for i in _issues(sandbox_project, make_assist) if i.code == "ASAC028"] == []
+
+
+def test_every_delegate_step_is_reported_not_only_the_first(sandbox_project: Path) -> None:
+    def strip(d: dict) -> None:  # type: ignore[type-arg]
+        for name in ("development", "release"):
+            _step(d, name).pop("execution")
+
+    paths = sorted(i.path for i in _issues(sandbox_project, strip) if i.code == "ASAC028")
+    assert paths == [
+        "pipelines.feature.steps.development.execution",
+        "pipelines.feature.steps.release.execution",
+    ]

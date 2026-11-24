@@ -146,6 +146,7 @@ pipelines:
         capability: implementation
         agent: dev
         mode: delegate
+        execution: { runner: docker }
         autonomy: review
         dependsOn: [requirements]
         requiresEvidence: [spec_reviewed]
@@ -165,6 +166,7 @@ pipelines:
         capability: release
         agent: devops
         mode: delegate
+        execution: { runner: docker }
         dependsOn: [verification]
         requiresEvidence: [coverage_passed, sast_clean, qa_approved]
         producesEvidence: [deployed]

@@ -42,6 +42,7 @@ Pipeline attributes: `description`, `timeout`, `trigger`, `steps`, and (v0.4) `s
 - `ASAC023`: a duration (`budgets.per_run.wall_clock`, `pipeline.timeout`, `gate.timeout`) does not parse. Use `30m`, `24h` or `2d`.
 - `ASAC024`: a provider `mcp` block needs exactly one of `command` (stdio) or `url` (`https://`).
 - `ASAC025`: a value in `providers.<name>.mcp.env` is not a `${vault...}` reference. Secrets are never written in the manifest.
+- `ASAC028`: a step with `mode: delegate` declares no `execution.runner`. A delegated step runs in a runner (`execution: { runner: docker }`); `execution.fallback: assist` alone does not name one. The error points to `pipelines.<pipeline>.steps.<step>.execution`.
 - `ASAC026` (warning): `specLevel` is not backed. Level 2 needs a gated step whose evidence a later step requires. Level 3 also needs a hook or a step policy that checks the spec. Level 1 asks for nothing.
 - `ASAC027` (warning): a key the manifest accepts but version 0.1 does not apply. Today: `knowledge`
   (and an agent's `knowledge` list), `specLevel` (checked by `validate` only, not enforced), and a
