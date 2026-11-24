@@ -229,7 +229,8 @@ def test_delegate_step_runs_command_in_runner_and_audits_output(
     _delegate_project(sandbox_project, fallback=False)
     from asac.ports.runner import ExecResult
 
-    runner = FakeRunner(results=[ExecResult(0, "did the work\n")])
+    report = '{"type":"result","is_error":false,"total_cost_usd":0.01,"usage":{},"result":"x"}'
+    runner = FakeRunner(results=[ExecResult(0, "did the work\n" + report + "\n")])
     out, store = _run(sandbox_project, runner)
     assert runner.executed and runner.executed[0][0] == "claude"
     rows = [a for a in store.audit("r1") if a.action == "runner.output"]

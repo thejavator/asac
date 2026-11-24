@@ -393,6 +393,7 @@ def _exec_in_runner(
         timeout = max(1, min(timeout, int(parse_duration(ctx.pipeline.timeout).total_seconds())))
     res = ctx.runner.exec(handle, [str(a) for a in argv], timeout)
     out = res.stdout + (("\n[stderr]\n" + res.stderr) if res.stderr else "")
+    _read_tool_report(res.stdout, result)
     digest = hashlib.sha256(out.encode()).hexdigest()
     kept = out[:OUTPUT_LIMIT] + ("\n[truncated]" if len(out) > OUTPUT_LIMIT else "")
     _audit(ctx, run_id, "runner.output", sid, f"exit={res.exit_code} sha256={digest}\n{kept}")
@@ -408,7 +409,32 @@ def _exec_in_runner(
     if res.exit_code != 0:
         reason = "timed out" if res.exit_code == 124 else f"exited with {res.exit_code}"
         return _fail(ctx, run_id, sid, f"runner command {reason}")
+    if result.get("cost") == "error":
+        return _fail(ctx, run_id, sid, f"'{argv[0]}' reported an error; see the runner output")
+    # ASAC launched the tool, as under autorun: the loop and a rejection can relaunch it.
+    _audit(ctx, run_id, "tool.launched", sid, f"{argv[0]} exit=0 runner sha256={digest}")
     return None
+
+
+def _read_tool_report(stdout: str, result: dict[str, Any]) -> None:
+    """Put the cost and tokens the tool printed into ``result``, where the engine books them.
+
+    An output with no report, or a report with no cost, is *unknown*: never booked as zero.
+    """
+    from asac.adapters.claude_code import parse_claude_report
+
+    try:
+        report = parse_claude_report(stdout)
+    except ValueError:
+        result["cost_unknown"] = True
+        return
+    if report.is_error:
+        result["cost"] = "error"
+    result["tokens"] = report.tokens
+    if report.cost_usd is None:
+        result["cost_unknown"] = True
+    else:
+        result["cost_usd"] = report.cost_usd
 
 
 def _place(ctx: Context, run_id: str, sid: str, step: Step) -> tuple[Outcome | None, str | None]:
@@ -428,7 +454,9 @@ def _place(ctx: Context, run_id: str, sid: str, step: Step) -> tuple[Outcome | N
         handle = ctx.runner.start(run_id, sid)
     except RuntimeError as exc:
         return _fail(ctx, run_id, sid, str(exc)), None
-    _audit(ctx, run_id, "runner.started", sid, handle)
+    network = getattr(ctx.runner, "network", None)  # the runner says what it is wired to
+    detail = f"{handle} network={network}" if network else handle
+    _audit(ctx, run_id, "runner.started", sid, detail)
     return None, handle
 
 
@@ -762,7 +790,7 @@ def _can_relaunch_after_rejection(ctx: Context, run_id: str, sid: str, step: Ste
     """ASAC relaunches the agent after a rejection only when it launches the tool itself
     (autorun), and only while the cap allows it. Otherwise the rejection keeps its old meaning:
     the run fails, and the reason stays in the audit."""
-    if not ctx.autorun:
+    if not (ctx.autorun or step.mode == "delegate"):
         return False
     return _state(ctx, run_id).rejection_attempts(sid) < rejection_cap(step)
 

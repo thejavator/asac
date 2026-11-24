@@ -120,9 +120,13 @@ class ClaudeCodeHarness:
         path = write_brief(self._ctx, run_id, task["step"], text)
         if self._mode == "delegate":
             # The runner executes the command; the engine captures and audits the output.
+            # The brief file, not ``text``: it also carries what a loop turn or a reviewer sent
+            # back (the feedback is appended when the brief is written). Without it a relaunched
+            # agent would not know why it was relaunched.
             prompt = (
                 f"You are the '{task['agent']}' agent of an ASAC pipeline, running unattended. "
-                f"Do the work of the step '{task['step']}' only.\n\n{text}"
+                f"Do the work of the step '{task['step']}' only.\n\n"
+                f"{path.read_text(encoding='utf-8').strip()}"
             )
             argv = self.command(prompt, False)
             if argv is None:
