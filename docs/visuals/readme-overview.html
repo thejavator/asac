@@ -847,7 +847,7 @@ Apply? [y/N]</pre>
         <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
           color:#9a6700;margin-bottom:12px">Existing project</div>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span><code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">asac init --mode observe</code> — analyze first</span></div>
+          <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span><code style="font-family:var(--mono);font-size:11px;background:#f6f8fa;padding:1px 5px;border-radius:3px">asac init</code> — an empty manifest first</span></div>
           <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span>Evidence bootstrapped from existing tests</span></div>
           <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span>L1 required at entry, progressive ramp-up</span></div>
           <div style="font-size:13px;display:flex;gap:8px"><span style="color:#9a6700">→</span><span>Legacy and feature pipelines coexist</span></div>
@@ -867,13 +867,10 @@ Apply? [y/N]</pre>
           <div style="font-size:11px;color:var(--paper-muted);margin-top:2px">Week 1-2</div>
         </div>
         <div style="padding:14px 18px">
-          <div style="font-size:12.5px;margin-bottom:8px">ASAC analyzes the repo — stack, conventions, current coverage. Generates a descriptive <code style="font-family:var(--mono);font-size:11px">asac.yaml</code> . <strong>No agent runs.</strong></div>
-          <div class="cw" style="margin:0"><pre style="font-size:11px;padding:10px 14px">$ asac init --mode observe
+          <div style="font-size:12.5px;margin-bottom:8px">ASAC detects the stack and writes an empty <code style="font-family:var(--mono);font-size:11px">asac.yaml</code> . <strong>No agent runs.</strong></div>
+          <div class="cw" style="margin:0"><pre style="font-size:11px;padding:10px 14px">$ asac init
 
-<span style="color:#3fb950">✓ Stack detected: Java / Maven / Spring Boot</span>
-<span style="color:#3fb950">✓ CI: GitLab CI</span>
-<span style="color:#3fb950">✓ Coverage baseline: 61%  (target: 85%)</span>
-<span style="color:#3fb950">✓ Generated asac.yaml (observe mode — no execution)</span></pre></div>
+<span style="color:#3fb950">created asac.yaml (stack: java, template: minimal)</span></pre></div>
         </div>
       </div>
 

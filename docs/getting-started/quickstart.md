@@ -1,58 +1,90 @@
 # Quick start
 
 !!! note "Status"
-    Version 0.1 runs one path for real: Claude Code, a git worktree per run, hooks, a human gate. Follow the [runbook](https://github.com/asac-dev/asac/blob/main/examples/real-tools/RUNBOOK.md) to try it in about 15 minutes; `asac doctor` checks your machine first. The registry commands (`skill publish`, `registry search`, `provider install`) are not implemented. The commands below show the full workflow of spec v0.4, which is wider than what 0.1 supports.
+    This page runs the path version 0.1 supports, with Claude Code working by hand. For the
+    automatic path (the agent launched by ASAC, inside a sandbox) follow the
+    [runbook](https://github.com/asac-dev/asac/blob/main/examples/real-tools/RUNBOOK.md).
+    `asac doctor` checks your machine first.
 
-## 1. Initialise
+## 1. Create the project
+
+In a git repository with at least one commit:
 
 ```bash
-asac init                       # detects the stack, generates the three layers
+asac init --template feature
 cp asac.vars.yaml.example asac.vars.yaml
-asac vars check                 # every var.* resolved?
-asac validate                   # manifest, vars, policies, harness compatibility
+asac vars check                 # exit 0: every variable has a value
+asac validate                   # 0 error(s), 0 warning(s)
+git add -A && git commit -m "Add ASAC"
 ```
 
-`asac init` creates `asac.yaml`, `asac.vars.yaml.example`, `.asac/policies/` and a `.gitignore` entry for `asac.vars.yaml`.
+`asac init --template feature` creates `asac.yaml`, two skills, an instruction, three hooks,
+`asac.vars.yaml.example` and `.gitignore` entries for `asac.vars.yaml` and `.asac-state/`. Before
+you copy the example, `asac vars check` lists what is missing (`missing: tool`, exit 1).
 
-## 2. Plan (nothing executes)
+The hook `tests-green.sh` runs `python3 -m unittest discover`. On another stack, edit it to run
+your own tests.
+
+## 2. See the plan
 
 ```bash
-asac plan --pipeline feature --trigger jira:STORY-1234
+asac plan -p feature
 ```
 
 ```text
-Plan: pipeline "feature" for STORY-1234
-  Step 1 requirements  agent: ba      (assist)
-  Step 2 development   agent: dev     (delegate)
-  Step 3 verification  agent: qa      (assist)
-  Step 4 release       agent: devops  (delegate)
-Gates: 2 human · 1 quality
-Cost:  ~38,000 tokens estimated
-Apply? [y/N]
+pipeline feature: 2 steps in 2 levels
+  [0] requirements   capability=specification_engineering agent=analyst mode=assist gate=human(product_owner)
+       produces: spec_reviewed
+  [1] development    capability=implementation agent=developer mode=assist gate=human(product_owner)
+       requires: spec_reviewed
+       produces: tests_green
+estimated tokens: 40,000
 ```
 
-Use `asac plan --dry-run` to simulate a step's effects (actions and files touched) without applying them.
-
-## 3. Apply
+## 3. Run, work, hand back
 
 ```bash
-asac apply --pipeline feature --trigger jira:STORY-1234
+asac apply -p feature --run-id first      # exit 2: the step waits for you
 ```
 
-Each step blocks on its gates and records evidence. Inspect with `asac status`, `asac logs <run-id>`, `asac evidence show`, and `asac audit`.
-
-## Reusing a template
-
-Instead of writing everything, start from a [Golden Path template](../guides/golden-paths.md):
+ASAC created a worktree on the branch `asac/first` and says where to work. Open your tool there,
+write `SPEC.md` with an "Acceptance criteria" section, then:
 
 ```bash
-asac init --template golden/java-hexagonal
+asac submit first
 ```
 
-## Try the example today
+The step's check runs. If `SPEC.md` is missing, nothing is recorded and the step comes back to you
+with the reason. If it passes, the gate `gate_first_requirements` opens (exit 2).
+
+## 4. Decide
+
+```bash
+asac gates
+asac approve gate_first_requirements --role product_owner --by you
+```
+
+This records the evidence `spec_reviewed` on the commit ASAC made, and starts `development`.
+Work in the same worktree, `asac submit first` again (the `tests-green` check runs your tests),
+then approve `gate_first_development`.
+
+## 5. Read the result
+
+```bash
+asac status
+asac logs first                 # every decision, in order
+asac evidence verify first
+git log --oneline asac/first    # the work: review and merge it yourself
+asac clean first                # remove the worktree, keep the branch
+```
+
+Without `--run-id`, `asac run` creates the run and executes it in one command. After a failure,
+`asac learn <run>` writes the list of what went wrong to `.asac/proposals/`.
+
+## Try the example
 
 ```bash
 cd examples/payments-service
 opa test .asac/policies -v      # 7 tests
-python -c "import yaml; yaml.safe_load(open('asac.yaml'))"
+asac validate
 ```

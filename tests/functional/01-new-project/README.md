@@ -11,7 +11,7 @@ on valide, on planifie, on lance un premier run et on ouvre le portail.
 | `asac.vars.yaml.example` | Modèle des valeurs (secrets en `${vault.…}`) |
 | `vars/team.yaml` | Valeurs prêtes à l'emploi (copie du modèle) |
 
-Le manifeste complet vient de `../02-feature/` (étape 5) : `asac init` ne génère qu'un squelette.
+Le gabarit `feature` est un projet complet à deux étapes ; le manifeste « payments » de `../02-feature/` (4 étapes, 3 gates) vient à l'étape 4.
 
 ## 0. Préparation
 
@@ -26,7 +26,7 @@ export ASAC_STATE_DIR="$WORK/.asac-state"
 ## 1. Créer le projet
 
 ```bash
-asac init --template java-microservice     # exit 1 — voir « Écarts »
+asac init --template java-microservice     # exit 1 : modèle inconnu
 asac init --template feature               # exit 0
 ls -A
 ```
@@ -36,37 +36,46 @@ Attendus :
 | Commande | Exit | Sortie |
 |---|---|---|
 | `init --template java-microservice` | **1** | `error: unknown template 'java-microservice' (minimal, feature)` |
-| `init --template feature` | 0 | `created asac.yaml (stack: java, template: feature)` |
+| `init --template feature` | 0 | `created asac.yaml (stack: java, template: feature)`, puis `next: cp asac.vars.yaml.example asac.vars.yaml, then asac vars check` et `note: the tests-green hook runs python3 -m unittest; edit .asac/hooks/tests-green.sh for a java project` |
 
-Résultat : `asac.yaml` (1 pipeline `feature`, 1 step `development`) à côté du `pom.xml`.
-Relancer `init` sans `--force` quand `asac.yaml` existe refuse (`error: asac.yaml exists (use --force)`) ; avec `--force` il écrase.
+Résultat : `asac.yaml`, `asac.vars.yaml.example`, `.gitignore` (`asac.vars.yaml` et `.asac-state/`, une ligne chacun),
+et `.asac/` avec `skills/` (`spec.md`, `impl.md`), `instructions/style.md` et `hooks/` (`no-secrets.sh`,
+`spec-present.sh`, `tests-green.sh`, exécutables), à côté du `pom.xml`. La pile Java est détectée : `init` dit
+d'adapter `tests-green.sh`, qui lance `python3 -m unittest`.
+
+Relancer `init` sans `--force` quand un fichier du modèle existe refuse et ne change rien
+(`error: .asac/hooks/no-secrets.sh exists (use --force)`) ; avec `--force` il remplace.
 
 ```bash
 asac init --template feature               # exit 1 (déjà existant)
-asac init --template minimal --force       # exit 0
-asac init --template feature --force       # revient au template feature
+asac init --template minimal --force       # exit 0 : remplace asac.yaml par un manifeste vide
+asac init --template feature --force       # revient au modèle feature
 ```
 
 ## 2. Renseigner les valeurs
 
+Avant tout fichier de valeurs, `vars` liste ce qui manque au lieu d'échouer :
+
 ```bash
-cp "$SRC/01-new-project/asac.vars.yaml.example" .
-cp "$SRC/01-new-project/vars/team.yaml" asac.vars.yaml
+asac vars check          # exit 1 : "missing: tool"
+asac vars diff           # exit 1 : "missing: tool"
+cp asac.vars.yaml.example asac.vars.yaml
 asac vars check          # exit 0
 asac vars diff           # exit 0
 ```
 
-`asac.vars.yaml` ne doit jamais être committé ; les secrets restent des références `${vault.…}`.
+`asac.vars.yaml` ne doit jamais être committé ; `init` l'a déjà ajouté au `.gitignore`.
 
-## 3. Valider et planifier le squelette
+## 3. Valider et planifier
 
 ```bash
-asac validate            # exit 0 — "1 warning(s)" : ASAC017 registry reference not resolved (skill impl)
-asac plan                # exit 0 — "pipeline feature: 1 steps in 1 levels", "estimated tokens: 20,000"
-asac apply -p feature --run-id NP-1 --harness fake   # exit 0 — "run NP-1: completed"
+asac validate            # exit 0 : "0 error(s), 0 warning(s)"
+asac plan -p feature     # exit 0 : "pipeline feature: 2 steps in 2 levels", "estimated tokens: 40,000"
 ```
 
-L'avertissement ASAC017 est normal : le skill du template pointe vers un registre non résolu (pas d'erreur).
+Le plan montre `requirements` (gate `human`, rôle `product_owner`, produit `spec_reviewed`) puis
+`development` (requiert `spec_reviewed`, produit `tests_green`, même gate). Pour le parcours jusqu'à la
+première gate, voir `docs/getting-started/quickstart.md` (et `tests/test_init_run.py`, qui le déroule).
 
 ## 4. Passer au manifeste complet « payments »
 
@@ -105,4 +114,4 @@ cd / && rm -rf "$WORK"
 
 - `asac init --template java-microservice` n'existe pas : seuls `minimal` et `feature` sont disponibles.
 - `asac plan --pipeline feature --trigger jira:PAY-1001` : `--trigger` n'existe pas (la commande est `asac plan -p feature`).
-- `asac init` ne crée pas `asac.vars.yaml.example`, `.asac/policies/default.rego` ni `.gitignore`.
+- Le hook `tests-green.sh` du modèle `feature` est écrit pour Python : sur une pile Java, `init` le dit et il faut l'adapter.

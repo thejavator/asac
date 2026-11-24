@@ -4,7 +4,7 @@ Most teams already have a codebase in production. ASAC is adopted progressively,
 
 | | New project | Existing project |
 |---|---|---|
-| Start | `asac init --template …`: full pipeline | `asac init --mode observe`: analysis first |
+| Start | `asac init --template feature`: full pipeline | `asac init`: an empty manifest, then one step at a time |
 | Evidence | Clean chain from zero | Bootstrapped from existing tests |
 | Maturity | L2–L3 possible from the first sprint | Start at L1, rise progressively |
 | Pipelines | One | Legacy and feature pipelines coexist |
@@ -12,10 +12,10 @@ Most teams already have a codebase in production. ASAC is adopted progressively,
 ## Four phases
 
 ### 1. Observe (weeks 1–2)
-ASAC analyses the repository: stack, conventions, current coverage. It generates a descriptive `asac.yaml`. **No agent runs.**
+Create an empty manifest. `asac init` detects the project's stack and writes only `asac.yaml` and the `.asac/` folders. **No agent runs.** Describe your conventions in `.asac/instructions/` and your checks in `.asac/hooks/` before you declare a step.
 
 ```bash
-asac init --mode observe
+asac init
 ```
 
 ### 2. Assist (month 1)

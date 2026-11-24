@@ -4,6 +4,21 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- `init`, `run`, `vars` and `learn` are in `asac --help`. `asac init --template feature` writes a
+  project that validates with no warning and reaches its first gate (two skills, an instruction,
+  three hooks, a values example, a `.gitignore`); `--template minimal` writes only an empty
+  `asac.yaml`. The templates ship in the wheel.
+- `asac vars check` and `asac vars diff` work before `asac.vars.yaml` exists: they list each
+  variable without a default as `missing: <name>` (exit 1) instead of "not found".
+- The live notification test now starts: its receiver imported modules removed from Python 3.12.
+  Signed webhook, Slack, Teams and SMTP are checked with real sockets and a receiver in another
+  process (`ASAC_NOTIFY_LIVE=1`). A failed send names the kind of failure and never the address.
+- Documentation: the CLI reference lists every command with its real options; the quick start runs
+  `init`, `vars check`, `validate`, `plan`, `apply`, `submit`, `approve`; `init --mode observe`
+  (an option that does not exist) is gone from the docs.
+
+- `asac validate` refuses a `mode: delegate` step with no `execution.runner` (`ASAC028`), where it used to fail only when the run reached the step. `runner_kind: fake` gives the in-memory runner for offline tests.
+
 - `tests/test_real_claude.py`: the real `claude` on a project that is not the example, skipped unless
   `ASAC_REAL_CLAUDE=1`. See the contributing guide.
 
