@@ -42,6 +42,7 @@ nav:
       - Golden Path templates: guides/golden-paths.md
       - Writing policies in Rego: guides/policies.md
       - Notifications: guides/notifications.md
+      - Delegated steps and the worker: guides/delegate.md
       - Deploying the portal and daemon: guides/deployment.md
       - Serving several projects: guides/multi-project.md
   - Scenarios:

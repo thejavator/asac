@@ -88,3 +88,24 @@ def test_postgres_workers_never_share_a_job() -> None:
     with ThreadPoolExecutor(4) as pool:
         claimed = [j for part in pool.map(lambda _: work(), range(4)) for j in part]
     assert sorted(claimed) == sorted(ids)
+
+
+def test_claim_can_be_limited_to_one_kind_and_leaves_the_others_untouched(queue: JobQueue) -> None:
+    """A worker that runs `run` jobs must not consume a `resume` or a webhook job."""
+    other = queue.enqueue("resume", "{}", T0)
+    mine = queue.enqueue("run", "{}", T0)
+    got = queue.claim(T0, T1, kind="run")
+    assert got and got.job_id == mine and got.kind == "run"
+    assert queue.get(other).status == "queued" and queue.get(other).attempts == 0
+    assert queue.claim(T0, T1, kind="run") is None  # nothing else of that kind
+    assert queue.claim(T0, T1) is not None  # without a kind, the other one is still there
+
+
+def test_claim_of_a_kind_still_respects_the_lease_and_the_due_time(queue: JobQueue) -> None:
+    queue.enqueue("run", "{}", T0, run_after=T2)
+    assert queue.claim(T1, T2, kind="run") is None  # not due
+    job = queue.claim(T2, "2026-01-01T00:03:00Z", kind="run")
+    assert job and job.attempts == 1
+    assert queue.claim(T2, "2026-01-01T00:03:00Z", kind="run") is None  # leased
+    again = queue.claim("2026-01-01T00:04:00Z", "2026-01-01T00:05:00Z", kind="run")
+    assert again and again.attempts == 2  # the lease ran out: handed over again

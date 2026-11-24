@@ -36,14 +36,15 @@ class PostgresJobQueue:
         assert row is not None
         return int(row[0])
 
-    def claim(self, now: str, lease_until: str) -> Job | None:
+    def claim(self, now: str, lease_until: str, kind: str | None = None) -> Job | None:
         row = self._db.execute(
             "UPDATE jobs SET status='running', attempts=attempts+1, lease_until=%s "
             "WHERE job_id = (SELECT job_id FROM jobs WHERE run_after <= %s AND "
             "(status='queued' OR (status='running' AND lease_until <= %s)) "
+            "AND (%s::text IS NULL OR kind = %s) "
             "ORDER BY run_after, job_id LIMIT 1 FOR UPDATE SKIP LOCKED) "
             f"RETURNING {_COLS}",
-            (lease_until, now, now),
+            (lease_until, now, now, kind, kind),
         ).fetchone()
         return _job(row) if row else None
 

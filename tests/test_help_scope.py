@@ -9,7 +9,7 @@ from asac.cli import app
 runner = CliRunner()
 SUPPORTED = {"init", "validate", "vars", "plan", "apply", "run", "submit", "status", "gates",
              "approve", "evidence", "logs", "audit", "learn", "kill", "clean", "doctor",
-             "version"}  # fmt: skip
+             "version", "worker"}  # fmt: skip
 UNSUPPORTED = {"portal", "daemon", "project"}
 
 

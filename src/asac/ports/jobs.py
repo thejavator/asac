@@ -25,8 +25,11 @@ class Job:
 
 class JobQueue(Protocol):
     def enqueue(self, kind: str, payload: str, at: str, run_after: str | None = None) -> int: ...
-    def claim(self, now: str, lease_until: str) -> Job | None:
-        """Take the oldest due job (queued, or running with an expired lease). None if empty."""
+    def claim(self, now: str, lease_until: str, kind: str | None = None) -> Job | None:
+        """Take the oldest due job (queued, or running with an expired lease). None if empty.
+
+        With ``kind``, only jobs of that kind are taken; the others are left exactly as they were.
+        """
         ...
 
     def complete(self, job_id: int) -> None: ...

@@ -41,14 +41,15 @@ class SqliteJobQueue:
         assert cur.lastrowid is not None
         return cur.lastrowid
 
-    def claim(self, now: str, lease_until: str) -> Job | None:
+    def claim(self, now: str, lease_until: str, kind: str | None = None) -> Job | None:
         self._db.execute("BEGIN IMMEDIATE")
         try:
             row = self._db.execute(
                 "SELECT job_id FROM jobs WHERE run_after <= ? AND "
                 "(status = 'queued' OR (status = 'running' AND lease_until <= ?)) "
+                "AND (? IS NULL OR kind = ?) "
                 "ORDER BY run_after, job_id LIMIT 1",
-                (now, now),
+                (now, now, kind, kind),
             ).fetchone()
             if row is None:
                 self._db.execute("COMMIT")

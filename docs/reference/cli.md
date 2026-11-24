@@ -2,7 +2,7 @@
 
 !!! info "Implementation status"
     Version 0.1 supports the commands in `asac --help`: `init`, `doctor`, `validate`, `vars`,
-    `plan`, `apply`, `run`, `submit`, `gates`, `approve`, `status`, `logs`, `audit`, `evidence`,
+    `plan`, `apply`, `run`, `worker`, `submit`, `gates`, `approve`, `status`, `logs`, `audit`, `evidence`,
     `learn`, `kill`, `clean` and `version`. `portal`, `daemon` and `project` exist and answer to
     their name, but they are not part of the supported path (see [Portal and daemon](portal.md)).
     Not implemented: `provider install`, `registry search`, `skill publish`.
@@ -19,7 +19,7 @@ Every command that reads the project takes `--file/-f <asac.yaml>` (default `./a
 |---|---|
 | `asac init [path]` | Create `asac.yaml` and `.asac/` (`policies`, `hooks`, `knowledge`, `instructions`), detecting the project's stack. `--template minimal` (default) writes an empty valid manifest and nothing else. `--template feature` writes a project that validates and reaches its first gate: a two-step pipeline (`requirements`, `development`), two skills, an instruction, three hooks (`no-secrets`, `spec-present`, `tests-green`), `asac.vars.yaml.example`, and a `.gitignore` with `asac.vars.yaml` and `.asac-state/`. `--name` sets the workspace name, `--force` replaces files that already exist (without it, `init` refuses and changes nothing). On a stack other than Python it says to edit `.asac/hooks/tests-green.sh` |
 | `asac doctor` | Check git, opa, node (>= 22.12), srt and claude, and that the project is a clean git repository. Says how to fix each failure; exit 1 if a required one fails |
-| `asac validate` | Check the manifest: syntax, unknown or duplicated keys, cross-references, `var.*`, Rego policies, mode and harness compatibility. Each problem carries a code (`ASAC001` to `ASAC028`). `--json`, `--vars <file>` |
+| `asac validate` | Check the manifest: syntax, unknown or duplicated keys, cross-references, `var.*`, Rego policies, mode and harness compatibility. Each problem carries a code (`ASAC001` to `ASAC028`; `ASAC028`: a `delegate` step with no `execution.runner`). `--json`, `--vars <file>` |
 | `asac vars check` | Fail (exit 1) if a declared variable without a default has no value. Works before `asac.vars.yaml` exists: each such variable is listed as `missing: <name>` |
 | `asac vars diff` | List missing variables (exit 1) and unused ones. Reserved keys are never unused |
 
@@ -31,6 +31,8 @@ Every command that reads the project takes `--file/-f <asac.yaml>` (default `./a
 | `asac apply` | Create a run, its worktree and its branch `asac/<run>`, then execute the pipeline until a gate or the end. `-p <pipeline>`, `--run-id`, `--harness`. Exit 2 at a gate: it never waits unless `--watch` |
 | `asac apply --resume <run>` | Continue a run where it stopped. `--reopen` first reopens the rejected gate |
 | `asac apply --watch [--poll <s>]` | Stay in the foreground and continue after each decision until the run ends |
+| `asac apply --enqueue` | Put a new run in the job queue for a worker and run nothing. Prints the job number. Takes `-p`, `--run-id`, `--harness`; not combinable with `--watch`, `--resume`, `--reopen` |
+| `asac worker` | Take the queued runs and run them, one at a time, until stopped. `--once` handles the jobs that are due and stops; `--poll <s>` is the wait when the queue is empty. See [Delegated steps and the worker](../guides/delegate.md) |
 | `asac run [step]` | Create a run and execute it, with the same exit codes as `apply`. With a step name, run only that step, after checking its dependencies and required evidence |
 | `asac submit <run>` | Hand back the step you did by hand (no `autorun`). Its checks run; on failure nothing is recorded and the step returns to you with the reason; on success it goes to its gate. `--by <name>` is recorded |
 | `asac kill <run>` | Stop a run for good (`run.killed`). The engine checks before every step; it cannot be resumed |

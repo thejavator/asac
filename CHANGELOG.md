@@ -4,6 +4,17 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- Delegated steps run for real (`mode: delegate` + `execution: { runner: docker }`): the real
+  `claude` ran in the real container, 0.35 USD. The engine now books the cost from the tool's
+  report, loops on a failing check, relaunches after a reasoned rejection (no `autorun` needed),
+  and sends the agent the check's output or the rejection reason. Before, a delegated step ran but
+  its cost was never recorded, its loop never turned and a rejection did not relaunch it.
+  `runner.started` records the network. A report with no cost is an unknown cost, never zero.
+- `asac apply --enqueue` and `asac worker [--once]`: a run put in the job queue is taken by a worker
+  that runs it. A job ends done when the run completes, waits at a gate or is blocked; an engine
+  error puts it back with its reason, up to 5 attempts. The `JobQueue.claim` port takes an optional
+  `kind`, in both adapters (SQLite and Postgres), so a worker leaves other kinds of jobs alone.
+- Guide: delegated steps, the container's mounts, what the network does not do, the worker.
 - Security: the commit ASAC makes at the end of a step no longer trusts the worktree's own `.git`
   file. An agent that can write its worktree could rewrite that file to point at a repository it
   made, whose configuration names a command (`core.fsmonitor`, `core.hooksPath`, `core.pager`), and

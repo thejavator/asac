@@ -14,8 +14,8 @@ from asac.model import Manifest
 
 app = typer.Typer(
     help="ASAC: Agentic SDLC as Code (spec v0.4). Version 0.1 supports: init, doctor, validate, "
-    "vars, plan, apply, run, submit, approve, gates, status, logs, audit, evidence, learn, "
-    "clean, kill.",
+    "vars, plan, apply, run, worker, submit, approve, gates, status, logs, audit, evidence, "
+    "learn, clean, kill.",
     no_args_is_help=True,
 )
 vars_app = typer.Typer(help="Inspect layer 2 (asac.vars.yaml).", no_args_is_help=True)
@@ -367,8 +367,21 @@ def apply(
     poll: Annotated[
         float, typer.Option("--poll", help="Seconds between checks with --watch.")
     ] = 2.0,
+    enqueue: Annotated[
+        bool,
+        typer.Option(
+            "--enqueue", help="Put the run in the job queue for `asac worker`; run nothing."
+        ),
+    ] = False,
 ) -> None:
     """Execute a pipeline. Exits 2 at a gate (never waits unless --watch)."""
+    if enqueue:
+        if watch or resume is not None or reopen:
+            typer.echo("error: --enqueue starts a new run: it cannot be combined with "
+                       "--watch, --resume or --reopen", err=True)  # fmt: skip
+            raise typer.Exit(EXIT_ERROR)
+        _enqueue(file, pipeline, run_id, harness)
+        return
     if watch:
         _watch(file, pipeline, resume, run_id, harness, reopen, poll)
         return
@@ -379,6 +392,35 @@ def apply(
         _resume(file, resume, harness, reopen)
         return
     _run_engine(file, pipeline, run_id, harness)
+
+
+def _jobs_for(manifest_path: Path):  # type: ignore[no-untyped-def]
+    """The job queue next to the run state: ``jobs.db`` in the state folder."""
+    from asac.adapters import state_dir
+    from asac.adapters.jobs_sqlite import SqliteJobQueue
+    from asac.engine.runtime import project_root
+
+    folder = state_dir(project_root(manifest_path))
+    folder.mkdir(parents=True, exist_ok=True)
+    return SqliteJobQueue(folder / "jobs.db")
+
+
+def _enqueue(
+    manifest_path: Path, pipeline: str | None, run_id: str | None, harness: str | None
+) -> None:
+    """Queue a run for a worker. Everything that can be refused now is refused now."""
+    import uuid
+
+    from asac.engine.worker import RunRequest, enqueue_run
+
+    _, name = _ctx_or_exit(manifest_path, pipeline, harness)  # unknown pipeline or harness
+    rid = run_id or f"run_{name}_{uuid.uuid4().hex[:8]}"
+    queue = _jobs_for(manifest_path)
+    try:
+        job_id = enqueue_run(queue, RunRequest(name, rid, harness))
+    finally:
+        queue.close()
+    typer.echo(f"job {job_id} queued: run {rid} ({name}). Start a worker: asac worker")
 
 
 def _watch(
@@ -494,6 +536,49 @@ def _run_engine_with(ctx: Context, run_id: str, *, exit_after: bool = True) -> N
     _report(outcome, (ctx.root / "asac.yaml") if ctx.root is not None else None)
     if exit_after:
         raise typer.Exit(int(outcome.code))
+
+
+@app.command()
+def worker(
+    file: ManifestOpt = Path("asac.yaml"),
+    once: Annotated[
+        bool, typer.Option("--once", help="Handle the jobs that are due, then stop.")
+    ] = False,
+    poll: Annotated[
+        float, typer.Option("--poll", help="Seconds to wait for a job when the queue is empty.")
+    ] = 2.0,
+) -> None:
+    """Run the jobs queued by `asac apply --enqueue`, one at a time."""
+    import time
+
+    from asac.engine.apply import create_run, execute
+    from asac.engine.runtime import make_context, project_root, store_for
+    from asac.engine.worker import RunRequest, work_once
+
+    manifest = _load(file)
+    store = store_for(file)
+
+    def execute_request(req: RunRequest):  # type: ignore[no-untyped-def]
+        if req.pipeline not in manifest.pipelines:
+            raise ValueError(f"unknown pipeline '{req.pipeline}'")
+        ctx = make_context(manifest, req.pipeline, store, project_root(file), req.harness)
+        create_run(ctx, req.run_id)  # a run that already exists is picked up, not recreated
+        return execute(ctx, req.run_id)
+
+    queue = _jobs_for(file)
+    try:
+        while True:
+            done = work_once(queue, execute_request)
+            if done is not None:
+                typer.echo(f"job {done.job_id}  {done.run_id}  {done.result}")
+                continue
+            if once:
+                return
+            time.sleep(poll)
+    except KeyboardInterrupt:
+        typer.echo("worker stopped")
+    finally:
+        queue.close()
 
 
 @app.command()
