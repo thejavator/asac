@@ -90,3 +90,57 @@ def test_plain_url_in_vars_is_refused() -> None:
 
     # a URL is a secret: it must come from a vault reference, never from the vars file
     assert from_project({"notify_targets": ["slack+https://hooks.example/x"]}, {}) is None
+
+
+def test_smtp_target_upgrades_the_connection_with_starttls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F67.5: the live test talks plain SMTP to a local receiver; the real path must use TLS."""
+    import smtplib
+
+    from asac.adapters import notify
+
+    seen: list[str] = []
+
+    class FakeSmtp:
+        def __init__(self, host: str, port: int, timeout: int = 0) -> None:
+            seen.append(f"connect {host}:{port}")
+
+        def starttls(self, context: object = None) -> None:
+            seen.append("starttls")
+
+        def login(self, user: str, password: str) -> None:
+            seen.append("login")
+
+        def send_message(self, msg: object) -> None:
+            seen.append("send")
+
+        def __enter__(self) -> "FakeSmtp":
+            return self
+
+        def __exit__(self, *a: object) -> None:
+            return None
+
+    monkeypatch.setattr(smtplib, "SMTP", FakeSmtp)
+    n = notify.from_spec("smtp://u:p@mail.example.com:587?to=po@example.com")
+    n.send(Notification("gate.opened", "Decision needed", "body", "r1"))
+    assert seen == ["connect mail.example.com:587", "starttls", "login", "send"]  # TLS before login
+
+
+def test_a_failed_delivery_names_the_failure_and_hides_the_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F67.7: the message says what kind of failure it was, not where it was sent."""
+    import httpx
+
+    from asac.adapters import notify
+
+    class Down:
+        def post(self, *a: object, **k: object) -> None:
+            raise httpx.ConnectError("could not reach https://hooks.example.com/T0/secret-token")
+
+    n = notify.WebhookNotifier("https://hooks.example.com/T0/secret-token", http=Down())  # type: ignore[arg-type]
+    with pytest.raises(NotifyError) as exc:
+        n.send(Notification("gate.opened", "t", "b", "r1"))
+    assert str(exc.value) == "delivery failed: ConnectError"
+    assert "hooks.example.com" not in str(exc.value) and "secret-token" not in str(exc.value)
