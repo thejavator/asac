@@ -81,19 +81,33 @@ _KINDS = {"A": "added", "M": "modified", "D": "deleted", "R": "renamed", "T": "m
 _NOT_WORK = (".asac-state/", "__pycache__/")  # ASAC's bookkeeping and bytecode are not the work
 
 
-def changed_files(worktree: Path, sha: str) -> list[ChangedFile]:
+def changed_files(worktree: Path, sha: str, root: Path | None = None) -> list[ChangedFile]:
     """The files the commit a gate approves changed, read from git. Empty if it cannot be read.
 
     ``sha`` comes from the database, but it is handed to git, so it must be a full commit id:
     anything else (an option, a ref name) is refused before git is run.
+
+    With ``root`` (the main checkout) git reads the run's real git directory, found from the main
+    repository. The worktree's own ``.git`` file is inside the folder the agent writes: trusted, it
+    would let the agent show the reviewer the files of a repository it made up.
     """
     if not _SHA.match(sha) or not worktree.is_dir():
         return []
     try:
-        proc = subprocess.run(
-            ["git", "show", "--name-status", "--no-renames", "--format=", sha],
-            cwd=worktree, capture_output=True, text=True, timeout=20, check=False,
-        )  # fmt: skip
+        if root is not None:
+            from asac.engine.workspace import WorkspaceError, git_in_worktree
+
+            try:
+                proc = git_in_worktree(
+                    root, worktree, "show", "--name-status", "--no-renames", "--format=", sha
+                )
+            except WorkspaceError:
+                return []
+        else:
+            proc = subprocess.run(
+                ["git", "show", "--name-status", "--no-renames", "--format=", sha],
+                cwd=worktree, capture_output=True, text=True, timeout=20, check=False,
+            )  # fmt: skip
     except (OSError, subprocess.TimeoutExpired):
         return []
     if proc.returncode != 0:

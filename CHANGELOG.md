@@ -4,6 +4,17 @@ See [docs/project/changelog.md](docs/project/changelog.md) for the specification
 
 ## Unreleased
 
+- Security: the commit ASAC makes at the end of a step no longer trusts the worktree's own `.git`
+  file. An agent that can write its worktree could rewrite that file to point at a repository it
+  made, whose configuration names a command (`core.fsmonitor`, `core.hooksPath`, `core.pager`), and
+  ASAC's git, run on the host outside the sandbox, ran it. ASAC now reads the real git directory
+  from the main repository and runs git with those settings off. The portal's file list follows
+  the same rule. Reproduced under `srt` before the fix.
+- The Docker runner (`mode: delegate`) gives the container one folder, the run's worktree,
+  writable at `/work`. The main checkout and the state folder are not mounted. A run without a
+  worktree is refused, never given the project. The default image is `asac-agent:<version>`
+  (Claude Code, git, python3); `asac doctor` says if it is missing and how to build it, and
+  checks a `runner_network` you name.
 - `init`, `run`, `vars` and `learn` are in `asac --help`. `asac init --template feature` writes a
   project that validates with no warning and reaches its first gate (two skills, an instruction,
   three hooks, a values example, a `.gitignore`); `--template minimal` writes only an empty

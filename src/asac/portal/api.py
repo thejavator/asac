@@ -604,7 +604,7 @@ def create_api(deps: ApiDeps) -> FastAPI:
                 work = recorded_workspace(store, g.run_id)
         except Exception:
             return []
-        return changed_files(work, g.subject) if work is not None else []
+        return changed_files(work, g.subject, p.manifest.parent) if work is not None else []
 
     def decision_item(p: Project, g: Any, base: GateOut) -> PendingDecision:
         """A pending gate with what the person needs: urgency, cost, commit and checks."""

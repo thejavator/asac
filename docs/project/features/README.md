@@ -27,7 +27,11 @@ Mis à jour à chaque commit de fonctionnalité.
 | F65 | Vérifiée | `804c8af` | [F65](F65.md) |
 | F66 | Vérifiée | `804c8af` | [F66](F66.md) |
 | F67 | Vérifiée | `a896951` | [F67](F67.md) |
-| F68 | Vérifiée (lots A et B) | voir `git log` | [F68](F68.md) |
+| F68 | Vérifiée (lots A et B) | `0caaeae` | [F68](F68.md) |
+| F58 | Vérifiée | voir `git log` | [F58](F58.md) |
+| F59 | Vérifiée | voir `git log` | [F59](F59.md) |
+| F60 | Partielle (3 et 5 avec F57) | voir `git log` | [F60](F60.md) |
+| F61 | Partielle (2 et 3 avec F57) | voir `git log` | [F61](F61.md) |
 
 ## Demandes de modification de la spec
 

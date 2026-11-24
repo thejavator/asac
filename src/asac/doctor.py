@@ -70,7 +70,64 @@ def check_git_repo(root: Path) -> Check:
     return Check("git repository", True, "clean, with at least one commit")
 
 
+def _docker(*args: str) -> subprocess.CompletedProcess[str] | None:
+    """A docker command that cannot hang the command: a stuck daemon counts as absent."""
+    docker = shutil.which("docker")
+    if docker is None:
+        return None
+    try:
+        return subprocess.run([docker, *args], capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def agent_image_build_command(image: str) -> str:
+    """The command that builds the agent image from the Dockerfile shipped with ASAC."""
+    from asac import __version__
+
+    context = Path(__file__).resolve().parent / "docker" / "agent"
+    return f"docker build -t {image} --build-arg ASAC_VERSION={__version__} {context}"
+
+
+def check_agent_image(image: str) -> Check:
+    """The image a delegated step runs in. Optional: only ``mode: delegate`` needs it."""
+    proc = _docker("image", "inspect", image)
+    if proc is None:
+        return Check("agent image", False, "docker does not answer: delegated steps need it", False)
+    if proc.returncode != 0:
+        return Check("agent image", False, f"{image} not built. Build it: "
+                     f"{agent_image_build_command(image)}", False)  # fmt: skip
+    return Check("agent image", True, image, False)
+
+
+def check_runner_network(name: str) -> Check:
+    """A runner network the operator named must exist: the container would not start otherwise."""
+    proc = _docker("network", "inspect", name)
+    if proc is None:
+        return Check("runner network", False, "docker does not answer", False)
+    if proc.returncode != 0:
+        hint = f"network '{name}' not found. Create it (docker network create {name})"
+        return Check("runner network", False, f"{hint} and route it to the model gateway", False)
+    return Check("runner network", True, name, False)
+
+
+def _runner_settings(root: Path) -> tuple[str, str]:
+    """(image, network) the Docker runner will use: the vars file, then the defaults."""
+    from asac.adapters.runner_local import DEFAULT_IMAGE
+
+    values: dict[str, object] = {}
+    path = root / "asac.vars.yaml"
+    if path.is_file():
+        from asac.loader.load import load_vars
+
+        values = dict(load_vars(path).values)
+    return (str(values.get("runner_image", DEFAULT_IMAGE)),
+            str(values.get("runner_network", "none")))  # fmt: skip
+
+
 def run_checks(root: Path) -> list[Check]:
+    image, network = _runner_settings(root)
+    extra = [check_runner_network(network)] if network not in ("none", "") else []
     return [
         check_tool("git", "install git"),
         check_tool("opa", "brew install opa"),
@@ -82,4 +139,6 @@ def run_checks(root: Path) -> list[Check]:
             required=False,
         ),  # fmt: skip
         check_git_repo(root),
+        check_agent_image(image),
+        *extra,
     ]

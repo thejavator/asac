@@ -214,3 +214,37 @@ def test_the_decision_marks_mounted_files_and_keeps_them_listed(started: TestCli
     assert files["SPEC.md"] is False
     assert files[".claude/skills/spec/SKILL.md"] is True
     assert "CLAUDE.md" in files, "a mounted file must stay visible to the reviewer"
+
+
+def test_the_files_shown_come_from_the_real_commit_not_from_a_repository_the_agent_made(
+    tmp_path: Path,
+) -> None:
+    """The worktree's `.git` is a file the agent can rewrite. The portal reads the real git
+    directory, found from the main repository, so a made-up repository shows nothing."""
+    import subprocess
+
+    from asac.engine.workspace import create_workspace
+    from asac.portal.decision import changed_files
+
+    def git(cwd: Path, *a: str) -> str:
+        cmd = ["git", "-c", "user.email=t@t", "-c", "user.name=t", *a]
+        done = subprocess.run(cmd, cwd=cwd, check=True, capture_output=True, text=True)
+        return done.stdout.strip()
+
+    root = tmp_path / "main"
+    root.mkdir()
+    git(root, "init", "-q", "-b", "main")
+    (root / "a.txt").write_text("a")
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "base")
+    ws = create_workspace(root, tmp_path / "state", "r1")
+    (ws.path / "real.py").write_text("real = 1\n")
+    git(ws.path, "add", "-A")
+    git(ws.path, "commit", "-q", "-m", "the work")
+    sha = git(ws.path, "rev-parse", "HEAD")
+    assert {f.path for f in changed_files(ws.path, sha, root)} == {"real.py"}
+    # the agent points .git at a repository it made, with a different history
+    fake = ws.path / ".fake"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(fake)], check=True, capture_output=True)
+    (ws.path / ".git").write_text(f"gitdir: {fake / '.git'}\n")
+    assert {f.path for f in changed_files(ws.path, sha, root)} == {"real.py"}  # still the real one

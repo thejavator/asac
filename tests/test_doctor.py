@@ -112,3 +112,81 @@ def test_asacs_own_state_folder_does_not_count_as_uncommitted_work(tmp_path: Pat
     assert check_git_repo(tmp_path).ok is True
     (tmp_path / "a.txt").write_text("changed")  # a real change must still be reported
     assert check_git_repo(tmp_path).ok is False
+
+
+# --- F58.4 and F60.4: the agent image and the runner network -----------------------------------
+
+
+def _docker_answers(returncode: int, stdout: str = ""):  # type: ignore[no-untyped-def]
+    import subprocess as sp
+
+    def fake(*args: str) -> sp.CompletedProcess[str]:
+        return sp.CompletedProcess(["docker", *args], returncode, stdout, "")
+
+    return fake
+
+
+def test_a_missing_agent_image_comes_with_the_command_that_builds_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from asac.doctor import check_agent_image
+
+    monkeypatch.setattr("asac.doctor._docker", _docker_answers(1))
+    c = check_agent_image("asac-agent:0.1.0")
+    assert c.ok is False and c.required is False  # only delegated steps need it
+    assert "docker build -t asac-agent:0.1.0" in c.detail
+    assert "docker/agent" in c.detail and "ASAC_VERSION=" in c.detail
+
+
+def test_a_present_agent_image_is_reported_by_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    from asac.doctor import check_agent_image
+
+    monkeypatch.setattr("asac.doctor._docker", _docker_answers(0))
+    c = check_agent_image("asac-agent:0.1.0")
+    assert c.ok is True and c.detail == "asac-agent:0.1.0"
+
+
+def test_a_docker_that_does_not_answer_is_not_a_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+    from asac.doctor import check_agent_image, check_runner_network
+
+    monkeypatch.setattr("asac.doctor._docker", lambda *a: None)
+    assert (
+        check_agent_image("x").ok is False
+        and "docker does not answer" in check_agent_image("x").detail
+    )
+    assert check_runner_network("n").ok is False
+
+
+def test_a_named_network_that_does_not_exist_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    from asac.doctor import check_runner_network
+
+    monkeypatch.setattr("asac.doctor._docker", _docker_answers(1))
+    c = check_runner_network("asac-egress")
+    assert c.ok is False and c.required is False
+    assert "asac-egress" in c.detail and "docker network create asac-egress" in c.detail
+    monkeypatch.setattr("asac.doctor._docker", _docker_answers(0))
+    assert check_runner_network("asac-egress").ok is True
+
+
+def test_the_network_is_only_checked_when_the_operator_names_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("asac.doctor._docker", _docker_answers(0))
+    assert "runner network" not in {c.name for c in run_checks(tmp_path)}  # default: none
+    (tmp_path / "asac.vars.yaml").write_text("runner_network: asac-egress\n")
+    assert "runner network" in {c.name for c in run_checks(tmp_path)}
+
+
+def test_the_image_checked_is_the_one_the_vars_file_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[tuple[str, ...]] = []
+
+    def spy(*args: str):  # type: ignore[no-untyped-def]
+        seen.append(args)
+        return _docker_answers(0)(*args)
+
+    monkeypatch.setattr("asac.doctor._docker", spy)
+    (tmp_path / "asac.vars.yaml").write_text("runner_image: my-registry/agent:7\n")
+    run_checks(tmp_path)
+    assert ("image", "inspect", "my-registry/agent:7") in seen

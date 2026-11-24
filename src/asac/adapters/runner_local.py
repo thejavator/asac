@@ -5,12 +5,24 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from asac.ports.runner import ExecResult, Runner
 
-DEFAULT_IMAGE = "python:3.12-slim"
+
+def _asac_version() -> str:
+    from asac import __version__
+
+    return __version__
+
+
+# The image a delegated step runs in. Build it with `docker build` on `asac/docker/agent`
+# (the command is in the Dockerfile and in `asac doctor`); its tag carries ASAC's version.
+IMAGE_NAME = "asac-agent"
+DEFAULT_IMAGE = f"{IMAGE_NAME}:{_asac_version()}"
+WORKTREE_MOUNT = "/work"
 
 
 @dataclass
@@ -46,7 +58,10 @@ def container_name(run_id: str, step_id: str) -> str:
 class DockerRunner:
     """Runs a step in a locked-down container: no network, read-only root, non-root user.
 
-    The project is mounted read-only; ``work`` is the only writable path (a tmpfs).
+    The container sees **one** folder from the host: the run's worktree, mounted writable at
+    ``/work``. The main checkout (``asac.yaml``, ``.asac/``, the hook scripts) and the state
+    folder are never mounted, so the agent cannot read or change the rules. ``/tmp`` is a small
+    tmpfs for the tool's own scratch files.
     """
 
     def __init__(
@@ -58,14 +73,22 @@ class DockerRunner:
         memory: str = "512m",
         network: str = "none",
         env: dict[str, str] | None = None,
+        worktree_for: Callable[[str], Path | None] | None = None,
     ) -> None:
         self.root, self.image, self.cpus, self.memory = root, image, cpus, memory
-        self.network = network  # "none" unless the tool must reach a model API
+        self.network = network  # "none", or a Docker network the operator prepared
         self.env = dict(env or {})  # names only on the command line; values come from the process
         self.docker = docker or shutil.which("docker")
+        # The folder given to the container for a run: the run's worktree. The engine sets it.
+        # Without it the container gets ``root`` as is (a caller that picks the folder itself).
+        self.worktree_for = worktree_for
 
     def command(self, run_id: str, step_id: str) -> list[str]:
         """The exact ``docker run`` line. Pure, so it is unit-tested without a daemon."""
+        mounted = self.worktree_for(run_id) if self.worktree_for is not None else self.root
+        if mounted is None:
+            # Never fall back to the main checkout: it holds the rules the agent must not touch.
+            raise RuntimeError(f"run '{run_id}' has no worktree to give the container")
         return [
             self.docker or "docker",
             "run", "--detach", "--rm",
@@ -78,12 +101,12 @@ class DockerRunner:
             "--pids-limit", "128",
             "--cpus", self.cpus,
             "--memory", self.memory,
-            "--tmpfs", "/work:rw,size=64m,uid=65534,gid=65534",
-            "--mount", f"type=bind,source={self.root},target=/project,readonly",
+            "--tmpfs", "/tmp:rw,size=64m,uid=65534,gid=65534",
+            "--mount", f"type=bind,source={mounted},target={WORKTREE_MOUNT}",
             "--env", f"ASAC_RUN_ID={run_id}",
             "--env", f"ASAC_STEP={step_id}",
             *[a for name in sorted(self.env) for a in ("--env", name)],
-            "--workdir", "/work",
+            "--workdir", WORKTREE_MOUNT,
             self.image,
             "sleep", "3600",
         ]  # fmt: skip
@@ -133,7 +156,11 @@ class DockerRunner:
             )
 
 
-def runner_from_vars(root: Path, values: dict[str, str]) -> Runner | None:
+def runner_from_vars(
+    root: Path,
+    values: dict[str, str],
+    worktree_for: Callable[[str], Path | None] | None = None,
+) -> Runner | None:
     """``runner_kind: docker`` (vars file or ``ASAC_RUNNER=docker``) builds the Docker runner.
 
     ``runner_image``, ``runner_network`` (default none), ``runner_env`` (comma list of variable
@@ -164,4 +191,5 @@ def runner_from_vars(root: Path, values: dict[str, str]) -> Runner | None:
         image=values.get("runner_image", DEFAULT_IMAGE),
         network=values.get("runner_network", "none"),
         env=env,
+        worktree_for=worktree_for,
     )

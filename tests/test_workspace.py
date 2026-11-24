@@ -105,6 +105,77 @@ def test_a_step_commit_leaves_out_build_artefacts_and_asac_state(
     (ws.path / "sub" / "__pycache__" / "m.pyc").write_bytes(b"\x00")
     (ws.path / ".asac-state").mkdir()
     (ws.path / ".asac-state" / "scope.sha").write_text("abc", encoding="utf-8")
-    commit_step(ws.path, "run_1", "build")
+    commit_step(repo, ws.path, "run_1", "build")
     files = _git(ws.path, "show", "--name-only", "--format=", "HEAD").splitlines()
     assert files == ["feature.py"]
+
+
+# --- the step commit is made by ASAC, on the host, in a folder the agent can write ------------
+
+
+def _plant_a_command_in_a_fake_gitdir(ws_path: Path, marker: Path, setting: str) -> None:
+    """What a hostile agent does with write access to its worktree: its `.git` file points at a
+    folder it made, whose configuration names a command git would run."""
+    evil = ws_path / ".evil"
+    (evil / "objects").mkdir(parents=True)
+    (evil / "refs").mkdir()
+    (evil / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (evil / "config").write_text(
+        f'[core]\n\trepositoryformatversion = 0\n\t{setting} = "touch {marker}; true"\n',
+        encoding="utf-8",
+    )
+    (ws_path / ".git").write_text("gitdir: .evil\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize("setting", ["fsmonitor", "hooksPath", "pager", "sshCommand"])
+def test_a_rewritten_dot_git_cannot_make_asac_run_the_agents_command(
+    repo: Path, tmp_path: Path, setting: str
+) -> None:
+    from asac.engine.workspace import commit_step
+
+    ws = create_workspace(repo, tmp_path / "state", "run_1")
+    (ws.path / "work.txt").write_text("the work\n", encoding="utf-8")
+    marker = tmp_path / "ESCAPED"
+    _plant_a_command_in_a_fake_gitdir(ws.path, marker, setting)
+    sha = commit_step(repo, ws.path, "run_1", "build")
+    assert not marker.exists(), f"ASAC ran a command the agent planted ({setting})"
+    # the commit went into the run's real branch, not into the agent's fake repository
+    assert _git(repo, "rev-parse", "asac/run_1") == sha
+    assert "work.txt" in _git(repo, "show", "--name-only", "--format=", sha)
+
+
+def test_a_planted_hook_in_the_real_looking_hooks_folder_does_not_run(
+    repo: Path, tmp_path: Path
+) -> None:
+    from asac.engine.workspace import commit_step
+
+    ws = create_workspace(repo, tmp_path / "state", "run_1")
+    marker = tmp_path / "HOOK_RAN"
+    hooks = ws.path / ".githooks"
+    hooks.mkdir()
+    (hooks / "pre-commit").write_text(f"#!/bin/sh\ntouch {marker}\n", encoding="utf-8")
+    (hooks / "pre-commit").chmod(0o755)
+    (ws.path / ".gitconfig-local").write_text("x", encoding="utf-8")
+    commit_step(repo, ws.path, "run_1", "build")
+    assert not marker.exists()
+
+
+def test_the_git_directory_comes_from_the_main_repository(repo: Path, tmp_path: Path) -> None:
+    from asac.engine.workspace import real_gitdir
+
+    ws = create_workspace(repo, tmp_path / "state", "run_1")
+    (ws.path / ".git").write_text("gitdir: /somewhere/else\n", encoding="utf-8")  # rewritten
+    assert real_gitdir(repo, ws.path) == (repo / ".git" / "worktrees" / "run_1").resolve()
+
+
+def test_a_folder_that_is_not_a_worktree_of_the_project_is_refused(
+    repo: Path, tmp_path: Path
+) -> None:
+    from asac.engine.workspace import commit_step, real_gitdir
+
+    stranger = tmp_path / "stranger"
+    stranger.mkdir()
+    with pytest.raises(WorkspaceError, match="not a worktree"):
+        real_gitdir(repo, stranger)
+    with pytest.raises(WorkspaceError, match="not a worktree"):
+        commit_step(repo, stranger, "run_1", "build")

@@ -46,6 +46,48 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+# Options that make git ignore every setting an agent could plant in a repository it can write:
+# a monitor or hook command, a pager, an external diff. They go on each call made on a worktree.
+_NO_EXEC = (
+    "-c", "core.fsmonitor=false",
+    "-c", "core.hooksPath=/dev/null",
+    "-c", "core.pager=cat",
+    "-c", "diff.external=",
+    "-c", "protocol.allow=never",
+)  # fmt: skip
+
+
+def real_gitdir(root: Path, path: Path) -> Path:
+    """The git directory of the worktree at ``path``, read from the main repository.
+
+    A worktree's ``.git`` is a file inside the folder the agent writes: it can point anywhere. The
+    answer must come from the main repository, which the agent cannot write. It is the folder
+    ``<main>/.git/worktrees/<name>``, and nothing else is accepted.
+    """
+    listed = _git(root, "worktree", "list", "--porcelain")
+    here: str | None = None
+    for line in listed.stdout.splitlines():
+        if line.startswith("worktree "):
+            here = line.removeprefix("worktree ")
+        elif line == "" and here is not None:
+            here = None
+        if here is not None and Path(here).resolve() == path.resolve():
+            common = _git(root, "rev-parse", "--git-common-dir").stdout.strip()
+            common_dir = (
+                (root / common).resolve() if not Path(common).is_absolute() else Path(common)
+            )
+            gitdir = common_dir / "worktrees" / Path(here).name
+            if gitdir.is_dir():
+                return gitdir
+    raise WorkspaceError(f"{path} is not a worktree of this project")
+
+
+def git_in_worktree(root: Path, path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run git on a worktree without trusting anything the agent wrote there."""
+    gitdir = real_gitdir(root, path)
+    return _git(path, "--git-dir", str(gitdir), "--work-tree", str(path), *_NO_EXEC, *args)
+
+
 def _is_repo(root: Path) -> bool:
     proc = _git(root, "rev-parse", "--is-inside-work-tree")
     return proc.returncode == 0 and proc.stdout.strip() == "true"
@@ -104,23 +146,30 @@ def remove_workspace(root: Path, path: Path, branch: str) -> None:
         raise WorkspaceError(f"git worktree remove failed: {proc.stderr.strip()}")
 
 
-def commit_step(workdir: Path, run_id: str, step_id: str) -> str:
+def commit_step(root: Path, workdir: Path, run_id: str, step_id: str) -> str:
     """Make the commit the gate will approve, and return its sha.
 
     ASAC always writes that commit, so the approved sha is one ASAC created: never a commit the
     agent made, even when the agent committed everything itself. If there is nothing new, an
     empty commit records that the step was checked at this point.
+
+    Git runs on the real git directory read from ``root``, never on the worktree's own ``.git``
+    file, which the agent can rewrite to point at a repository whose configuration runs a command.
     """
-    if not _is_repo(workdir):
+    if not workdir.is_dir():
         raise WorkspaceError(f"{workdir} is not a worktree")
-    _git(workdir, "add", "-A", "--", ".", *EXCLUDE_FROM_COMMIT)
-    dirty = _git(workdir, "diff", "--cached", "--quiet").returncode != 0
+
+    def git(*a: str) -> subprocess.CompletedProcess[str]:
+        return git_in_worktree(root, workdir, *a)
+
+    git("add", "-A", "--", ".", *EXCLUDE_FROM_COMMIT)
+    dirty = git("diff", "--cached", "--quiet").returncode != 0
     msg = f"asac: {step_id} (run {run_id})"
     args = ["-c", "user.name=ASAC", "-c", "user.email=asac@localhost",
             "commit", "-q", "--no-verify", "-m", msg]  # fmt: skip
     if not dirty:
         args.insert(args.index("-q"), "--allow-empty")
-    proc = _git(workdir, *args)
+    proc = git(*args)
     if proc.returncode != 0:
         raise WorkspaceError(f"commit failed: {proc.stderr.strip()}")
-    return _git(workdir, "rev-parse", "HEAD").stdout.strip()
+    return git("rev-parse", "HEAD").stdout.strip()

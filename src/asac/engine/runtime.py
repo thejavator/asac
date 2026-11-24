@@ -122,7 +122,9 @@ def make_context(
         harness_for=harness_for,
         root=root,
         policy_engine=OpaPolicyEngine(root),
-        runner=runner if runner is not None else runner_from_vars(root, values),
+        runner=runner
+        if runner is not None
+        else runner_from_vars(root, values, lambda rid: recorded_workspace(store, rid)),
         notifier=from_project(values, dict(os.environ)),
         artifacts=FsArtifactStore(sdir / "artifacts"),
         retries=_retries(values),

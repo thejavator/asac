@@ -564,7 +564,9 @@ def _commit_if_isolated(ctx: Context, run_id: str, sid: str) -> str | None:
     if work is None:
         return None
     try:
-        sha = commit_step(work, run_id, sid)
+        sha = commit_step(ctx.root, work, run_id, sid) if ctx.root is not None else None
+        if sha is None:
+            return None
     except WorkspaceError as exc:
         _audit(ctx, run_id, "commit.failed", sid, str(exc))
         return None

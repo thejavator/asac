@@ -8,7 +8,12 @@ from fastapi.testclient import TestClient
 
 from asac.adapters import state_dir
 from asac.adapters.artifacts_fs import FsArtifactStore
-from asac.adapters.runner_local import DockerRunner, FakeRunner, container_name
+from asac.adapters.runner_local import (
+    DockerRunner,
+    FakeRunner,
+    container_name,
+    runner_from_vars,
+)
 from asac.daemon.app import create_app
 from asac.daemon.triggers import parse_jira, sign
 from asac.engine.runtime import store_for
@@ -253,3 +258,103 @@ def test_docker_runner_env_is_names_only_and_output_redacted(tmp_path: Path) -> 
     assert "API_KEY" in cmd and "sk-secret-123" not in " ".join(cmd)
     assert "bridge" in cmd
     assert r._redact("token sk-secret-123 ok") == "token [redacted] ok"
+
+
+# --- F59: the container is given one folder, the run's worktree ---------------------------------
+
+
+def _mount_args(cmd: list[str]) -> list[str]:
+    return [cmd[i + 1] for i, a in enumerate(cmd) if a == "--mount"]
+
+
+def test_the_container_is_given_the_worktree_and_only_the_worktree(tmp_path: Path) -> None:
+    """F59.1, F59.2: one bind mount, writable, at /work; the project and the state are absent."""
+    main, work = tmp_path / "main", tmp_path / "state" / "worktrees" / "r1"
+    r = DockerRunner(main, docker="docker", worktree_for=lambda rid: work)
+    cmd = r.command("r1", "dev")
+    assert _mount_args(cmd) == [f"type=bind,source={work},target=/work"]  # no `readonly`
+    joined = " ".join(cmd)
+    assert str(main) not in joined and ".asac-state" not in joined and "/project" not in joined
+    assert cmd[cmd.index("--workdir") + 1] == "/work"
+
+
+def test_each_run_gets_its_own_worktree(tmp_path: Path) -> None:
+    r = DockerRunner(tmp_path, docker="docker", worktree_for=lambda rid: tmp_path / "wt" / rid)
+    assert _mount_args(r.command("a", "s")) != _mount_args(r.command("b", "s"))
+    assert f"source={tmp_path / 'wt' / 'a'}," in _mount_args(r.command("a", "s"))[0]
+
+
+def test_a_run_without_a_worktree_is_refused_not_given_the_project(tmp_path: Path) -> None:
+    """The main checkout holds the rules: it is never the fallback."""
+    r = DockerRunner(tmp_path / "main", docker="docker", worktree_for=lambda rid: None)
+    with pytest.raises(RuntimeError, match="no worktree"):
+        r.command("r1", "dev")
+
+
+def test_the_container_keeps_its_privilege_limits(tmp_path: Path) -> None:
+    """F59.3."""
+    cmd = DockerRunner(tmp_path, docker="docker", worktree_for=lambda rid: tmp_path).command(
+        "r", "s"
+    )
+    joined = " ".join(cmd)
+    for flag in (
+        "--user 65534:65534", "--cap-drop ALL", "--security-opt no-new-privileges", "--read-only",
+        "--pids-limit 128", "--cpus 1", "--memory 512m", "--network none",
+    ):  # fmt: skip
+        assert flag in joined, flag
+
+
+# --- F58.3: the default image is the one ASAC builds -------------------------------------------
+
+
+def test_the_default_runner_image_is_the_agent_image_of_this_version(tmp_path: Path) -> None:
+    from asac import __version__
+    from asac.adapters.runner_local import DEFAULT_IMAGE
+
+    assert f"asac-agent:{__version__}" == DEFAULT_IMAGE
+    assert DockerRunner(tmp_path, docker="docker").image == DEFAULT_IMAGE
+    runner = runner_from_vars(tmp_path, {"runner_kind": "docker"})
+    assert isinstance(runner, DockerRunner) and runner.image == DEFAULT_IMAGE
+
+
+# --- F60: the network ------------------------------------------------------------------------
+
+
+def test_the_network_is_none_unless_the_operator_names_one(tmp_path: Path) -> None:
+    default = runner_from_vars(tmp_path, {"runner_kind": "docker"}, lambda rid: tmp_path)
+    assert isinstance(default, DockerRunner) and default.network == "none"
+    assert "--network none" in " ".join(default.command("r", "s"))
+    named = runner_from_vars(
+        tmp_path,
+        {"runner_kind": "docker", "runner_network": "asac-egress"},
+        lambda rid: tmp_path,
+    )
+    assert isinstance(named, DockerRunner) and named.network == "asac-egress"
+    line = " ".join(named.command("r", "s"))
+    assert "--network asac-egress" in line and "--network none" not in line
+
+
+# --- F61: credentials ------------------------------------------------------------------------
+
+
+def test_a_credential_reaches_the_container_by_name_and_never_by_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MODEL_API_KEY", "key-value-12345")
+    runner = runner_from_vars(
+        tmp_path, {"runner_kind": "docker", "runner_env": "MODEL_API_KEY"}, lambda rid: tmp_path
+    )
+    assert isinstance(runner, DockerRunner)
+    cmd = runner.command("r", "s")
+    assert "MODEL_API_KEY" in cmd and "key-value-12345" not in " ".join(cmd)
+    assert "--env MODEL_API_KEY" in " ".join(cmd)  # the bare name: docker reads the value itself
+
+
+def test_a_credential_that_is_not_set_is_not_passed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("MODEL_API_KEY", raising=False)
+    runner = runner_from_vars(
+        tmp_path, {"runner_kind": "docker", "runner_env": "MODEL_API_KEY"}, lambda rid: tmp_path
+    )
+    assert isinstance(runner, DockerRunner) and "MODEL_API_KEY" not in runner.command("r", "s")
