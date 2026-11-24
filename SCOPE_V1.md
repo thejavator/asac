@@ -345,7 +345,7 @@ La v1 n'est **pas encore « terminée »** au sens de ce paragraphe. Le gel fixe
 | 4 | Une personne extérieure déroule le quick start en moins de 30 minutes | **Non atteint** |
 | 5 | Aucune clé acceptée n'est ignorée sans avertissement | **Partiel.** ASAC027 couvre `knowledge`, `specLevel` et `config.model` ; il n'y a pas d'inventaire exhaustif des clés. `mode: delegate` sans runner est accepté par `validate` (d'après le scénario `02-feature`) et échoue à l'exécution |
 | 6 | Le README énonce les limites | **Partiel.** Le `CHANGELOG` cite identité déclarative, macOS, bac à sable en préversion ; le README ne cite ni l'identité déclarative, ni macOS, ni l'absence de création de PR |
-| 7 | Runner Docker, `delegate` et worker (lot 5) | **Non commencé.** Aucun conteneur avec `claude` n'existe ; `DockerRunner` a seulement été testé avec `postgres:16-alpine` |
+| 7 | Runner Docker, `delegate` et worker (lot 5) | **Fait le 2026-11-24, avec deux limites.** Image `asac-agent` construite, le vrai `claude` a tourné dans le conteneur par le moteur (coût réel 0,35 USD), quatre attaques d'un agent hostile échouent, `asac worker` exécute un run en file (détail : `docs/project/features/`). **Limites :** le réseau par défaut est `none`, qui coupe aussi la passerelle du modèle, donc un vrai agent exige un réseau Docker que l'opérateur prépare ; **ASAC ne filtre pas par domaine et n'audite pas les refus réseau sous Docker** (contrairement à `sandbox.denied` sous `srt`). Le § 5.4 et le lot 5 se contredisaient sur ce point : c'est le § 5.4 qui est vrai |
 
 ## 9. Retours à collecter
 

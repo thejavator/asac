@@ -81,7 +81,7 @@ Ces fonctionnalités existent dans le code. Elles restent à contrôler par les 
 
 ### 5.1 Déclaration et validation
 
-- **F1. Validation du manifeste.** `asac validate` contrôle la structure, les références croisées (capacités, skills, agents, hooks, preuves, instructions) et la compatibilité entre mode et harness. Chaque anomalie porte un code : `ASAC001` à `ASAC015` et `ASAC017` à `ASAC027` pour le contenu du manifeste, `ASAC000` pour un fichier illisible. Une clé acceptée et réservée à une version ultérieure produit un avertissement `ASAC027`.
+- **F1. Validation du manifeste.** `asac validate` contrôle la structure, les références croisées (capacités, skills, agents, hooks, preuves, instructions) et la compatibilité entre mode et harness. Chaque anomalie porte un code : `ASAC001` à `ASAC015` et `ASAC017` à `ASAC028` pour le contenu du manifeste (`ASAC016` n'existe pas), `ASAC000` pour un fichier illisible. Une clé acceptée et réservée à une version ultérieure produit un avertissement `ASAC027`.
 - **F2. Manifeste strict.** Une clé inconnue est une erreur. Une clé écrite deux fois est une erreur.
 - **F3. Variables.** Les valeurs viennent de `asac.vars.yaml` ou de l'environnement. `asac vars check` signale une variable déclarée sans valeur et sans défaut ; `asac vars diff` liste les variables manquantes et inutilisées. `asac validate` refuse une référence `var.<nom>` dont la variable est absente de `variables` (`ASAC014`).
 - **F4. Dépendances.** Une étape démarre quand toutes les étapes de `dependsOn` sont terminées. Un cycle est une erreur.
@@ -264,7 +264,7 @@ Le runner Docker existe dans `src/asac/adapters/runner_local.py` avec l'image g�
 
 #### F58. Image de l'agent
 
-- **Fichiers.** Nouveau dossier `docker/agent/` (Dockerfile), `src/asac/adapters/runner_local.py` (`DEFAULT_IMAGE`, `runner_from_vars`), `src/asac/doctor.py`.
+- **Fichiers.** `src/asac/docker/agent/Dockerfile` (dans le paquet, pour que le wheel le porte ; `docker/agent` y renvoie), `src/asac/adapters/runner_local.py` (`DEFAULT_IMAGE`, `runner_from_vars`), `src/asac/doctor.py`.
 - **Critères.**
   1. Le Dockerfile construit une image qui contient `claude`, `git` et `python3`, et dont l'étiquette porte la version d'ASAC.
   2. `docker run --rm <image> claude --version` affiche une version.
@@ -276,7 +276,7 @@ Le runner Docker existe dans `src/asac/adapters/runner_local.py` avec l'image g�
 - **Fichiers.** `src/asac/adapters/runner_local.py` (`DockerRunner.command`), `tests/test_runner_docker_real.py`.
 - **Critères.**
   1. Le conteneur reçoit le worktree du run seul, monté en écriture.
-  2. Le dépôt principal (`asac.yaml`, `.asac/`, scripts de hooks) et `.asac-state/` restent hors du conteneur.
+  2. Le dépôt principal (`asac.yaml`, `.asac/`, scripts de hooks) et `.asac-state/` restent hors du conteneur. Le worktree est une copie du dépôt : il contient sa propre copie des règles suivies par git, que l'agent peut réécrire. Cette copie n'est jamais exécutée : ASAC lance les hooks du dépôt principal, sur les fichiers du worktree (R10).
   3. Le conteneur conserve l'utilisateur sans privilèges, `--cap-drop ALL`, `no-new-privileges` et les limites de ressources en vigueur.
   4. Le travail de l'agent écrit dans le conteneur se retrouve dans le worktree de l'hôte.
 
@@ -323,6 +323,7 @@ Le runner Docker existe dans `src/asac/adapters/runner_local.py` avec l'image g�
   6. Le worker affiche une ligne par job : numéro, run, résultat.
   7. Le worker utilise le runner et le harness de la configuration, comme `asac apply`.
   8. `asac worker` rejoint la liste du § 10 et de `asac --help`.
+  9. Le worker ne prend que les jobs de type `run`. Le port `JobQueue.claim` reçoit pour cela un filtre `kind` optionnel, dont la valeur par défaut garde le comportement existant (§ 17).
 
 #### F69. Vérification du parcours délégué
 
@@ -412,6 +413,8 @@ Les commandes `portal`, `daemon` et `project` appartiennent au portail (§ 16).
 | — | `ASAC_STATE_DIR` | Emplacement de l'état |
 | — | `ASAC_NOTIFY_LIVE` | Active `tests/test_notify_live.py` |
 | — | `ASAC_REAL_CLAUDE` | Active les tests avec le vrai `claude` |
+| — | `ASAC_REAL_CLAUDE_NETWORK` | Réseau Docker du test réel du parcours délégué (défaut `bridge`) |
+| `runner_kind: fake` | `ASAC_RUNNER=fake` | Runner en mémoire pour les tests hors ligne : ne démarre rien |
 
 Le réglage `parallel` (étapes indépendantes simultanées) existe dans le dépôt. La v1 fixe l'exécution à une étape à la fois.
 
@@ -477,7 +480,7 @@ Une fonctionnalité est supportée quand un scénario exécuté contre le vrai s
 ### 13.6 Audit
 
 - **R23.** L'audit est en ajout seul.
-- **R24.** Chaque événement porte un type, une date, un auteur et un détail ; ceux d'une étape portent son identifiant.
+- **R24.** Chaque événement porte un type, une date, un auteur et un détail ; ceux d'une étape portent son identifiant. L'auteur est la personne qui a agi (`--by`) ou, pour ce que fait le moteur, l'acteur du moteur (`cli` par défaut).
 - **R25.** Un hook est audité à chaque exécution : `hook.passed` ou `hook.failed`. L'intégrité est auditée à chaque lancement de l'outil par ASAC : `integrity.verified` ou `integrity.violated`.
 - **R26.** Chaque sortie de l'outil est enregistrée avec son empreinte sha256.
 - **R27.** Les secrets restent dans l'environnement du processus ; l'audit, les livrables et les journaux en portent le masque.
@@ -526,3 +529,4 @@ Ce document est gelé. Un changement s'écrit ici avant d'être appliqué : date
 | Date | Changement | Raison | Décidé par |
 |---|---|---|---|
 | 2026-11-24 | Gel de la version 1.0 du document. Quatre commandes (`init`, `run`, `vars`, `learn`) rejoignent `asac --help`. Les notifications (F54) restent dans la v1. Le gabarit `feature` devient un projet Python exécutable. `asac learn` reste une liste d'observations. | Consigne du porteur du 2026-11-24 : un autre thread lit ce fichier et livre les fonctionnalités. | Porteur du projet |
+| 2026-11-24 | Corrections de texte et deux changements de port décidés pendant la livraison du lot C : (1) F1 : la plage des codes va jusqu'à `ASAC028`, `ASAC016` n'existe pas ; (2) F59 : le worktree contient sa propre copie des règles, qui n'est jamais exécutée ; (3) R24 : l'auteur d'un événement du moteur est l'acteur du moteur ; (4) § 11 : `ASAC_REAL_CLAUDE_NETWORK` et `runner_kind: fake` ; (5) F58 : le Dockerfile est dans le paquet ; (6) **port `JobQueue.claim`** : filtre `kind` optionnel, défaut inchangé (F62) ; (7) **fonction de commit d'ASAC** : `commit_step` prend le dépôt principal et lance git sur le vrai dossier git du worktree, jamais sur son fichier `.git`, que l'agent peut réécrire (correctif de sécurité trouvé en vérifiant F59, reproduit sous `srt` avant le correctif) | Les changements de port exigent une raison écrite (`SCOPE_V1.md` § 6, règle 2). Aucun critère n'est retiré ni affaibli ; (6) et (7) ajoutent une capacité ou ferment un défaut | Accord du porteur du 2026-11-24 pour modifier le fichier avec une entrée au registre ; contenu rédigé par le thread d'exécution, à relire |

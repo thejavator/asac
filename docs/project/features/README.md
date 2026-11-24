@@ -27,14 +27,14 @@ Mis à jour à chaque commit de fonctionnalité.
 | F65 | Vérifiée | `804c8af` | [F65](F65.md) |
 | F66 | Vérifiée | `804c8af` | [F66](F66.md) |
 | F67 | Vérifiée | `a896951` | [F67](F67.md) |
-| F68 | Vérifiée (lots A et B) | `0caaeae` | [F68](F68.md) |
+| F68 | Vérifiée (lots A, B, C) | `0caaeae`, `28f0ea4` | [F68](F68.md) |
 | F58 | Vérifiée | `52f0fee` | [F58](F58.md) |
 | F59 | Vérifiée | `52f0fee` | [F59](F59.md) |
-| F60 | Vérifiée | voir `git log` | [F60](F60.md) |
-| F61 | Vérifiée | voir `git log` | [F61](F61.md) |
-| F57 | Vérifiée | voir `git log` | [F57](F57.md) |
-| F62 | Vérifiée | voir `git log` | [F62](F62.md) |
-| F69 | Vérifiée | voir `git log` | [F69](F69.md) |
+| F60 | Vérifiée | `ef9e9e1` | [F60](F60.md) |
+| F61 | Vérifiée | `ef9e9e1` | [F61](F61.md) |
+| F57 | Vérifiée | `ef9e9e1` | [F57](F57.md) |
+| F62 | Vérifiée | `28f0ea4` | [F62](F62.md) |
+| F69 | Vérifiée | `ef9e9e1` | [F69](F69.md) |
 
 ## Demandes de modification de la spec
 
@@ -43,4 +43,6 @@ le travail a fait apparaître. Une ligne passe au § 17 quand le porteur la déc
 
 | Date | Fonctionnalité | Écart | État |
 |---|---|---|---|
-| 2026-11-24 | F63 | F1 cite `ASAC001` à `ASAC027` : le code émet `ASAC028` | Prévu par F63, critère 4 |
+| 2026-11-24 | F63 | F1 cite `ASAC001` à `ASAC027` : le code émet `ASAC028` | Écrit au § 17 de la spec |
+| 2026-11-24 | F59 | Le worktree contient sa copie des règles ; le commit d'ASAC faisait confiance à son `.git` | Écrit au § 17 : correctif de sécurité et clarification de F59 |
+| 2026-11-24 | F62 | Le port `JobQueue.claim` reçoit un filtre `kind` | Écrit au § 17 |
