@@ -1,0 +1,74 @@
+asac:
+  spec: "0.4"
+  workspace: __NAME__
+
+variables:
+  tool: { type: harness, description: "AI tool that does the work: claude-code, codex, cursor, bob, antigravity" }
+
+providers:
+  llm:
+    source: asac/claude
+    version: "~> 1.0"
+    config: {}
+
+capabilities:
+  specification_engineering:
+    description: Turn a request into a short spec with acceptance criteria
+    evidence: [spec_reviewed]
+  implementation:
+    description: Implement the spec with tests
+    evidence: [tests_green]
+
+evidenceTypes:
+  spec_reviewed: { description: Spec reviewed by the product owner }
+  tests_green:   { description: The project's unit tests pass }
+
+skills:
+  spec:
+    ref: .asac/skills/spec.md
+    fulfils: specification_engineering
+  impl:
+    ref: .asac/skills/impl.md
+    fulfils: implementation
+
+agents:
+  analyst:
+    skill: spec
+    provider: llm
+    harness: var.tool
+  developer:
+    skill: impl
+    provider: llm
+    harness: var.tool
+
+instructions:
+  - ref: .asac/instructions/style.md
+
+hooks:
+  definitions:
+    no-secrets:   { run: .asac/hooks/no-secrets.sh,   on_fail: block }
+    spec-present: { run: .asac/hooks/spec-present.sh, on_fail: block }
+    tests-green:  { run: .asac/hooks/tests-green.sh,  on_fail: block }
+  # Every step, before the agent works.
+  pre_tool: [no-secrets]
+
+pipelines:
+  feature:
+    description: Spec, implement, human sign-off
+    steps:
+      requirements:
+        capability: specification_engineering
+        agent: analyst
+        mode: assist
+        producesEvidence: [spec_reviewed]
+        hooks: { post_step: [spec-present] }
+        gate: { type: human, role: product_owner, timeout: 24h }
+      development:
+        capability: implementation
+        agent: developer
+        mode: assist
+        dependsOn: [requirements]
+        requiresEvidence: [spec_reviewed]
+        producesEvidence: [tests_green]
+        hooks: { post_step: [tests-green] }
+        gate: { type: human, role: product_owner, timeout: 24h }

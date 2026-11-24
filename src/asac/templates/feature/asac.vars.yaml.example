@@ -1,0 +1,3 @@
+# Copy to asac.vars.yaml (not committed) and set the values.
+tool: claude-code        # the AI tool that does the work
+# autorun: true          # ASAC launches the tool itself; leave unset to work by hand and use `asac submit`

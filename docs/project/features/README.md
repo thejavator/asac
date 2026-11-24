@@ -22,7 +22,11 @@ Mis à jour à chaque commit de fonctionnalité.
 
 | Fonctionnalité | Statut | Commit | Fichier |
 |---|---|---|---|
-| F63 | Vérifiée | voir `git log` | [F63](F63.md) |
+| F63 | Vérifiée | `ae972dd` | [F63](F63.md) |
+| F64 | Vérifiée | voir `git log` | [F64](F64.md) |
+| F65 | Vérifiée | voir `git log` | [F65](F65.md) |
+| F66 | Vérifiée | voir `git log` | [F66](F66.md) |
+| F67 | Vérifiée | voir `git log` | [F67](F67.md) |
 
 ## Demandes de modification de la spec
 

@@ -70,8 +70,9 @@ def test_v05_message(sandbox_project: Path) -> None:
 
 def test_init_detects_stack_and_template(tmp_path: Path) -> None:
     (tmp_path / "pom.xml").write_text("<project/>")
-    assert runner.invoke(app, ["init", str(tmp_path), "--template", "feature"]).exit_code == 0
-    assert "registry.example.dev/java/" in (tmp_path / "asac.yaml").read_text()
+    r = runner.invoke(app, ["init", str(tmp_path), "--template", "feature"])
+    assert r.exit_code == 0 and "stack: java" in r.output
+    assert "tests-green.sh" in r.output  # the hook runs Python tests: told to edit it for java
     assert runner.invoke(app, ["validate", "-f", str(tmp_path / "asac.yaml")]).exit_code == 0
     assert runner.invoke(app, ["init", str(tmp_path), "--template", "x", "--force"]).exit_code == 1
 

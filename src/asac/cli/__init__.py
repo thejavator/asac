@@ -13,12 +13,13 @@ from asac.engine.apply import Context, Outcome
 from asac.model import Manifest
 
 app = typer.Typer(
-    help="ASAC: Agentic SDLC as Code (spec v0.4). Version 0.1 supports: doctor, validate, apply, "
-    "approve, gates, status, logs, audit, evidence, clean, kill.",
+    help="ASAC: Agentic SDLC as Code (spec v0.4). Version 0.1 supports: init, doctor, validate, "
+    "vars, plan, apply, run, submit, approve, gates, status, logs, audit, evidence, learn, "
+    "clean, kill.",
     no_args_is_help=True,
 )
 vars_app = typer.Typer(help="Inspect layer 2 (asac.vars.yaml).", no_args_is_help=True)
-app.add_typer(vars_app, name="vars", hidden=True)
+app.add_typer(vars_app, name="vars")
 evidence_app = typer.Typer(help="Inspect and bootstrap evidence.", no_args_is_help=True)
 app.add_typer(evidence_app, name="evidence")
 
@@ -92,10 +93,8 @@ def _var_report(file: Path, vars_file: Path | None) -> tuple[list[str], list[str
 
     manifest = _load(file)
     vp = _vars_path(file, vars_file)
-    if not vp.exists():
-        typer.echo(f"error: {vp} not found", err=True)
-        raise typer.Exit(1)
-    provided = set(load_vars(vp).user_values())
+    # No values file yet: every variable without a default is simply still to be set.
+    provided = set(load_vars(vp).user_values()) if vp.exists() else set()
     declared = {k for k, v in manifest.variables.items() if v.default is None}
     return sorted(declared - provided), sorted(provided - set(manifest.variables))
 
@@ -139,47 +138,8 @@ agents: {{}}
 pipelines: {{}}
 """
 
-_FEATURE = """asac:
-  spec: "0.4"
-  workspace: {name}
-
-variables:
-  llm_api_key: {{ type: string, sensitive: true }}
-  dev_harness: {{ type: harness }}
-
-providers:
-  llm:
-    source: asac/claude
-    version: "~> 1.0"
-    config: {{ api_key: var.llm_api_key }}
-
-capabilities:
-  implementation:
-    description: Produce working code from a specification
-    evidence: [tests_green]
-
-evidenceTypes:
-  tests_green: {{ description: All required tests pass }}
-
-skills:
-  impl:
-    ref: registry.example.dev/{stack}/implementation@1.0.0
-    fulfils: implementation
-
-agents:
-  dev: {{ skill: impl, provider: llm, harness: var.dev_harness }}
-
-pipelines:
-  feature:
-    steps:
-      development:
-        capability: implementation
-        agent: dev
-        mode: assist
-        producesEvidence: [tests_green]
-"""
-
-TEMPLATES = {"minimal": _STARTER, "feature": _FEATURE}
+TEMPLATES = ("minimal", "feature")
+GITIGNORE_ENTRIES = ("asac.vars.yaml", ".asac-state/")
 
 STACK_MARKERS = {
     "pom.xml": "java",
@@ -197,7 +157,7 @@ def detect_stack(path: Path) -> str:
     return "generic"
 
 
-@app.command(hidden=True)
+@app.command()
 def init(
     path: Annotated[Path, typer.Argument()] = Path("."),
     name: Annotated[str | None, typer.Option("--name")] = None,
@@ -209,16 +169,53 @@ def init(
         typer.echo(f"error: unknown template '{template}' ({', '.join(TEMPLATES)})", err=True)
         raise typer.Exit(1)
     path.mkdir(parents=True, exist_ok=True)
-    target = path / "asac.yaml"
-    if target.exists() and not force:
-        typer.echo(f"error: {target} exists (use --force)", err=True)
-        raise typer.Exit(1)
+    workspace = name or path.resolve().name
     stack = detect_stack(path)
-    text = TEMPLATES[template].format(name=name or path.resolve().name, stack=stack)
-    target.write_text(text, encoding="utf-8")
+    files = _template_files(template, workspace)
+    clash = [rel for rel in files if (path / rel).exists()]
+    if clash and not force:
+        typer.echo(f"error: {path / clash[0]} exists (use --force)", err=True)
+        raise typer.Exit(1)
+    for rel, text in files.items():
+        target = path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        if target.suffix == ".sh":
+            target.chmod(0o755)
     for sub in ("policies", "hooks", "knowledge", "instructions"):
         (path / ".asac" / sub).mkdir(parents=True, exist_ok=True)
-    typer.echo(f"created {target} (stack: {stack}, template: {template})")
+    if template != "minimal":  # the empty manifest is the only file `minimal` creates (F66.8)
+        _ignore_local_files(path)
+    typer.echo(f"created {path / 'asac.yaml'} (stack: {stack}, template: {template})")
+    if template == "feature":
+        typer.echo("next: cp asac.vars.yaml.example asac.vars.yaml, then asac vars check")
+        if stack not in ("python", "generic"):
+            typer.echo(
+                f"note: the tests-green hook runs python3 -m unittest; edit "
+                f".asac/hooks/tests-green.sh for a {stack} project"
+            )
+
+
+def _template_files(template: str, workspace: str) -> dict[str, str]:
+    """The files a template creates, as relative path -> text. ``__NAME__`` is the workspace."""
+    if template == "minimal":
+        return {"asac.yaml": _STARTER.format(name=workspace)}
+    root = Path(__file__).resolve().parent.parent / "templates" / template
+    return {
+        str(f.relative_to(root)): f.read_text(encoding="utf-8").replace("__NAME__", workspace)
+        for f in sorted(root.rglob("*"))
+        if f.is_file() and f.name != ".DS_Store"
+    }
+
+
+def _ignore_local_files(path: Path) -> None:
+    """Keep the local values and the state folder out of git, without touching other lines."""
+    target = path / ".gitignore"
+    have = target.read_text(encoding="utf-8").splitlines() if target.exists() else []
+    missing = [e for e in GITIGNORE_ENTRIES if e not in have]
+    if missing:
+        text = "\n".join([*have, *missing]) + "\n"
+        target.write_text(text, encoding="utf-8")
 
 
 # --- execution (M2): plan, apply, run, status, gates, approve, evidence, logs, audit ---
@@ -499,14 +496,14 @@ def _run_engine_with(ctx: Context, run_id: str, *, exit_after: bool = True) -> N
         raise typer.Exit(int(outcome.code))
 
 
-@app.command(hidden=True)
+@app.command()
 def run(
     step: Annotated[str | None, typer.Argument(help="Run only this step.")] = None,
     file: ManifestOpt = Path("asac.yaml"),
     pipeline: PipelineOpt = None,
     harness: HarnessOpt = None,
 ) -> None:
-    """Plan and apply in one step (same exit codes as apply). With a step, run only that step."""
+    """Create a run and execute it (same exit codes as apply). With a step, run only that step."""
     _run_engine(file, pipeline, None, harness, only=step)
 
 
@@ -806,7 +803,7 @@ def kill(
     typer.echo(f"run {run_id} killed")
 
 
-@app.command(hidden=True)
+@app.command()
 def learn(
     run_id: Annotated[str, typer.Argument()],
     file: ManifestOpt = Path("asac.yaml"),
