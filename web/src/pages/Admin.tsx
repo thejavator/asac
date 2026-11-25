@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Save, Archive, RotateCcw, X } from "lucide-react";
 import { useState } from "react";
 import { api, csrfHeader, unwrap } from "../api/client";
-import { Chip } from "../components/Chip";
-import { Link } from "../components/Link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Field, FormActions } from "../components/app/Form";
+import { Crumbs, Empty, ErrorAlert, Page, PageHeader, TableCard } from "../components/app/Page";
+import { StatusBadge } from "../components/StatusBadge";
 
 type ProjectForm = { id: string; name: string; manifest: string; team: string; repo: string; access: string };
 const EMPTY: ProjectForm = { id: "", name: "", manifest: "", team: "", repo: "", access: "" };
@@ -38,46 +46,76 @@ function ProjectsAdmin() {
   const set = (k: keyof ProjectForm) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
   const err = save.error ?? archive.error;
   return (
-    <section aria-labelledby="proj-h">
-      <h2 id="proj-h">Projects</h2>
-      {q.isError && <p role="alert">{q.error.message}</p>}
+    <section aria-labelledby="proj-h" className="grid gap-6">
+      {q.isError && <ErrorAlert title="Could not load projects">{q.error.message}</ErrorAlert>}
+      {q.isPending && <Skeleton className="h-40" />}
       {q.data && (
-        <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>Project</th><th className="hide-sm">Manifest</th><th>Groups that see it</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>
-            {q.data.length === 0 && <tr><td colSpan={5} className="soft">No project yet. Create the first one below.</td></tr>}
-            {q.data.map((p) => (
-              <tr key={p.id}>
-                <td>{p.name}<br /><span className="mono soft">{p.id}</span></td>
-                <td className="mono hide-sm">{p.manifest}</td>
-                <td className="mono">{p.access.join(", ") || "everyone signed in"}</td>
-                <td>{p.archived ? <Chip state="idle">Archived</Chip> : <Chip state="ok">Active</Chip>}</td>
-                <td>
-                  <button className="btn" type="button" onClick={() => { setEditing(p.id); setForm({ id: p.id, name: p.name, manifest: p.manifest, team: p.team ?? "", repo: p.repo ?? "", access: p.access.join(", ") }); }}>Edit</button>{" "}
-                  <button className="btn" type="button" onClick={() => archive.mutate(p)}>{p.archived ? "Restore" : "Archive"}</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
+        <TableCard title={<span id="proj-h">Projects</span>} description={`${q.data.length} project${q.data.length === 1 ? "" : "s"}`}>
+          {q.data.length === 0 ? <div className="p-6"><Empty>No project yet. Create the first one below.</Empty></div> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Project</TableHead><TableHead className="hidden md:table-cell">Manifest</TableHead>
+                  <TableHead>Groups that see it</TableHead><TableHead>Status</TableHead><TableHead className="pr-6 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {q.data.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="pl-6">
+                      <div className="font-medium">{p.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{p.id}</div>
+                    </TableCell>
+                    <TableCell className="hidden font-mono text-xs md:table-cell">{p.manifest}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.access.join(", ") || "everyone signed in"}</TableCell>
+                    <TableCell>{p.archived ? <StatusBadge state="idle">Archived</StatusBadge> : <StatusBadge state="ok">Active</StatusBadge>}</TableCell>
+                    <TableCell className="pr-6 text-right whitespace-nowrap">
+                      <Button variant="outline" size="sm" onClick={() => { setEditing(p.id); setForm({ id: p.id, name: p.name, manifest: p.manifest, team: p.team ?? "", repo: p.repo ?? "", access: p.access.join(", ") }); }}>
+                        <Pencil /> Edit
+                      </Button>{" "}
+                      <Button variant="ghost" size="sm" disabled={archive.isPending} onClick={() => archive.mutate(p)}>
+                        {p.archived ? <><RotateCcw /> Restore</> : <><Archive /> Archive</>}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TableCard>
       )}
-      <form className="sheet decide" aria-label={editing ? "Edit project" : "Create project"} onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-        <h3>{editing ? `Edit ${editing}` : "Create a project"}</h3>
-        {!editing && <p><label htmlFor="p-id">Identifier (lower case, digits, dashes)</label><br />
-          <input className="field" id="p-id" required pattern="[a-z][a-z0-9\-]{0,40}" value={form.id} onChange={set("id")} /></p>}
-        <p><label htmlFor="p-name">Name</label><br /><input className="field" id="p-name" required value={form.name} onChange={set("name")} /></p>
-        <p><label htmlFor="p-manifest">Path of asac.yaml on the portal server</label><br />
-          <input className="field mono" id="p-manifest" required value={form.manifest} onChange={set("manifest")} /></p>
-        <p><label htmlFor="p-team">Team</label><br /><input className="field" id="p-team" value={form.team} onChange={set("team")} /></p>
-        <p><label htmlFor="p-repo">Repository URL</label><br /><input className="field" id="p-repo" value={form.repo} onChange={set("repo")} /></p>
-        <p><label htmlFor="p-access">Groups that can see it (comma separated, empty means everyone signed in)</label><br />
-          <input className="field" id="p-access" value={form.access} onChange={set("access")} /></p>
-        {err && <p role="alert" className="notice"><span aria-hidden="true">⚠</span><span>{err.message}</span></p>}
-        <div className="actions">
-          <button className="btn btn-primary" type="submit" disabled={save.isPending}>{editing ? "Save changes" : "Create project"}</button>
-          {editing && <button className="btn" type="button" onClick={() => { setEditing(null); setForm(EMPTY); }}>Cancel</button>}
-        </div>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>{editing ? `Edit ${editing}` : "Create a project"}</CardTitle>
+          <CardDescription>{editing ? "Changes are audited." : "Each change is audited."}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form aria-label={editing ? "Edit project" : "Create project"} className="grid gap-4" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {!editing && (
+                <Field id="p-id" label="Identifier" hint="Lower case, digits and dashes.">
+                  <Input id="p-id" required pattern="[a-z][a-z0-9\-]{0,40}" className="font-mono" value={form.id} onChange={set("id")} />
+                </Field>
+              )}
+              <Field id="p-name" label="Name"><Input id="p-name" required value={form.name} onChange={set("name")} /></Field>
+              <Field id="p-manifest" label="Path of asac.yaml on the portal server" className="sm:col-span-2">
+                <Input id="p-manifest" required className="font-mono" value={form.manifest} onChange={set("manifest")} />
+              </Field>
+              <Field id="p-team" label="Team"><Input id="p-team" value={form.team} onChange={set("team")} /></Field>
+              <Field id="p-repo" label="Repository URL"><Input id="p-repo" value={form.repo} onChange={set("repo")} /></Field>
+              <Field id="p-access" label="Groups that can see it" className="sm:col-span-2"
+                hint="Comma separated. Empty means everyone signed in.">
+                <Input id="p-access" value={form.access} onChange={set("access")} />
+              </Field>
+            </div>
+            {err && <ErrorAlert title="Could not save">{err.message}</ErrorAlert>}
+            <FormActions>
+              <Button type="submit" disabled={save.isPending}>{editing ? <><Save /> Save changes</> : <><Plus /> Create project</>}</Button>
+              {editing && <Button type="button" variant="ghost" onClick={() => { setEditing(null); setForm(EMPTY); }}><X /> Cancel</Button>}
+            </FormActions>
+          </form>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -95,17 +133,24 @@ function OrganizationAdmin() {
   });
   if (!q.data) return null;
   return (
-    <section aria-labelledby="org-h">
-      <h2 id="org-h">Organisation</h2>
-      <form className="sheet decide" aria-label="Organisation" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-        <p><label htmlFor="o-name">Name</label><br />
-          <input className="field" id="o-name" required value={name ?? q.data.name} onChange={(e) => setName(e.target.value)} /></p>
-        <p><label htmlFor="o-roles">Groups that see every project (comma separated)</label><br />
-          <input className="field" id="o-roles" value={roles ?? (q.data.org_roles ?? []).join(", ")} onChange={(e) => setRoles(e.target.value)} /></p>
-        {save.error && <p role="alert" className="notice"><span aria-hidden="true">⚠</span><span>{save.error.message}</span></p>}
-        <div className="actions"><button className="btn btn-primary" type="submit" disabled={save.isPending}>Save organisation</button></div>
-      </form>
-    </section>
+    <Card aria-labelledby="org-h">
+      <CardHeader>
+        <CardTitle id="org-h">Organisation</CardTitle>
+        <CardDescription>Applies to every project.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form aria-label="Organisation" className="grid gap-4" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="o-name" label="Name"><Input id="o-name" required value={name ?? q.data.name} onChange={(e) => setName(e.target.value)} /></Field>
+            <Field id="o-roles" label="Groups that see every project" hint="Comma separated.">
+              <Input id="o-roles" value={roles ?? (q.data.org_roles ?? []).join(", ")} onChange={(e) => setRoles(e.target.value)} />
+            </Field>
+          </div>
+          {save.error && <ErrorAlert title="Could not save">{save.error.message}</ErrorAlert>}
+          <FormActions><Button type="submit" disabled={save.isPending}><Save /> Save organisation</Button></FormActions>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -113,38 +158,50 @@ export function AdminPage({ go }: { go: (to: string) => void }) {
   const users = useQuery({ queryKey: ["admin-users"], queryFn: () => unwrap(api.GET("/admin/users")) });
   const events = useQuery({ queryKey: ["admin-events"], queryFn: () => unwrap(api.GET("/admin/events")) });
   return (
-    <>
-      <p className="crumbs"><Link to="/" go={go}>All projects</Link> / Administration</p>
-      <div className="page-head"><div><h1>Administration</h1>
-        <p>Projects, organisation, people who have signed in, and every change made in the portal. Organisation admins only.</p></div></div>
+    <Page>
+      <Crumbs go={go} items={[{ label: "All projects", to: "/" }, { label: "Administration" }]} />
+      <PageHeader title="Administration" description="Projects, organisation, people who have signed in, and every change made in the portal. Organisation admins only." />
       <ProjectsAdmin />
       <OrganizationAdmin />
-      {users.isError && <p role="alert">{users.error.message}</p>}
+      {users.isError && <ErrorAlert title="Could not load people">{users.error.message}</ErrorAlert>}
       {users.data && (
-        <section aria-labelledby="users-h">
-          <h2 id="users-h">People</h2>
-          <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>Name</th><th className="hide-sm">Subject</th><th>Groups</th><th className="hide-sm">Last sign-in</th></tr></thead>
-            <tbody>{users.data.map((u) => (
-              <tr key={u.subject}><td>{u.name}</td><td className="mono hide-sm">{u.subject}</td>
-                <td className="mono">{u.claims.join(", ") || "none"}</td><td className="mono hide-sm">{u.last_login}</td></tr>
-            ))}</tbody>
-          </table></div>
-        </section>
+        <TableCard title="People" description="Everyone who has signed in, and the groups they came with.">
+          {users.data.length === 0 ? <div className="p-6"><Empty>Nobody has signed in yet.</Empty></div> : (
+            <Table>
+              <TableHeader><TableRow><TableHead className="pl-6">Name</TableHead><TableHead className="hidden md:table-cell">Subject</TableHead><TableHead>Groups</TableHead><TableHead className="hidden pr-6 md:table-cell">Last sign-in</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {users.data.map((u) => (
+                  <TableRow key={u.subject}>
+                    <TableCell className="pl-6 font-medium">{u.name}</TableCell>
+                    <TableCell className="hidden font-mono text-xs md:table-cell">{u.subject}</TableCell>
+                    <TableCell className="font-mono text-xs">{u.claims.join(", ") || "none"}</TableCell>
+                    <TableCell className="hidden pr-6 font-mono text-xs text-muted-foreground md:table-cell">{u.last_login}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TableCard>
       )}
       {events.data && (
-        <section aria-labelledby="ev-h">
-          <h2 id="ev-h">Access changes</h2>
-          {events.data.length === 0 ? <p className="soft">No change yet.</p> : (
-            <div className="tbl-wrap"><table className="tbl">
-              <thead><tr><th className="hide-sm">When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead>
-              <tbody>{events.data.map((e) => (
-                <tr key={e.seq}><td className="mono hide-sm">{e.at}</td><td>{e.actor}</td><td className="mono">{e.action}</td><td>{e.detail}</td></tr>
-              ))}</tbody>
-            </table></div>
+        <TableCard title="Access changes" description="Every change to projects, organisation and access, newest first.">
+          {events.data.length === 0 ? <div className="p-6"><Empty>No change yet.</Empty></div> : (
+            <Table>
+              <TableHeader><TableRow><TableHead className="hidden pl-6 md:table-cell">When</TableHead><TableHead>Who</TableHead><TableHead>Action</TableHead><TableHead className="pr-6">Detail</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {events.data.map((e) => (
+                  <TableRow key={e.seq}>
+                    <TableCell className="hidden pl-6 font-mono text-xs text-muted-foreground md:table-cell">{e.at}</TableCell>
+                    <TableCell>{e.actor}</TableCell>
+                    <TableCell className="font-mono text-xs">{e.action}</TableCell>
+                    <TableCell className="max-w-md pr-6 whitespace-normal break-words">{e.detail}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </section>
+        </TableCard>
       )}
-    </>
+          </Page>
   );
 }

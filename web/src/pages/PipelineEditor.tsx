@@ -1,9 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Save, Send } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api, csrfHeader, unwrap, type Schema } from "../api/client";
-import { Chip } from "../components/Chip";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { Field, FormActions } from "../components/app/Form";
+import { Code, Crumbs, Empty, ErrorAlert, Fields, Hint, Output, Page, PageHeader } from "../components/app/Page";
+import { DefinitionFlow } from "../components/app/StepNode";
 import { Link } from "../components/Link";
 import { PipelineGraph } from "../components/PipelineGraph";
+import { StatusBadge } from "../components/StatusBadge";
 import { YamlEditor } from "../components/YamlEditor";
 
 type Finding = Schema["FindingOut"];
@@ -16,55 +28,62 @@ const lineOf = (f: Finding, text: string): number | undefined => {
   return i >= 0 ? i + 1 : undefined;
 };
 
-const STATUS: Record<string, [string, string]> = {
-  draft: ["idle", "Draft"], proposed: ["wait", "Waiting for review"], applied: ["ok", "Merged"], closed: ["stop", "Closed"],
+const STATUS: Record<string, { state: "idle" | "wait" | "ok" | "stop"; label: string }> = {
+  draft: { state: "idle", label: "Draft" },
+  proposed: { state: "wait", label: "Waiting for review" },
+  applied: { state: "ok", label: "Merged" },
+  closed: { state: "stop", label: "Closed" },
 };
 
 function DraftsList({ pid, go, current }: { pid: string; go: (to: string) => void; current?: string }) {
   const q = useQuery({ queryKey: ["pipe-drafts", pid], queryFn: () => unwrap(api.GET("/projects/{pid}/pipeline/drafts", { params: { path: { pid } } })) });
-  if (q.isError) return <p role="alert">Could not load drafts: {q.error.message}</p>;
-  if (!q.data) return null;
+  if (q.isError) return <ErrorAlert title="Could not load drafts">{q.error.message}</ErrorAlert>;
+  if (!q.data) return <Skeleton className="h-24" />;
+  if (q.data.length === 0) return <Empty>No drafts yet. Save your first edit to create one.</Empty>;
   return (
-    <div className="section">
-      <h3>Drafts</h3>
-      {q.data.length === 0 ? <p className="source-note">No drafts yet. Save your first edit to create one.</p> : (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead><tr><th>Draft</th><th>Author</th><th>Updated</th><th>Status</th><th>Change request</th></tr></thead>
-            <tbody>
-              {q.data.map((d) => {
-                const [state, label] = STATUS[d.status] ?? ["idle", d.status];
-                return (
-                  <tr key={d.id} aria-current={d.id === current ? "true" : undefined}>
-                    <td><Link to={`/p/${pid}/pipeline/edit/${d.id}`} go={go}>{d.id}</Link></td>
-                    <td>{d.author}</td><td className="mono">{d.updated_at}</td>
-                    <td><Chip state={state as never}>{label}</Chip></td>
-                    <td>{d.change_request_url ? <a href={d.change_request_url} rel="noreferrer noopener" target="_blank">Open</a> : <span className="soft">none</span>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow><TableHead className="pl-6">Draft</TableHead><TableHead>Author</TableHead><TableHead>Updated</TableHead><TableHead>Status</TableHead><TableHead className="pr-6">Change request</TableHead></TableRow>
+      </TableHeader>
+      <TableBody>
+        {q.data.map((d) => {
+          const s = STATUS[d.status] ?? { state: "idle" as const, label: d.status };
+          return (
+            <TableRow key={d.id} data-current={d.id === current || undefined} className={cn(d.id === current && "bg-accent")}>
+              <TableCell className="pl-6 font-mono text-xs"><Link to={`/p/${pid}/pipeline/edit/${d.id}`} go={go} className="underline-offset-4 hover:underline">{d.id}</Link></TableCell>
+              <TableCell>{d.author}</TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">{d.updated_at}</TableCell>
+              <TableCell><StatusBadge state={s.state}>{s.label}</StatusBadge></TableCell>
+              <TableCell className="pr-6">
+                {d.change_request_url
+                  ? <a className="underline-offset-4 hover:underline" href={d.change_request_url} rel="noreferrer noopener" target="_blank">Open</a>
+                  : <span className="text-muted-foreground">none</span>}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
 function Diff({ text }: { text: string }) {
-  if (!text) return <p className="source-note">No changes yet.</p>;
+  if (!text) return <Hint>No changes yet.</Hint>;
   return (
-    <pre className="diff" aria-label="Changes against the base file">
-      {text.split("\n").map((l, i) => (
-        <span key={i} className={l.startsWith("+") && !l.startsWith("+++") ? "add" : l.startsWith("-") && !l.startsWith("---") ? "del" : undefined}>{l}{"\n"}</span>
-      ))}
-    </pre>
+    <Output label="Changes against the base file" className="max-h-96">
+      {text.split("\n").map((l, i) => {
+        const add = l.startsWith("+") && !l.startsWith("+++");
+        const del = l.startsWith("-") && !l.startsWith("---");
+        return (
+          <span key={i} className={cn("block", add && "bg-success/10 text-success", del && "bg-destructive/10 text-destructive")}>{l || " "}</span>
+        );
+      })}
+    </Output>
   );
 }
 
 export function PipelineEditorPage({ pid, draftId, go }: { pid: string; draftId?: string; go: (to: string) => void }) {
   const qc = useQueryClient();
-  const base = `/projects/{pid}/pipeline` as const;
   const source = useQuery({ queryKey: ["pipe-source", pid], queryFn: () => unwrap(api.GET("/projects/{pid}/pipeline/source", { params: { path: { pid } } })), enabled: !draftId, retry: false });
   const draft = useQuery({
     queryKey: ["pipe-draft", pid, draftId],
@@ -122,93 +141,126 @@ export function PipelineEditorPage({ pid, draftId, go }: { pid: string; draftId?
 
   const loadError = (draftId ? draft.error : source.error)?.message;
   const alone = errors.length > 0 ? "Fix the errors first" : stale ? "Checking…" : dirty ? "Save the draft first" : "";
+  const d = draft.data;
+  const statusState = STATUS[status]?.state ?? "idle";
 
   return (
-    <>
-      <p className="crumbs"><Link to="/" go={go}>All projects</Link> / {pid} / <Link to={`/p/${pid}/pipeline`} go={go}>Pipeline</Link> / Edit</p>
-      <div className="page-head">
-        <div><h1>Edit pipeline</h1>
-          <p>Changes are kept as a draft. Nothing reaches git until you propose them, and then only as a change request someone else approves.</p></div>
-        <div className="draft-state" role="status">
-          <span>{status === "new" ? "Not saved yet" : `Draft ${draftId}`}</span>
-          {draft.data && <Chip state={status === "applied" ? "ok" : status === "proposed" ? "wait" : status === "closed" ? "stop" : "idle"}>
-            {status === "draft" ? "Draft" : status === "proposed" ? "Waiting for review" : status === "applied" ? "Merged" : "Closed"}</Chip>}
-          {draft.data?.base_sha && <span className="mono">based on {draft.data.base_sha.slice(0, 8)}</span>}
-        </div>
-      </div>
-      {loadError && <p role="alert">Could not load the pipeline file: {loadError}</p>}
+    <Page wide>
+      <Crumbs go={go} items={[{ label: "All projects", to: "/" }, { label: pid, to: `/p/${pid}/runs` }, { label: "Pipeline", to: `/p/${pid}/pipeline` }, { label: "Edit" }]} />
+      <PageHeader
+        title="Edit pipeline"
+        description="Changes are kept as a draft. Nothing reaches git until you propose them, and then only as a change request someone else approves."
+        badge={
+          <div className="flex flex-wrap items-center gap-2" role="status">
+            <Badge variant="outline">{status === "new" ? "Not saved yet" : `Draft ${draftId}`}</Badge>
+            {d && <StatusBadge state={statusState}>{STATUS[status]?.label ?? "Closed"}</StatusBadge>}
+            {d?.base_sha && <Code>based on {d.base_sha.slice(0, 8)}</Code>}
+          </div>
+        }
+      />
+      {loadError && <ErrorAlert title="Could not load the pipeline file">{loadError}</ErrorAlert>}
+
       {text !== undefined && (
-        <article className="sheet" aria-label="Pipeline editor">
-          <div className="section">
-            <h3>Flow</h3>
-            {pipes.length > 1 && (
-              <form className="quiet-form" onSubmit={(e) => e.preventDefault()} aria-label="Choose pipeline">
-                <label className="soft" htmlFor="pe">Pipeline</label>
-                <select className="field" id="pe" value={pipe?.name} onChange={(e) => { setPipeName(e.target.value); setStepId(undefined); }}>
-                  {pipes.map((p) => <option key={p.name}>{p.name}</option>)}
-                </select>
-              </form>
-            )}
-            {pipe ? <PipelineGraph steps={pipe.steps} current={step?.id} onPick={setStepId} /> : <p className="source-note">The flow appears once the file parses.</p>}
-          </div>
-          <div className="pipe-grid">
-            <div className="section">
-              <h3>Step inspector</h3>
-              {step ? (
-                <>
-                  <h4 className="inspector-title">{step.id}</h4>
-                  <dl className="fields">
-                    <dt>Agent</dt><dd className="mono">{step.agent ?? "none"}</dd>
-                    <dt>Depends on</dt><dd className="mono">{step.depends_on.join(", ") || "nothing"}</dd>
-                    <dt>Requires</dt><dd className="mono">{step.requires.join(", ") || "nothing"}</dd>
-                    <dt>Produces</dt><dd className="mono">{step.produces.join(", ") || "nothing"}</dd>
-                    <dt>Gate</dt><dd>{step.gate_role ? `signed by ${step.gate_role}` : "no human gate"}</dd>
-                  </dl>
-                </>
-              ) : <p className="source-note">Pick a step in the flow.</p>}
-              <h3>Checks</h3>
-              {findings.length === 0 ? (
-                <ul className="checks"><li data-state={stale ? "wait" : "ok"}><span className="sym" aria-hidden="true">{stale ? "…" : "✓"}</span>
-                  <span className="what"><b>{stale ? "Checking" : "No problems found"}</b></span><Chip state={stale ? "wait" : "ok"}>{stale ? "Checking" : "Valid"}</Chip></li></ul>
-              ) : (
-                <ul className="checks">
-                  {findings.map((f, i) => (
-                    <li key={i} data-state={f.severity === "error" ? "bad" : "wait"}>
-                      <span className="sym" aria-hidden="true">{f.severity === "error" ? "✕" : "!"}</span>
-                      <span className="what"><b>{f.message}</b><span className="mono">{f.code}{f.path ? ` · ${f.path}` : ""}</span></span>
-                      <Chip state={f.severity === "error" ? "bad" : "wait"}>{f.severity === "error" ? "Error" : "Warning"}</Chip>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="section">
-              <h3>asac.yaml</h3>
-              <YamlEditor value={text} onChange={setText} badLines={badLines} readOnly={!editable} label="asac.yaml source" />
-              {!editable && <p className="source-note">This draft is {status}. Start a new edit to change the file again.</p>}
-            </div>
-          </div>
-          <div className="section">
-            <h3>Changes</h3>
-            <Diff text={dirty || draftId ? (draft.data && !dirty ? draft.data.diff : localDiff(original ?? "", text)) : ""} />
-            {conflict && (
-              <div role="alert">
-                <p><b>The default branch changed this file since your draft was based on it.</b> Copy your edits, start a new edit from the current file and apply them again. Upstream changes:</p>
-                <Diff text={conflict.diff} />
+        <>
+          <Card className="py-3">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Flow</CardTitle>
+                <CardDescription>{pipe ? `${pipe.steps.length} steps` : "The flow appears once the file parses."}</CardDescription>
               </div>
-            )}
-            {draft.data?.change_request_url && <p>Change request: <a href={draft.data.change_request_url} rel="noreferrer noopener" target="_blank">{draft.data.change_request_url}</a></p>}
-            {(save.error || propose.error) && !conflict && <p role="alert">{(save.error ?? propose.error)!.message}</p>}
+              {pipes.length > 1 && (
+                <Select value={pipe?.name} onValueChange={(v) => { setPipeName(v); setStepId(undefined); }}>
+                  <SelectTrigger aria-label="Pipeline" className="w-48"><SelectValue /></SelectTrigger>
+                  <SelectContent>{pipes.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              )}
+            </CardHeader>
+            <CardContent className="px-4">
+              {pipe ? <PipelineGraph steps={pipe.steps} current={step?.id} onPick={setStepId} /> : <Hint>The flow appears once the file parses.</Hint>}
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader><CardTitle>Step inspector</CardTitle></CardHeader>
+                <CardContent>
+                  {step ? (
+                    <div className="grid gap-4">
+                      <div className="text-base font-medium">{step.id}</div>
+                      <Fields rows={[
+                        ["Agent", <Code key="a">{step.agent ?? "none"}</Code>],
+                        ["Depends on", step.depends_on.length ? step.depends_on.join(", ") : "nothing"],
+                        ["Requires", step.requires.length ? step.requires.join(", ") : "nothing"],
+                        ["Produces", step.produces.length ? step.produces.join(", ") : "nothing"],
+                        ["Gate", step.gate_role ? `signed by ${step.gate_role}` : "no human gate"],
+                      ]} />
+                    </div>
+                  ) : <Hint>Pick a step in the flow.</Hint>}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle>Checks</CardTitle></CardHeader>
+                <CardContent className="grid gap-2">
+                  {findings.length === 0 ? (
+                    <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                      <span>{stale ? "Checking" : "No problems found"}</span>
+                      <StatusBadge state={stale ? "wait" : "ok"}>{stale ? "Checking" : "Valid"}</StatusBadge>
+                    </div>
+                  ) : findings.map((f, i) => (
+                    <div key={i} className="grid gap-1 rounded-lg border p-3 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge state={f.severity === "error" ? "bad" : "wait"}>{f.severity === "error" ? "Error" : "Warning"}</StatusBadge>
+                        <span className="font-medium">{f.message}</span>
+                      </div>
+                      <span className="font-mono text-xs text-muted-foreground">{f.code}{f.path ? ` · ${f.path}` : ""}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>asac.yaml</CardTitle>
+                {!editable && <CardDescription>This draft is {status}. Start a new edit to change the file again.</CardDescription>}
+              </CardHeader>
+              <CardContent>
+                <YamlEditor value={text} onChange={setText} badLines={badLines} readOnly={!editable} label="asac.yaml source" />
+              </CardContent>
+            </Card>
           </div>
-          <div className="section pipe-foot">
-            <button className="btn" type="button" disabled={!editable || !dirty || save.isPending} onClick={() => save.mutate()}>{draftId ? "Save draft" : "Save as draft"}</button>
-            <button className="btn btn-primary" type="button" disabled={!draftId || !editable || errors.length > 0 || stale || dirty || propose.isPending} onClick={() => propose.mutate()}>Propose change</button>
-            {editable && alone && <span className="alone">{alone}</span>}
-          </div>
-        </article>
+
+          <Card>
+            <CardHeader><CardTitle>Changes</CardTitle></CardHeader>
+            <CardContent className="grid gap-4">
+              <Diff text={dirty || draftId ? (draft.data && !dirty ? draft.data.diff : localDiff(original ?? "", text)) : ""} />
+              {conflict && (
+                <Alert variant="destructive" role="alert">
+                  <AlertTitle>The default branch changed this file since your draft was based on it</AlertTitle>
+                  <AlertDescription className="grid gap-3">
+                    <p>Copy your edits, start a new edit from the current file and apply them again. Upstream changes:</p>
+                    <Diff text={conflict.diff} />
+                  </AlertDescription>
+                </Alert>
+              )}
+              {d?.change_request_url && <p className="text-sm">Change request: <a className="underline-offset-4 hover:underline" href={d.change_request_url} rel="noreferrer noopener" target="_blank">{d.change_request_url}</a></p>}
+              {(save.error || propose.error) && !conflict && <ErrorAlert title="Could not save">{(save.error ?? propose.error)!.message}</ErrorAlert>}
+              <FormActions note={editable ? alone : undefined}>
+                <Button variant="outline" disabled={!editable || !dirty || save.isPending} onClick={() => save.mutate()}><Save /> {draftId ? "Save draft" : "Save as draft"}</Button>
+                <Button disabled={!draftId || !editable || errors.length > 0 || stale || dirty || propose.isPending} onClick={() => propose.mutate()}><Send /> Propose change</Button>
+              </FormActions>
+            </CardContent>
+          </Card>
+        </>
       )}
-      <article className="sheet" aria-label="Drafts"><DraftsList pid={pid} go={go} current={draftId} /></article>
-    </>
+
+      <Card className="gap-0 overflow-hidden py-0">
+        <CardHeader className="border-b py-4"><CardTitle>Drafts</CardTitle></CardHeader>
+        <DraftsList pid={pid} go={go} current={draftId} />
+      </Card>
+    </Page>
   );
 }
 

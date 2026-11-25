@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "../api/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Code, Crumbs, ErrorAlert, Fields, Hint, Page, PageHeader } from "../components/app/Page";
+import { DefinitionFlow } from "../components/app/StepNode";
 import { Link } from "../components/Link";
 
 export function PipelinePage({ pid, go }: { pid: string; go: (to: string) => void }) {
@@ -9,63 +16,53 @@ export function PipelinePage({ pid, go }: { pid: string; go: (to: string) => voi
   const [stepId, setStepId] = useState<string>();
   const pipe = q.data?.find((p) => p.name === name) ?? q.data?.[0];
   const step = pipe?.steps.find((s) => s.id === stepId) ?? pipe?.steps[0];
-  const w = 150, gap = 80;
   return (
-    <>
-      <p className="crumbs"><Link to="/" go={go}>All projects</Link> / {pid} / Pipeline</p>
-      <div className="page-head">
-        <div><h1>Pipeline {pipe && <span className="mono">{pipe.name}</span>}</h1>
-          <p>Steps, the evidence each one needs and produces, and who signs each gate.</p></div>
-        <Link to={`/p/${pid}/pipeline/edit`} go={go}>Edit pipeline</Link>
-        {q.data && q.data.length > 1 && (
-          <form className="quiet-form" aria-label="Choose pipeline" onSubmit={(e) => e.preventDefault()}>
-            <label className="soft" htmlFor="pipe">Pipeline</label>
-            <select className="field" id="pipe" value={pipe?.name} onChange={(e) => { setName(e.target.value); setStepId(undefined); }}>
-              {q.data.map((p) => <option key={p.name}>{p.name}</option>)}
-            </select>
-          </form>
-        )}
-      </div>
-      {q.isError && <p role="alert">Could not load pipelines: {q.error.message}</p>}
+    <Page>
+      <Crumbs go={go} items={[{ label: "All projects", to: "/" }, { label: pid, to: `/p/${pid}/runs` }, { label: "Pipeline" }]} />
+      <PageHeader
+        title={<>Pipeline {pipe && <Code>{pipe.name}</Code>}</>}
+        description="Steps, the evidence each one needs and produces, and who signs each gate."
+        actions={
+          <>
+            {q.data && q.data.length > 1 && (
+              <Select value={pipe?.name} onValueChange={(v) => { setName(v); setStepId(undefined); }}>
+                <SelectTrigger aria-label="Pipeline" className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>{q.data.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+              </Select>
+            )}
+            <Button asChild><Link to={`/p/${pid}/pipeline/edit`} go={go}><Pencil /> Edit pipeline</Link></Button>
+          </>
+        }
+      />
+      {q.isError && <ErrorAlert title="Could not load pipelines">{q.error.message}</ErrorAlert>}
+      {q.isPending && <Skeleton className="h-48" />}
       {pipe && step && (
-        <article className="sheet" aria-label={`${pipe.name} pipeline`}>
-          <div className="section">
-            <h3>Flow and evidence</h3>
-            <div className="scroll-x">
-              <svg className="pipe-graph" viewBox={`0 0 ${pipe.steps.length * (w + gap) - gap + 16} 100`} role="img"
-                   aria-label={`Steps in order: ${pipe.steps.map((s) => s.id).join(", ")}`}>
-                {pipe.steps.slice(1).map((s, i) => <path key={s.id} className="edge" d={`M${8 + i * (w + gap) + w} 42 H${8 + (i + 1) * (w + gap)}`} />)}
-                {pipe.steps.map((s, i) => {
-                  const x = 8 + i * (w + gap);
-                  return (
-                    <g key={s.id} className="node" data-state="idle" aria-current={s.id === step.id ? "step" : undefined}
-                       tabIndex={0} role="button" onClick={() => setStepId(s.id)}
-                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setStepId(s.id); }}>
-                      <rect x={x} y={10} width={w} height={66} rx={6} />
-                      <text x={x + 12} y={32}>{s.id}</text>
-                      <text className="sub" x={x + 12} y={50}>{s.agent ?? "no agent"}</text>
-                      <text className="sub" x={x + 12} y={66}>{s.gate_role ? `gate: ${s.gate_role}` : "no gate"}</text>
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-            <p className="source-note">Each arrow carries the evidence that must exist before the next step may start.</p>
-          </div>
-          <div className="section">
-            <h3>Step inspector</h3>
-            <h4 className="inspector-title">{step.id}</h4>
-            <dl className="fields">
-              <dt>Agent</dt><dd className="mono">{step.agent ?? "none"}</dd>
-              <dt>Depends on</dt><dd className="mono">{step.depends_on.join(", ") || "nothing"}</dd>
-              <dt>Requires</dt><dd className="mono">{step.requires.join(", ") || "nothing"}</dd>
-              <dt>Produces</dt><dd className="mono">{step.produces.join(", ") || "nothing"}</dd>
-              <dt>Gate</dt><dd>{step.gate_role ? `signed by ${step.gate_role}` : "no human gate"}</dd>
-            </dl>
-            <p className="source-note">Read only. Changes are proposed from the editor and saved to git through a merge request.</p>
-          </div>
-        </article>
+        <>
+          <Card className="py-3">
+            <CardContent className="grid gap-3 px-4">
+              <DefinitionFlow steps={pipe.steps} current={step.id} onPick={setStepId} />
+              <Hint>Each arrow carries the evidence that must exist before the next step may start.</Hint>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{step.id}</CardTitle>
+              <CardDescription>Step inspector. Read only: changes are proposed from the editor.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Fields
+                rows={[
+                  ["Agent", <Code key="a">{step.agent ?? "none"}</Code>],
+                  ["Depends on", step.depends_on.length ? step.depends_on.join(", ") : "nothing"],
+                  ["Requires", step.requires.length ? step.requires.join(", ") : "nothing"],
+                  ["Produces", step.produces.length ? step.produces.join(", ") : "nothing"],
+                  ["Gate", step.gate_role ? `signed by ${step.gate_role}` : "no human gate"],
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
-    </>
+    </Page>
   );
 }
