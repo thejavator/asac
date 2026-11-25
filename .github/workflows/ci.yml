@@ -12,6 +12,8 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest -n auto
-      - run: opa check --strict examples/payments-service/.asac/policies
-      - run: opa test examples/payments-service/.asac/policies
+      - run: |
+          for p in examples/*/.asac/policies; do
+            opa check --strict "$p" && opa test "$p" || exit 1
+          done
       - run: uv run --with zensical zensical build --strict

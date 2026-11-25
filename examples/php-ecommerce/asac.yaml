@@ -1,0 +1,310 @@
+# Fil de la livraison d'une fonctionnalité sur un site e-commerce PHP (Symfony, MySQL).
+# Ce que ce cas montre et que les deux autres ne montrent pas :
+#   - un site qui TOUCHE À L'ARGENT : les règles bloquantes y sont plus nombreuses (paiement, prix),
+#   - un jeu de règles Rego qui juge le DIFF réel, calculé par un contrôle, pas le rapport de l'outil,
+#   - plusieurs rôles qui ne se confondent pas (développeur, sécurité, conformité, direction),
+#   - une porte de livraison que la v1 ne sait pas déployer : le résultat est une branche, un humain fusionne,
+#   - des étapes en parallèle (SEO et performance) sur le même résultat.
+#
+# `asac validate` signale en avertissement (ASAC027) les clés que la v1 accepte sans les appliquer.
+asac:
+  spec: "0.4"
+  workspace: boutique-en-ligne
+  team: ecommerce
+
+variables:
+  tool:          { type: harness, description: "Outil des étapes où une personne travaille avec l'agent" }
+  dev_tool:      { type: harness, description: "Outil des étapes sans personne : claude-code" }
+  llm_api_key:   { type: string, sensitive: true }
+  payment_key:   { type: string, sensitive: true, description: "Clé de test du prestataire de paiement (jamais la clé de production)" }
+  php_version:   { type: string, default: "8.3" }
+  perf_budget_ms: { type: string, default: "800", description: "Temps de réponse maximal d'une page de catégorie, en ms" }
+
+providers:
+  llm:
+    source: asac/claude
+    version: "~> 1.0"
+    config: { api_key: var.llm_api_key }
+  payments:
+    source: asac/payments
+    version: "~> 2.0"
+    config: { key: var.payment_key }
+  # Lecture du schéma de la base MySQL de développement. Le secret est une référence, pas une valeur.
+  mysql-mcp:
+    source: asac/mcp
+    mcp:
+      url: https://mcp.example-internal.test/mysql
+      env: { Authorization: "${vault.shop/mysql-mcp-token}" }
+
+capabilities:
+  specification_engineering:
+    description: Écrire la spécification, ses critères et ses impacts (prix, stock, RGPD)
+    evidence: [spec_reviewed, impact_assessed]
+  backend_implementation:
+    description: Implémenter le code Symfony et ses tests
+    evidence: [php_tests_green, static_analysis_clean]
+  payment_change:
+    description: "Modifier un flux de paiement ou de calcul de prix : sous contrôle renforcé"
+    evidence: [payment_tests_green, security_reviewed]
+  seo_audit:
+    description: Vérifier le référencement des pages touchées
+    evidence: [seo_ok]
+  performance_audit:
+    description: Vérifier le temps de réponse des pages touchées
+    evidence: [perf_ok]
+  compliance_review:
+    description: Vérifier la conformité (RGPD, mentions légales, TVA)
+    evidence: [compliance_approved]
+  release:
+    description: Préparer la branche livrable
+    evidence: [release_approved]
+
+evidenceTypes:
+  spec_reviewed:         { description: Spécification approuvée par le product owner }
+  impact_assessed:       { description: "Impacts sur les prix, le stock et les données personnelles évalués" }
+  php_tests_green:       { description: Les tests PHPUnit passent }
+  static_analysis_clean: { description: PHPStan sans erreur au niveau configuré }
+  payment_tests_green:   { description: "Les tests du flux de paiement passent, y compris les cas d'échec" }
+  security_reviewed:     { description: Revue de sécurité du changement de paiement }
+  seo_ok:                { description: "Balises, URL canoniques et plan du site cohérents" }
+  perf_ok:               { description: Temps de réponse sous le budget }
+  compliance_approved:   { description: Conformité approuvée }
+  release_approved:      { description: Livraison approuvée par la direction }
+
+skills:
+  spec:
+    ref: .asac/skills/spec.md
+    fulfils: specification_engineering
+  symfony:
+    ref: .asac/skills/symfony-impl.md
+    fulfils: backend_implementation
+    params: { php: "8.3", framework: symfony, test_framework: phpunit, static_analysis: phpstan }
+  payments:
+    ref: .asac/skills/payment-change.md
+    fulfils: payment_change
+  seo:
+    ref: .asac/skills/seo.md
+    fulfils: seo_audit
+  perf:
+    ref: .asac/skills/perf.md
+    fulfils: performance_audit
+  compliance:
+    ref: .asac/skills/compliance.md
+    fulfils: compliance_review
+  release:
+    ref: .asac/skills/release.md
+    fulfils: release
+
+agents:
+  analyst:
+    skill: spec
+    provider: llm
+    harness: var.tool
+    tools: [mysql-mcp]
+  backend:
+    skill: symfony
+    provider: llm
+    harness: var.dev_tool
+    instructions: [.asac/instructions/php-conventions.md, .asac/instructions/security.md]
+  payments-dev:
+    skill: payments
+    provider: llm
+    harness: var.dev_tool
+    tools: [payments]
+    instructions: [.asac/instructions/php-conventions.md, .asac/instructions/security.md, .asac/instructions/payments.md]
+  seo-auditor:
+    skill: seo
+    provider: llm
+    harness: var.tool
+  perf-auditor:
+    skill: perf
+    provider: llm
+    harness: var.tool
+  compliance-officer:
+    skill: compliance
+    provider: llm
+    harness: var.tool
+  releaser:
+    skill: release
+    provider: llm
+    harness: var.tool
+
+instructions:
+  - ref: .asac/instructions/php-conventions.md
+  - ref: .asac/instructions/security.md
+  - ref: .asac/instructions/payments.md
+
+# Budget plus serré qu'ailleurs : un site qui encaisse ne laisse pas un agent tourner sans plafond.
+budgets:
+  per_run:  { tokens: 2000000, cost_usd: 15, wall_clock: 6h }
+  per_step: { iterations: 4 }
+
+hooks:
+  definitions:
+    no-secrets:    { run: .asac/hooks/no-secrets.sh,    on_fail: block }
+    spec-present:  { run: .asac/hooks/spec-present.sh,  on_fail: block }
+    phpunit:       { run: .asac/hooks/phpunit.sh,       on_fail: block }
+    phpstan:       { run: .asac/hooks/phpstan.sh,       on_fail: block }
+    no-debug:      { run: .asac/hooks/no-debug.sh,      on_fail: block }
+    sql-safe:      { run: .asac/hooks/sql-safe.sh,      on_fail: block }
+    money-types:   { run: .asac/hooks/money-types.sh,   on_fail: block }
+    payment-scope: { run: .asac/hooks/payment-scope.sh, on_fail: block }
+    seo-check:     { run: .asac/hooks/seo-check.sh,     on_fail: warn }
+    perf-check:    { run: .asac/hooks/perf-check.sh,    on_fail: warn }
+  pre_tool:  [no-secrets]
+  post_step: [no-debug]
+
+pipelines:
+  # Fonctionnalité ordinaire : ne touche ni au paiement ni au calcul des prix.
+  feature:
+    description: "Fonctionnalité : spec, code, puis SEO et performance en parallèle, conformité, livraison"
+    timeout: 72h
+    steps:
+      requirements:
+        capability: specification_engineering
+        agent: analyst
+        mode: assist
+        autonomy: review
+        producesEvidence: [spec_reviewed, impact_assessed]
+        hooks: { post_step: [spec-present] }
+        gate: { type: human, role: product_owner, timeout: 24h }
+
+      implementation:
+        capability: backend_implementation
+        agent: backend
+        mode: delegate
+        execution: { runner: docker, fallback: assist }
+        autonomy: review
+        dependsOn: [requirements]
+        requiresEvidence: [spec_reviewed]
+        producesEvidence: [php_tests_green, static_analysis_clean]
+        hooks: { post_step: [phpstan, sql-safe] }
+        loop: { until: [phpunit, phpstan], max_iterations: 5 }
+        gate: { type: human, role: tech_lead, timeout: 24h }
+
+      # seo et performance dépendent de la même étape : le plan les met dans la même vague.
+      seo:
+        capability: seo_audit
+        agent: seo-auditor
+        mode: assist
+        autonomy: readonly
+        dependsOn: [implementation]
+        requiresEvidence: [php_tests_green]
+        producesEvidence: [seo_ok]
+        hooks: { post_step: [seo-check] }
+        gate: { type: human, role: marketing, timeout: 24h }
+
+      performance:
+        capability: performance_audit
+        agent: perf-auditor
+        mode: assist
+        autonomy: readonly
+        dependsOn: [implementation]
+        requiresEvidence: [php_tests_green]
+        producesEvidence: [perf_ok]
+        hooks: { post_step: [perf-check] }
+        gate: { type: human, role: tech_lead, timeout: 24h }
+
+      compliance:
+        capability: compliance_review
+        agent: compliance-officer
+        mode: assist
+        autonomy: readonly
+        dependsOn: [seo, performance]
+        requiresEvidence: [seo_ok, perf_ok, impact_assessed]
+        producesEvidence: [compliance_approved]
+        gate: { type: human, role: compliance_officer, timeout: 48h }
+
+      release:
+        capability: release
+        agent: releaser
+        mode: assist
+        dependsOn: [compliance]
+        requiresEvidence: [compliance_approved, php_tests_green, static_analysis_clean]
+        producesEvidence: [release_approved]
+        # La v1 ne déploie pas : le résultat est la branche asac/<run>, que quelqu'un fusionne.
+        gate: { type: human, role: head_of_ecommerce, timeout: 48h }
+
+  # Changement de paiement ou de prix : plus de contrôles, deux gates de rôles différents, et une
+  # gate « qualité » dont la politique Rego juge le CONTENU du changement.
+  payment-change:
+    description: "Modification d'un flux de paiement ou du calcul d'un prix"
+    timeout: 96h
+    steps:
+      requirements:
+        capability: specification_engineering
+        agent: analyst
+        mode: assist
+        autonomy: review
+        producesEvidence: [spec_reviewed, impact_assessed]
+        hooks: { post_step: [spec-present] }
+        gate: { type: human, role: product_owner, timeout: 24h }
+
+      payment-implementation:
+        capability: payment_change
+        agent: payments-dev
+        mode: delegate
+        execution: { runner: docker }   # pas de repli vers une personne : un paiement ne se fait pas « à la main »
+        autonomy: review
+        dependsOn: [requirements]
+        requiresEvidence: [spec_reviewed, impact_assessed]
+        producesEvidence: [payment_tests_green]
+        hooks: { post_step: [phpstan, sql-safe, money-types, payment-scope] }
+        loop: { until: [phpunit, money-types], max_iterations: 4 }
+        # Une politique du dépôt, évaluée sur le rapport de l'outil : un coût inconnu ou un tour trop cher.
+        policies: [payment-guard]
+        gate: { type: human, role: tech_lead, timeout: 24h }
+
+      security-review:
+        capability: payment_change
+        agent: payments-dev
+        mode: assist
+        autonomy: readonly             # la revue lit, ne modifie pas
+        dependsOn: [payment-implementation]
+        requiresEvidence: [payment_tests_green]
+        producesEvidence: [security_reviewed]
+        # Deux politiques sur l'étape ; la gate est tenue par la sécurité, pas par le développeur.
+        policies: [payment-guard]
+        gate: { type: quality, role: security_officer, policy: .asac/policies/payment-gate.rego, timeout: 48h }
+
+      compliance:
+        capability: compliance_review
+        agent: compliance-officer
+        mode: assist
+        autonomy: readonly
+        dependsOn: [security-review]
+        requiresEvidence: [security_reviewed, impact_assessed]
+        producesEvidence: [compliance_approved]
+        gate: { type: human, role: compliance_officer, timeout: 48h }
+
+      release:
+        capability: release
+        agent: releaser
+        mode: assist
+        dependsOn: [compliance]
+        requiresEvidence: [compliance_approved, payment_tests_green]
+        producesEvidence: [release_approved]
+        gate: { type: human, role: head_of_ecommerce, timeout: 48h }
+
+  # Correction urgente d'un bug visible : un développeur, un relecteur, mêmes contrôles de base.
+  hotfix:
+    description: Correction urgente d'un défaut visible, hors paiement
+    timeout: 8h
+    steps:
+      fix:
+        capability: backend_implementation
+        agent: backend
+        mode: delegate
+        execution: { runner: docker, fallback: assist }
+        producesEvidence: [php_tests_green, static_analysis_clean]
+        hooks: { post_step: [phpstan, sql-safe] }
+        loop: { until: [phpunit, phpstan], max_iterations: 3 }
+        gate: { type: human, role: tech_lead, timeout: 4h }
+      ship:
+        capability: release
+        agent: releaser
+        mode: assist
+        dependsOn: [fix]
+        requiresEvidence: [php_tests_green]
+        producesEvidence: [release_approved]
+        gate: { type: human, role: head_of_ecommerce, timeout: 4h }

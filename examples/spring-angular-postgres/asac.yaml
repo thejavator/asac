@@ -1,0 +1,282 @@
+# Fil de la livraison d'une fonctionnalité sur une application à trois étages :
+#   backend Java 21 / Spring Boot 3 (Maven)  +  frontend Angular  +  base PostgreSQL (Flyway).
+#
+# Ce manifeste est l'exemple « tout y est » : chaque clé que la v1 applique est utilisée au moins
+# une fois, et les clés que la v1 accepte sans les appliquer sont signalées par `asac validate`
+# (avertissements ASAC027) au lieu d'être cachées. Lisez les commentaires « Appliqué ? ».
+asac:
+  spec: "0.4"
+  workspace: shop-platform
+  team: platform
+
+# ── Variables : l'interface avec la couche 2 (asac.vars.yaml) ──────────────────────────────────
+variables:
+  tool:           { type: harness, description: "Outil qui fait le travail d'analyse et de revue (claude-code, codex, cursor, bob, copilot)" }
+  dev_tool:       { type: harness, description: "Outil des étapes sans personne : doit pouvoir tourner sans interface (claude-code)" }
+  llm_api_key:    { type: string, sensitive: true, description: Clé de l'API du modèle }
+  db_url:         { type: string, sensitive: true, description: "URL JDBC de la base de développement du run" }
+  jira_url:       { type: string, default: "https://jira.example.com" }
+  jira_token:     { type: string, sensitive: true }
+  coverage_floor: { type: string, default: "80", description: "Couverture minimale du backend, en pourcent" }
+
+# ── Fournisseurs : structure seulement, les valeurs viennent de la couche 2 ────────────────────
+providers:
+  llm:
+    source: asac/claude
+    version: "~> 1.0"
+    config: { api_key: var.llm_api_key }
+  jira:
+    source: asac/jira
+    version: "~> 1.2"
+    config: { url: var.jira_url, token: var.jira_token }
+  # Serveur MCP : donne à l'agent un accès LECTURE à la base du run, pas à la production.
+  # Le secret est une référence ${vault…}, jamais une valeur écrite ici (ASAC025).
+  postgres-mcp:
+    source: asac/mcp
+    mcp:
+      command: uvx
+      args: [postgres-mcp, --access-mode=restricted]
+      env: { DATABASE_URI: "${vault.shop/db-readonly-uri}" }
+
+# ── Capacités : CE QUI doit être accompli ──────────────────────────────────────────────────────
+capabilities:
+  specification_engineering:
+    description: Transformer une demande en spécification avec critères d'acceptation
+    outputs: [SPEC.md]
+    evidence: [spec_reviewed]
+  database_migration:
+    description: Faire évoluer le schéma PostgreSQL par une migration Flyway réversible
+    inputs: [SPEC.md]
+    evidence: [migration_validated]
+  backend_implementation:
+    description: Implémenter l'API Spring Boot et ses tests
+    inputs: [SPEC.md]
+    evidence: [backend_tests_green]
+  frontend_implementation:
+    description: Implémenter l'écran Angular et ses tests
+    inputs: [SPEC.md]
+    evidence: [frontend_tests_green]
+  integration_verification:
+    description: Vérifier l'ensemble (contrat d'API, couverture, dépendances)
+    evidence: [contract_verified, coverage_ok, deps_verified]
+  release:
+    description: Préparer la livraison de la branche
+    evidence: [release_approved]
+
+# ── Preuves ────────────────────────────────────────────────────────────────────────────────────
+evidenceTypes:
+  spec_reviewed:        { description: Spécification relue et approuvée par le product owner }
+  migration_validated:  { description: La migration s'applique sur une base vide et s'annule proprement }
+  backend_tests_green:  { description: Les tests Maven passent }
+  frontend_tests_green: { description: Les tests Angular passent }
+  contract_verified:    { description: L'API du backend et le client Angular décrivent le même contrat }
+  coverage_ok:          { description: La couverture du backend atteint le seuil }
+  deps_verified:        { description: Aucune dépendance hors de la liste autorisée }
+  release_approved:     { description: Livraison approuvée par le product owner }
+
+# ── Skills : COMMENT. Locaux (versionnés avec le code), donc validés sans registre ─────────────
+skills:
+  spec:
+    ref: .asac/skills/spec.md
+    fulfils: specification_engineering
+  db:
+    ref: .asac/skills/db-migration.md
+    fulfils: database_migration
+    params: { tool: flyway, naming: "V<yyyyMMddHHmm>__<description>.sql" }
+  spring:
+    ref: .asac/skills/spring-impl.md
+    fulfils: backend_implementation
+    params: { java: 21, build: maven, test_framework: junit5 }
+  angular:
+    ref: .asac/skills/angular-impl.md
+    fulfils: frontend_implementation
+    params: { test_runner: jest }
+  qa:
+    ref: .asac/skills/integration-qa.md
+    fulfils: integration_verification
+  release:
+    ref: .asac/skills/release.md
+    fulfils: release
+
+# ── Agents : un skill + un fournisseur + un outil, et ce qu'ils peuvent appeler ────────────────
+agents:
+  analyst:
+    skill: spec
+    provider: llm
+    harness: var.tool
+    tools: [jira]
+    instructions: [.asac/instructions/conventions.md]
+  dba:
+    skill: db
+    provider: llm
+    harness: var.dev_tool
+    tools: [postgres-mcp]
+    instructions: [.asac/instructions/conventions.md, .asac/instructions/database.md]
+  backend:
+    skill: spring
+    provider: llm
+    harness: var.dev_tool
+    instructions: [.asac/instructions/conventions.md, .asac/instructions/security.md]
+  frontend:
+    skill: angular
+    provider: llm
+    harness: var.dev_tool
+    instructions: [.asac/instructions/conventions.md]
+  verifier:
+    skill: qa
+    provider: llm
+    harness: var.tool
+  releaser:
+    skill: release
+    provider: llm
+    harness: var.tool
+
+# Sources de connaissance. Appliqué ? NON en 0.1 : acceptées, jamais données à l'agent (ASAC027).
+# Elles sont là pour montrer où va le contexte du projet quand la version qui les applique sortira.
+knowledge:
+  architecture:
+    provider: llm
+    path: .asac/knowledge
+    stale_after: 90d
+    trust_tier: reviewed
+
+# Instructions du projet : projetées dans le fichier de consignes de l'outil (CLAUDE.md, AGENTS.md…).
+# Un agent qui liste ses `instructions` ne reçoit que celles-là ; sinon, il les reçoit toutes.
+instructions:
+  - ref: .asac/instructions/conventions.md
+  - ref: .asac/instructions/database.md
+  - ref: .asac/instructions/security.md
+
+# ── Budgets ────────────────────────────────────────────────────────────────────────────────────
+# Le coût est l'estimation que rend l'outil ; une étape qui ne rend pas son coût bloque un budget
+# de coût (R21). `iterations` borne le nombre de tours d'une même étape.
+budgets:
+  per_run:  { tokens: 3000000, cost_usd: 25, wall_clock: 8h }
+  per_step: { iterations: 6 }
+
+# ── Contrôles déterministes. Un script qui rend 0 pour réussir ─────────────────────────────────
+# Ils sont lus depuis le dépôt principal et lancés SUR le worktree du run (ASAC_WORKTREE).
+hooks:
+  definitions:
+    no-secrets:     { run: .asac/hooks/no-secrets.sh,     on_fail: block }
+    spec-present:   { run: .asac/hooks/spec-present.sh,   on_fail: block }
+    migration-ok:   { run: .asac/hooks/migration-ok.sh,   on_fail: block }
+    backend-tests:  { run: .asac/hooks/backend-tests.sh,  on_fail: block }
+    frontend-tests: { run: .asac/hooks/frontend-tests.sh, on_fail: block }
+    coverage:       { run: .asac/hooks/coverage.sh,       on_fail: block }
+    contract:       { run: .asac/hooks/contract.sh,       on_fail: block }
+    deps-allowed:   { run: .asac/hooks/deps-allowed.sh,   on_fail: block }
+    lint:           { run: .asac/hooks/lint.sh,           on_fail: warn }   # signale, ne bloque pas
+  # Globaux : chaque étape, AVANT que l'agent travaille / APRÈS son travail.
+  pre_tool:  [no-secrets]
+  post_step: [deps-allowed]
+
+# ── Pipelines ──────────────────────────────────────────────────────────────────────────────────
+pipelines:
+  # La fonctionnalité complète : de la demande à une branche prête à fusionner.
+  feature:
+    description: "Fonctionnalité : spec, migration, backend et frontend en parallèle, vérification, livraison"
+    timeout: 72h
+    # Appliqué ? `validate` seulement (ASAC026 si le pipeline ne tient pas le niveau demandé).
+    specLevel: 3
+    # Appliqué ? NON par `asac apply` : lu par le daemon, qui n'est pas supporté en 0.1.
+    trigger:
+      type: event
+      provider: jira
+      event: issue_created
+      filter: { issuetype: Story, labels: [asac-enabled] }
+    steps:
+      requirements:
+        capability: specification_engineering
+        agent: analyst
+        mode: assist
+        autonomy: review
+        producesEvidence: [spec_reviewed]
+        hooks: { post_step: [spec-present] }              # contrôle propre à cette étape
+        gate: { type: human, role: product_owner, timeout: 24h }
+
+      database:
+        capability: database_migration
+        agent: dba
+        mode: delegate                                    # personne devant l'écran : dans un conteneur
+        execution: { runner: docker, fallback: assist }   # sans runner, l'étape revient à une personne
+        autonomy: review
+        dependsOn: [requirements]
+        requiresEvidence: [spec_reviewed]
+        producesEvidence: [migration_validated]
+        hooks: { post_step: [migration-ok] }
+        loop: { until: [migration-ok], max_iterations: 3 } # relance l'agent avec l'erreur du contrôle
+        gate: { type: human, role: dba, timeout: 24h }
+
+      # backend et frontend dépendent de la même étape : le plan les met dans la même vague.
+      backend:
+        capability: backend_implementation
+        agent: backend
+        mode: delegate
+        execution: { runner: docker }
+        autonomy: review
+        dependsOn: [database]
+        requiresEvidence: [spec_reviewed, migration_validated]
+        producesEvidence: [backend_tests_green]
+        hooks: { post_step: [backend-tests, lint] }
+        loop: { until: [backend-tests], max_iterations: 5 }
+        gate: { type: human, role: tech_lead, timeout: 24h }
+
+      frontend:
+        capability: frontend_implementation
+        agent: frontend
+        mode: delegate
+        execution: { runner: docker }
+        autonomy: review
+        dependsOn: [database]
+        requiresEvidence: [spec_reviewed]
+        producesEvidence: [frontend_tests_green]
+        hooks: { post_step: [frontend-tests, lint] }
+        loop: { until: [frontend-tests], max_iterations: 5 }
+        gate: { type: human, role: tech_lead, timeout: 24h }
+
+      verification:
+        capability: integration_verification
+        agent: verifier
+        mode: assist
+        autonomy: readonly                                # l'agent regarde, ne modifie rien
+        dependsOn: [backend, frontend]
+        requiresEvidence: [backend_tests_green, frontend_tests_green]
+        producesEvidence: [contract_verified, coverage_ok, deps_verified]
+        hooks: { post_step: [contract, coverage] }
+        policies: [no_regression]                         # politique fournie par ASAC
+        # Gate « qualité » : une politique Rego rend le verdict, le rôle désigne le responsable.
+        gate: { type: quality, role: qa_engineer, policy: .asac/policies/release-gate.rego, timeout: 24h }
+
+      release:
+        capability: release
+        agent: releaser
+        mode: assist
+        dependsOn: [verification]
+        requiresEvidence: [contract_verified, coverage_ok, deps_verified]
+        producesEvidence: [release_approved]
+        gate: { type: human, role: product_owner, timeout: 48h }
+
+  # Correction urgente : deux étapes, un seul humain, mêmes contrôles.
+  hotfix:
+    description: Correction urgente du backend, sans nouvelle migration
+    timeout: 8h
+    steps:
+      fix:
+        capability: backend_implementation
+        agent: backend
+        mode: delegate
+        execution: { runner: docker, fallback: assist }
+        dependsOn: []
+        producesEvidence: [backend_tests_green]
+        hooks: { post_step: [backend-tests] }
+        loop: { until: [backend-tests], max_iterations: 3 }
+        gate: { type: human, role: tech_lead, timeout: 4h }
+      ship:
+        capability: release
+        agent: releaser
+        mode: assist
+        dependsOn: [fix]
+        requiresEvidence: [backend_tests_green]
+        producesEvidence: [release_approved]
+        gate: { type: human, role: product_owner, timeout: 4h }

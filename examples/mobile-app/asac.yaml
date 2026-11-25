@@ -1,0 +1,218 @@
+# Fil de la livraison d'une fonctionnalité sur une application MOBILE : Flutter (iOS et Android)
+# avec un petit backend d'API déjà existant. Ce que ce cas montre et que les autres ne montrent pas :
+#   - des outils différents selon l'étape (un outil sans interface pour le code, un IDE pour le design),
+#   - des contrôles propres au mobile : accessibilité, taille du binaire, permissions, droits d'exécution,
+#   - une validation par un humain DEVANT l'appareil (aucun script ne remplace de tenir le téléphone),
+#   - une étape qui ne tourne que sur du matériel qu'on a (la signature d'une release).
+#
+# « Appliqué ? » dit, pour chaque clé que la v1 accepte sans l'appliquer, ce qui se passe vraiment.
+asac:
+  spec: "0.4"
+  workspace: fidelity-app
+  team: mobile
+
+variables:
+  design_tool:  { type: harness, description: "Outil de la conception d'écrans : un IDE, donc non headless (copilot, antigravity, cursor…)" }
+  code_tool:    { type: harness, description: "Outil des étapes de code sans personne : claude-code" }
+  review_tool:  { type: harness, description: "Outil de la revue et de la livraison" }
+  llm_api_key:  { type: string, sensitive: true }
+  store_key:    { type: string, sensitive: true, description: "Clé de l'API des magasins (App Store Connect, Google Play)" }
+  min_ios:      { type: string, default: "16.0" }
+  min_android:  { type: string, default: "26" }
+  size_budget_mb: { type: string, default: "45", description: "Taille maximale du paquet Android (aab), en Mo" }
+
+providers:
+  llm:
+    source: asac/claude
+    version: "~> 1.0"
+    config: { api_key: var.llm_api_key }
+  stores:
+    source: asac/stores
+    version: "~> 0.3"
+    config: { key: var.store_key }
+  # Serveur MCP du SDK Dart/Flutter : l'agent lit l'analyse statique et lance les tests par lui.
+  dart:
+    source: asac/mcp
+    mcp:
+      command: dart
+      args: [mcp-server]
+
+capabilities:
+  ux_design:
+    description: Concevoir l'écran (états, accessibilité) avant de coder
+    outputs: [DESIGN.md]
+    evidence: [design_approved]
+  specification_engineering:
+    description: Écrire la spécification et ses critères d'acceptation
+    evidence: [spec_reviewed]
+  mobile_implementation:
+    description: Implémenter l'écran Flutter, ses tests de widget et son test d'intégration
+    inputs: [SPEC.md, DESIGN.md]
+    evidence: [unit_tests_green, a11y_checked, permissions_reviewed]
+  device_verification:
+    description: "Vérifier sur appareil réel : iOS et Android"
+    evidence: [device_validated]
+  store_release:
+    description: Signer et envoyer aux pistes de test des magasins
+    evidence: [build_signed, store_uploaded]
+
+evidenceTypes:
+  design_approved:       { description: Conception d'écran approuvée par le design }
+  spec_reviewed:         { description: Spécification approuvée par le product owner }
+  unit_tests_green:      { description: "Tests de widget et d'intégration Flutter passent" }
+  a11y_checked:          { description: Libellés d'accessibilité et cibles tactiles présents }
+  permissions_reviewed:  { description: "Aucune permission ajoutée sans validation" }
+  device_validated:      { description: "Parcours validé sur un iPhone et un Android réels" }
+  build_signed:          { description: Paquet signé avec la clé de la release }
+  store_uploaded:        { description: Paquet reçu par la piste de test du magasin }
+
+skills:
+  design:
+    ref: .asac/skills/ux-design.md
+    fulfils: ux_design
+  spec:
+    ref: .asac/skills/spec.md
+    fulfils: specification_engineering
+  flutter:
+    ref: .asac/skills/flutter-impl.md
+    fulfils: mobile_implementation
+    params: { framework: flutter, state: riverpod, min_ios: "16.0", min_android: "26" }
+  device-qa:
+    ref: .asac/skills/device-qa.md
+    fulfils: device_verification
+  store:
+    ref: .asac/skills/store-release.md
+    fulfils: store_release
+
+agents:
+  designer:
+    skill: design
+    provider: llm
+    harness: var.design_tool           # un IDE : ne peut PAS être délégué (ASAC013)
+    instructions: [.asac/instructions/mobile-conventions.md]
+  analyst:
+    skill: spec
+    provider: llm
+    harness: var.review_tool
+  mobile-dev:
+    skill: flutter
+    provider: llm
+    harness: var.code_tool
+    tools: [dart]                      # le serveur MCP n'est exposé qu'à cet agent
+    instructions: [.asac/instructions/mobile-conventions.md, .asac/instructions/privacy.md]
+  device-tester:
+    skill: device-qa
+    provider: llm
+    harness: var.review_tool
+  releaser:
+    skill: store
+    provider: llm
+    harness: var.review_tool
+    tools: [stores]
+
+instructions:
+  - ref: .asac/instructions/mobile-conventions.md
+  - ref: .asac/instructions/privacy.md
+
+budgets:
+  per_run:  { tokens: 2500000, cost_usd: 20, wall_clock: 6h }
+  per_step: { iterations: 5 }
+
+hooks:
+  definitions:
+    no-secrets:      { run: .asac/hooks/no-secrets.sh,      on_fail: block }
+    design-present:  { run: .asac/hooks/design-present.sh,  on_fail: block }
+    spec-present:    { run: .asac/hooks/spec-present.sh,    on_fail: block }
+    flutter-analyze: { run: .asac/hooks/flutter-analyze.sh, on_fail: block }
+    flutter-tests:   { run: .asac/hooks/flutter-tests.sh,   on_fail: block }
+    a11y:            { run: .asac/hooks/a11y.sh,            on_fail: block }
+    permissions:     { run: .asac/hooks/permissions.sh,     on_fail: block }
+    app-size:        { run: .asac/hooks/app-size.sh,        on_fail: warn }   # signale, ne bloque pas
+    changelog:       { run: .asac/hooks/changelog.sh,       on_fail: block }
+  pre_tool: [no-secrets]
+
+pipelines:
+  feature:
+    description: "Écran ou parcours : conception, spécification, code, appareil réel, magasin"
+    timeout: 96h
+    steps:
+      design:
+        capability: ux_design
+        agent: designer
+        mode: assist                    # un IDE : une personne le conduit, puis `asac submit`
+        autonomy: review
+        producesEvidence: [design_approved]
+        hooks: { post_step: [design-present] }
+        gate: { type: human, role: designer, timeout: 24h }
+
+      requirements:
+        capability: specification_engineering
+        agent: analyst
+        mode: assist
+        dependsOn: [design]
+        requiresEvidence: [design_approved]
+        producesEvidence: [spec_reviewed]
+        hooks: { post_step: [spec-present] }
+        gate: { type: human, role: product_owner, timeout: 24h }
+
+      implementation:
+        capability: mobile_implementation
+        agent: mobile-dev
+        mode: delegate
+        execution: { runner: docker, fallback: assist }
+        autonomy: review
+        dependsOn: [requirements]
+        requiresEvidence: [spec_reviewed, design_approved]
+        producesEvidence: [unit_tests_green, a11y_checked, permissions_reviewed]
+        hooks: { post_step: [flutter-analyze, a11y, permissions, app-size] }
+        # La boucle s'arrête quand l'analyse ET les tests passent. Plafond dur : 5 tours.
+        loop: { until: [flutter-analyze, flutter-tests], max_iterations: 5 }
+        # Une politique du dépôt, évaluée sur le rapport de l'outil après chaque lancement.
+        policies: [mobile-budget]
+        gate: { type: human, role: tech_lead, timeout: 24h }
+
+      device_check:
+        capability: device_verification
+        agent: device-tester
+        mode: assist
+        autonomy: readonly              # on regarde l'appareil, on ne modifie pas le code
+        dependsOn: [implementation]
+        requiresEvidence: [unit_tests_green, a11y_checked, permissions_reviewed]
+        producesEvidence: [device_validated]
+        # Aucun contrôle automatique ne remplace de tenir un téléphone : la preuve est la décision
+        # d'une personne, sur un commit précis.
+        gate: { type: human, role: qa_engineer, timeout: 48h }
+
+      release:
+        capability: store_release
+        agent: releaser
+        mode: assist
+        dependsOn: [device_check]
+        requiresEvidence: [device_validated]
+        producesEvidence: [build_signed, store_uploaded]
+        hooks: { post_step: [changelog] }
+        gate: { type: human, role: release_manager, timeout: 48h }
+
+  # Correctif d'une version déjà publiée : pas de conception, pas d'appareil, un seul relecteur.
+  hotfix:
+    description: Correctif d'une version publiée
+    timeout: 12h
+    steps:
+      fix:
+        capability: mobile_implementation
+        agent: mobile-dev
+        mode: delegate
+        execution: { runner: docker }
+        producesEvidence: [unit_tests_green, a11y_checked, permissions_reviewed]
+        hooks: { post_step: [flutter-analyze, permissions] }
+        loop: { until: [flutter-analyze, flutter-tests], max_iterations: 3 }
+        gate: { type: human, role: tech_lead, timeout: 4h }
+      release:
+        capability: store_release
+        agent: releaser
+        mode: assist
+        dependsOn: [fix]
+        requiresEvidence: [unit_tests_green]
+        producesEvidence: [build_signed, store_uploaded]
+        hooks: { post_step: [changelog] }
+        gate: { type: human, role: release_manager, timeout: 4h }

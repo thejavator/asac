@@ -1,0 +1,23 @@
+# Couche 2. Copiez en `asac.vars.yaml` (ignoré par git). Les secrets sont des références ${vault.…}.
+
+# Un IDE conduit la conception : il ne peut pas tourner sans personne, donc pas de `delegate` pour lui.
+design_tool: copilot
+code_tool: claude-code
+review_tool: claude-code
+
+llm_api_key: ${vault.llm/api-key}
+store_key: ${vault.stores/api-key}
+# min_ios, min_android et size_budget_mb ont une valeur par défaut dans asac.yaml.
+
+autorun: false
+sandbox: true
+sandbox_domains: "api.example-gateway.test"
+retries: 1
+runner_kind: docker
+runner_image: asac-agent:0.1.0
+runner_network: asac-egress
+runner_env: ANTHROPIC_API_KEY,ANTHROPIC_BASE_URL
+state_backend: sqlite
+data_residency: eu
+notify_targets:
+  - ${vault.notify/slack-mobile}

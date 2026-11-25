@@ -1,0 +1,16 @@
+org.springframework.boot:spring-boot-starter-web
+org.springframework.boot:spring-boot-starter-data-jpa
+org.springframework.boot:spring-boot-starter-validation
+org.springframework.boot:spring-boot-starter-test
+org.postgresql:postgresql
+org.flywaydb:flyway-core
+org.flywaydb:flyway-database-postgresql
+org.testcontainers:postgresql
+org.testcontainers:junit-jupiter
+@angular/core
+@angular/common
+@angular/forms
+@angular/router
+@angular/platform-browser
+rxjs
+jest

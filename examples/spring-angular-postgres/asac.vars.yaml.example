@@ -1,0 +1,28 @@
+# Couche 2 : les valeurs. Copiez ce fichier en `asac.vars.yaml` (ignoré par git), un par environnement.
+# Les secrets sont des références ${vault.…}, résolues au lancement, jamais écrites ici.
+
+# L'outil des étapes où une personne travaille avec l'agent (analyse, vérification, livraison).
+tool: claude-code
+# L'outil des étapes sans personne devant l'écran : doit pouvoir tourner sans interface (claude-code).
+dev_tool: claude-code
+
+llm_api_key: ${vault.llm/api-key}
+db_url: ${vault.shop/db-url}
+jira_token: ${vault.jira/api-key}
+# jira_url et coverage_floor ont une valeur par défaut dans asac.yaml.
+
+# ── Réglages de la plateforme (clés réservées : jamais « inutilisées » pour `vars diff`) ──
+autorun: false              # true : ASAC lance l'outil lui-même dans les étapes `assist`
+sandbox: true               # bac à sable srt autour de l'outil lancé par ASAC (macOS)
+sandbox_domains: "api.example-gateway.test"
+state_backend: sqlite
+data_residency: eu
+notify_targets:             # références ${vault…}, jamais une URL en clair
+  - ${vault.notify/slack-platform}
+
+# ── Réglages d'exécution lus par ASAC (pas des `var.*`) ──
+retries: 1                  # une relance si l'outil ou le runner plante (0 à 5)
+runner_kind: docker         # les étapes `mode: delegate` tournent dans un conteneur
+runner_image: asac-agent:0.1.0
+runner_network: asac-egress # un réseau Docker que VOUS réglez pour joindre la passerelle du modèle
+runner_env: ANTHROPIC_API_KEY,ANTHROPIC_BASE_URL

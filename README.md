@@ -25,7 +25,15 @@ Start with `docs/index.md`, then Concepts and the Quick start.
 
 ## Example
 
-[`examples/payments-service`](examples/payments-service) is a complete three-layer project. CI parses the YAML and runs `opa test` on the policy.
+Four projects, each with its `asac.yaml`, values file, skills, hooks and Rego policies. CI validates each manifest and runs `opa test` on its policies.
+
+| Example | Case | What it shows |
+|---|---|---|
+| [`payments-service`](examples/payments-service) | Payments backend | The three layers, a quality gate, a policy tested with `opa` |
+| [`spring-angular-postgres`](examples/spring-angular-postgres) | Java Spring backend, Angular frontend, PostgreSQL | A Flyway migration step, backend and frontend in parallel, an API-contract check, an MCP server on the database |
+| [`mobile-app`](examples/mobile-app) | Flutter app (iOS and Android) | Different tools per step, accessibility and permission checks, a gate held in front of a real device |
+| [`php-ecommerce`](examples/php-ecommerce) | PHP e-commerce (Symfony) | A separate pipeline for payment and price changes, money-type and scope checks, separation of duties |
+| [`real-tools`](examples/real-tools) | Run with the real Claude Code | The [runbook](examples/real-tools/RUNBOOK.md): worktree, sandbox, hooks, a human gate |
 
 ## Versioning
 
