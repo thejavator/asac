@@ -1,7 +1,7 @@
 import { Check, Circle, Loader, Square, X } from "lucide-react";
 import { type ComponentType, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { type State, stepState } from "./Chip";
+import { stepState, type State } from "@/lib/status";
 
 const ICON: Record<State, ComponentType<{ className?: string }>> = { ok: Check, wait: Loader, bad: X, stop: Square, idle: Circle };
 

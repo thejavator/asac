@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { State } from "./Chip";
+import type { State } from "@/lib/status";
 
 /** Same states as the legacy Chip. Each one still carries a symbol and a label, never color alone. */
 const STYLE: Record<State, { symbol: string; className: string }> = {

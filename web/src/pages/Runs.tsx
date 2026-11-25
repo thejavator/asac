@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Field } from "../components/app/Form";
 import { Code, Crumbs, Empty, ErrorAlert, Page, PageHeader, TableCard } from "../components/app/Page";
-import { runState } from "../components/Chip";
+import { runState } from "@/lib/status";
 import { Link } from "../components/Link";
 import { StatusBadge } from "../components/StatusBadge";
 

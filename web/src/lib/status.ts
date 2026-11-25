@@ -20,16 +20,3 @@ const STEP: Record<string, [State, string]> = {
 
 export const runState = (s: string): [State, string] => RUN[s] ?? ["idle", s];
 export const stepState = (s: string): [State, string] => STEP[s] ?? ["idle", s];
-
-export function Chip({ state, children }: { state: State; children: React.ReactNode }) {
-  return (
-    <span className="chip" data-state={state}>
-      {children}
-    </span>
-  );
-}
-
-export function RunChip({ status }: { status: string }) {
-  const [state, label] = runState(status);
-  return <Chip state={state}>{label}</Chip>;
-}

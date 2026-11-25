@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { runState, stepState } from "../components/Chip";
+import { runState, stepState } from "@/lib/status";
 import { Link } from "../components/Link";
 import { PipelineFlow } from "../components/PipelineFlow";
 import { StatusBadge } from "../components/StatusBadge";
