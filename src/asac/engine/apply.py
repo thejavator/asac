@@ -65,6 +65,9 @@ class Outcome:
     run_id: str
     message: str
     gates: tuple[str, ...] = ()
+    # A failure that a retry cannot fix: a loop that reached its cap has been given its turns.
+    # `retries` is for a tool or a runner that broke; it must never add turns to a loop.
+    final: bool = False
 
 
 @dataclass
@@ -236,12 +239,12 @@ def _notify(ctx: Context, run_id: str, sid: str | None, kind: str, title: str, *
         _audit(ctx, run_id, "notify.failed", sid, str(exc))
 
 
-def _fail(ctx: Context, run_id: str, sid: str, reason: str) -> Outcome:
+def _fail(ctx: Context, run_id: str, sid: str, reason: str, final: bool = False) -> Outcome:
     ctx.store.set_step_status(run_id, sid, "failed")
     ctx.store.set_run_status(run_id, "failed")
     _audit(ctx, run_id, "step.failed", sid, reason)
     _notify(ctx, run_id, sid, "step.failed", f"Run {run_id} failed at {sid}", body=reason)
-    return Outcome(Exit.ERROR, run_id, f"failed at {sid}: {reason}")
+    return Outcome(Exit.ERROR, run_id, f"failed at {sid}: {reason}", final=final)
 
 
 def _block(ctx: Context, run_id: str, sid: str, reason: str, run_blocked: bool) -> Outcome:
@@ -290,7 +293,7 @@ def _run_step(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | None
                 ctx.store.set_step_status(run_id, sid, "running")
                 ctx.store.set_run_status(run_id, "running")
                 out = _run_harness(ctx, run_id, sid, step, task, handle)
-            if out is None or out.code != Exit.ERROR or attempt >= ctx.retries:
+            if out is None or out.code != Exit.ERROR or out.final or attempt >= ctx.retries:
                 return out
             attempt += 1
             _audit(ctx, run_id, "step.retry", sid, f"attempt {attempt + 1} of {ctx.retries + 1}")
@@ -630,7 +633,13 @@ def _loop_turn(ctx: Context, run_id: str, sid: str, step: Step) -> Outcome | Non
     _audit(ctx, run_id, "step.iteration", sid,
            f"{turn} of {step.loop.max_iterations} failed: {reason[:800]}")  # fmt: skip
     if turn >= step.loop.max_iterations:
-        return _fail(ctx, run_id, sid, f"loop cap reached after {turn} turns: {failures[0][:200]}")
+        return _fail(
+            ctx,
+            run_id,
+            sid,
+            f"loop cap reached after {turn} turns: {failures[0][:200]}",
+            final=True,
+        )
     _write_feedback(ctx, run_id, sid, turn, reason)
     ctx.store.set_step_status(run_id, sid, "handoff")
     ctx.store.set_run_status(run_id, "gate_waiting")

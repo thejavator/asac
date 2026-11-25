@@ -316,3 +316,32 @@ def test_a_runner_that_is_down_hands_the_step_to_a_person(project: Path) -> None
     )
     assert r.exit_code == 2 and "runner.unavailable build" in _log(project, "d12")
     assert down.launches == 0
+
+
+def test_the_loop_cap_is_a_hard_cap_even_when_incident_retries_are_on(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R16 and F22: a check that never passes ends the step at `max_iterations`, whatever `retries`
+    says. `retries` is for a tool or runner that broke, not for a loop that reached its cap."""
+    monkeypatch.setenv("ASAC_RETRIES", "2")
+    runner = HostRunner(_wt("cap1"), _agent(fix_from_launch=99))
+    r = _drive(project, runner, "apply", "-p", "feature", "--harness", "claude-code",
+               "--run-id", "cap1")  # fmt: skip
+    log = _log(project, "cap1")
+    assert runner.launches == 4, (runner.launches, log)  # max_iterations is 4: no fifth launch
+    assert r.exit_code == 1 and "loop cap reached after 4 turns" in log
+    assert "step.retry" not in log  # the cap is final: nothing is retried
+    assert "5 of 4" not in log and "of 4 failed" in log
+
+
+def test_a_tool_that_breaks_is_still_retried(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The retry keeps its job: a runner command that exits non-zero is tried again."""
+    monkeypatch.setenv("ASAC_RETRIES", "1")
+    runner = HostRunner(_wt("cap2"), "exit 3\n")
+    r = _drive(project, runner, "apply", "-p", "feature", "--harness", "claude-code",
+               "--run-id", "cap2")  # fmt: skip
+    log = _log(project, "cap2")
+    assert runner.launches == 2 and "step.retry" in log, (runner.launches, log)
+    assert r.exit_code == 1
