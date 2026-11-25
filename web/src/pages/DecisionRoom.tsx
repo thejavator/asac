@@ -1,9 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Inbox, X } from "lucide-react";
 import { useState } from "react";
 import { api, csrfHeader, unwrap } from "../api/client";
-import { Chip } from "../components/Chip";
-import { FlowGraph } from "../components/FlowGraph";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { Crumbs, Empty, ErrorAlert, Fields, Hint, Output, Page, PageHeader } from "../components/app/Page";
+import { Field, FormActions } from "../components/app/Form";
+import { PipelineFlow } from "../components/PipelineFlow";
 import { Link } from "../components/Link";
+import { StatusBadge } from "../components/StatusBadge";
 import { TriggerLink } from "../components/TriggerLink";
 import { dueText, money, signatureNote } from "./decisionView";
 
@@ -38,135 +50,197 @@ export function DecisionRoom({ pid, me, go }: { pid?: string; me: string; go: (t
   });
 
   return (
-    <>
-      <p className="crumbs"><Link to="/" go={go}>All projects</Link> / {pid ?? "All projects"} / Decision Room</p>
-      <div className="page-head">
-        <div>
-          <h1>Decision Room</h1>
-          <p>Decisions that wait for a person{pid ? " in this project" : ", in every project you can see"}. Each one shows what was built, what was checked and who signed before you.</p>
-        </div>
-        <label className="check"><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /> Only what I can sign</label>
-      </div>
-      {gates.isError && <p role="alert">Could not load decisions: {gates.error.message}</p>}
-      {gates.data && list.length === 0 && <p className="soft">Nothing is waiting for a decision.</p>}
+    <Page wide>
+      <Crumbs go={go} items={[{ label: "All projects", to: "/" }, { label: pid ?? "All projects", to: pid ? `/p/${pid}/runs` : undefined }, { label: "Decision Room" }]} />
+      <PageHeader
+        title="Decision Room"
+        description={`Decisions that wait for a person${pid ? " in this project" : ", in every project you can see"}. Each one shows what was built, what was checked and who signed before you.`}
+        actions={
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={onlyMine} onCheckedChange={(v) => setOnlyMine(v === true)} />
+            Only what I can sign
+          </label>
+        }
+      />
+      {gates.isError && <ErrorAlert title="Could not load decisions">{gates.error.message}</ErrorAlert>}
+      {gates.isPending && <Skeleton className="h-96" />}
+      {gates.data && list.length === 0 && <Empty>Nothing is waiting for a decision.</Empty>}
+
       {gate && (
-        <div className="workspace">
-          <section className="queue" aria-labelledby="queue-h">
-            <header><h2 id="queue-h">Waiting</h2><span className="faint">{list.length} decisions</span></header>
-            <ol>
-              {list.map((g) => (
-                <li key={g.gate_id}>
-                  <a className="item" href={`#${g.gate_id}`} data-urgency={g.urgency} aria-current={g.gate_id === gate.gate_id ? "true" : undefined}
-                     onClick={(e) => { e.preventDefault(); setPicked(g.gate_id); }}>
-                    <span className="title">Approve {g.step_id}</span>
-                    <span className="meta">
-                      {!pid && <span>{g.project_name}</span>}
-                      <span className="mono">{g.run_id}</span>
-                      {g.pipeline && <span>{g.pipeline}</span>}
-                      {dueText(g.seconds_left) && <span className="due">{dueText(g.seconds_left)}</span>}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </section>
-          <article className="sheet" aria-labelledby="decision-h">
-            <header>
-              <Chip state="wait">Waiting for {gate.role ?? "any role"}</Chip>
-              <h2 id="decision-h">Approve {gate.step_id}</h2>
-              <dl className="facts">
-                {!pid && <div><dt>Project</dt><dd>{gate.project_name}</dd></div>}
-                <div><dt>Run</dt><dd className="mono"><Link to={`/p/${gate.project_id}/runs/${gate.run_id}`} go={go}>{gate.run_id}</Link></dd></div>
-                {gate.pipeline && <div><dt>Pipeline</dt><dd>{gate.pipeline}</dd></div>}
-                {run.data?.trigger && <div><dt>Trigger</dt><dd><TriggerLink trigger={run.data.trigger} /></dd></div>}
-                {gate.run_started_at && <div><dt>Started</dt><dd className="mono">{gate.run_started_at}</dd></div>}
-                <div><dt>Requested</dt><dd className="mono">{gate.requested_at}</dd></div>
-                {gate.timeout_at && <div><dt>Due</dt><dd className="mono">{gate.timeout_at}{dueText(gate.seconds_left) && ` (${dueText(gate.seconds_left)})`}</dd></div>}
-                <div><dt>Cost so far</dt><dd>{money(gate.cost_usd)}</dd></div>
-                {gate.subject && <div><dt>Commit</dt><dd className="mono" title={gate.subject}>{gate.subject.slice(0, 12)}</dd></div>}
-              </dl>
-            </header>
-            {gate.checks.length > 0 && (
-              <div className="section">
-                <h3>Checks made before this decision</h3>
-                <ul className="checks">
-                  {gate.checks.map((c, i) => (
-                    <li key={i} data-state={c.passed ? "ok" : "bad"}>
-                      <span className="sym" aria-hidden="true">{c.passed ? "✓" : "✗"}</span>
-                      <span className="what">
-                        <b>{c.name}</b>
-                        <span>{c.moment === "pre_tool" ? "Hook, before the agent" : c.moment === "post_step" ? "Hook, after the step" : "Hook"}</span>
-                        {c.output && <pre className="source output" tabIndex={0}>{c.output}</pre>}
-                      </span>
-                      <Chip state={c.passed ? "ok" : "bad"}>{c.passed ? "Passed" : "Failed"}</Chip>
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          {/* Queue */}
+          <Card className="gap-0 py-0 lg:sticky lg:top-4">
+            <CardHeader className="border-b py-4">
+              <CardTitle className="flex items-center justify-between">
+                Waiting <Badge variant="secondary">{list.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <ScrollArea className="max-h-[70vh]">
+              <ol className="divide-y">
+                {list.map((g) => {
+                  const active = g.gate_id === gate.gate_id;
+                  const due = dueText(g.seconds_left);
+                  const late = g.seconds_left != null && g.seconds_left < 0;
+                  return (
+                    <li key={g.gate_id}>
+                      <a
+                        href={`#${g.gate_id}`}
+                        aria-current={active ? "true" : undefined}
+                        onClick={(e) => { e.preventDefault(); setPicked(g.gate_id); }}
+                        className={cn(
+                          "grid gap-1 px-4 py-3 text-sm transition-colors hover:bg-accent",
+                          active && "bg-accent",
+                          late && "border-l-2 border-l-destructive",
+                        )}
+                      >
+                        <span className="font-medium">Approve {g.step_id}</span>
+                        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                          {!pid && <span>{g.project_name}</span>}
+                          <span className="font-mono">{g.run_id}</span>
+                          {g.pipeline && <span>{g.pipeline}</span>}
+                        </span>
+                        {due && <span className={cn("text-xs", late ? "text-destructive" : "text-muted-foreground")}>{due}</span>}
+                      </a>
                     </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {gate.files.length > 0 && (
-              <div className="section">
-                <h3>What this step changed</h3>
-                <ul className="checks">
-                  {gate.files.filter((f) => !f.mounted).map((f) => (
-                    <li key={f.path} data-state={f.change === "deleted" ? "bad" : "ok"}>
-                      <span className="sym" aria-hidden="true">{f.change === "added" ? "+" : f.change === "deleted" ? "−" : "~"}</span>
-                      <span className="what"><b className="mono">{f.path}</b><span>{f.change} in commit {gate.subject?.slice(0, 12)}</span></span>
-                    </li>
-                  ))}
-                </ul>
-                {gate.files.some((f) => f.mounted) && (
-                  <p className="soft">
-                    Also in this commit, set up by ASAC for the tool, not written by the agent:{" "}
-                    {gate.files.filter((f) => f.mounted).map((f, i) => (
-                      <span key={f.path}>{i > 0 && ", "}<span className="mono">{f.path}</span></span>
-                    ))}
-                  </p>
-                )}
-              </div>
-            )}
-            {run.data && (
-              <>
-                <div className="section"><h3>Where this run stands</h3><FlowGraph steps={run.data.run.steps} /></div>
-                <div className="section">
-                  <h3>Evidence chain</h3>
-                  <ol className="ledger">
-                    {run.data.evidence.map((e) => (
-                      <li key={e.evidence_id} className="entry" data-kind={e.bootstrapped ? "boot" : "agent"}>
-                        <div className="line"><b>{e.evidence_id}</b><span className="kind">{e.bootstrapped ? signatureNote(e) : `produced by agent · ${e.produced_by}`}</span></div>
-                        <div className="produced">{e.at}{!e.bootstrapped && signatureNote(e) ? ` · ${signatureNote(e)}` : ""}</div>
-                        {e.bootstrapped && <div className="produced">Not produced by an agent: recorded by a person.</div>}
-                      </li>
-                    ))}
-                    <li className="entry" data-kind="pending">
-                      <div className="line"><b>{gate.step_id}</b><span className="kind">waiting for {gate.role ?? "any role"}</span></div>
-                      <div className="produced">Your signature produces this evidence.</div>
-                    </li>
-                  </ol>
+                  );
+                })}
+              </ol>
+            </ScrollArea>
+          </Card>
+
+          {/* Decision */}
+          <div className="grid min-w-0 gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge state="wait">Waiting for {gate.role ?? "any role"}</StatusBadge>
                 </div>
-              </>
+                <CardTitle className="text-xl">Approve {gate.step_id}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Fields
+                  rows={[
+                    ...(!pid ? [["Project", gate.project_name] as [string, React.ReactNode]] : []),
+                    ["Run", <Link key="r" to={`/p/${gate.project_id}/runs/${gate.run_id}`} go={go} className="font-mono text-xs underline-offset-4 hover:underline">{gate.run_id}</Link>],
+                    ...(gate.pipeline ? [["Pipeline", gate.pipeline] as [string, React.ReactNode]] : []),
+                    ...(run.data?.trigger ? [["Trigger", <TriggerLink key="t" trigger={run.data.trigger} />] as [string, React.ReactNode]] : []),
+                    ...(gate.run_started_at ? [["Started", <span key="s" className="font-mono text-xs">{gate.run_started_at}</span>] as [string, React.ReactNode]] : []),
+                    ["Requested", <span key="q" className="font-mono text-xs">{gate.requested_at}</span>],
+                    ...(gate.timeout_at ? [["Due", <span key="d" className="font-mono text-xs">{gate.timeout_at}{dueText(gate.seconds_left) && ` (${dueText(gate.seconds_left)})`}</span>] as [string, React.ReactNode]] : []),
+                    ["Cost so far", money(gate.cost_usd)],
+                    ...(gate.subject ? [["Commit", <span key="c" className="font-mono text-xs" title={gate.subject}>{gate.subject.slice(0, 12)}</span>] as [string, React.ReactNode]] : []),
+                  ]}
+                />
+              </CardContent>
+            </Card>
+
+            {gate.checks.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>Checks made before this decision</CardTitle></CardHeader>
+                <CardContent className="grid gap-3">
+                  {gate.checks.map((c, i) => (
+                    <div key={i} className="grid gap-2 rounded-lg border p-3">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <StatusBadge state={c.passed ? "ok" : "bad"}>{c.passed ? "Passed" : "Failed"}</StatusBadge>
+                        <span className="font-mono font-medium">{c.name}</span>
+                        <span className="text-muted-foreground">{c.moment === "pre_tool" ? "Hook, before the agent" : c.moment === "post_step" ? "Hook, after the step" : "Hook"}</span>
+                      </div>
+                      {c.output && <Output>{c.output}</Output>}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
             )}
-            <div className="section decide">
-              <h3>Your decision</h3>
-              {gate.can_decide ? (
-                <form onSubmit={(e) => { e.preventDefault(); decide.mutate("approve"); }}>
-                  <label htmlFor="comment">Comment</label>
-                  <textarea id="comment" name="comment" maxLength={500} value={comment} onChange={(e) => setComment(e.target.value)} />
-                  <p className="hint">Required if you reject. Kept in the audit trail with your name.</p>
-                  {decide.isError && <p role="alert" className="notice"><span aria-hidden="true">⚠</span><span>{decide.error.message}</span></p>}
-                  <div className="actions">
-                    <button className="btn btn-primary" type="submit" disabled={decide.isPending}>Approve</button>
-                    <button className="btn btn-danger" type="button" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate("reject")}>Reject</button>
-                    <span className="alone">Signed as {me}</span>
+
+            {gate.files.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>What this step changed</CardTitle></CardHeader>
+                <CardContent className="grid gap-2">
+                  {gate.files.filter((f) => !f.mounted).map((f) => (
+                    <div key={f.path} className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                      <Badge variant={f.change === "deleted" ? "destructive" : "secondary"} className="w-6 justify-center font-mono">
+                        {f.change === "added" ? "+" : f.change === "deleted" ? "−" : "~"}
+                      </Badge>
+                      <span className="font-mono text-xs break-all">{f.path}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">{f.change} in commit {gate.subject?.slice(0, 12)}</span>
+                    </div>
+                  ))}
+                  {gate.files.some((f) => f.mounted) && (
+                    <Hint>
+                      Also in this commit, set up by ASAC for the tool, not written by the agent:{" "}
+                      {gate.files.filter((f) => f.mounted).map((f, i) => (
+                        <span key={f.path}>{i > 0 && ", "}<span className="font-mono text-xs">{f.path}</span></span>
+                      ))}
+                    </Hint>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {run.data && (
+              <Card>
+                <CardHeader><CardTitle>Where this run stands</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-6">
+                  <PipelineFlow steps={run.data.run.steps} current={gate.step_id} onPick={() => {}} />
+                  <div className="grid gap-3">
+                    <h3 className="text-sm font-medium">Evidence chain</h3>
+                    <ol className="relative grid gap-4 border-l pl-6">
+                      {run.data.evidence.map((e) => (
+                        <li key={e.evidence_id} className="relative">
+                          <span aria-hidden="true" className={cn("absolute top-1 -left-[1.9rem] size-3 rounded-full border-2 bg-background", e.bootstrapped ? "border-dashed border-muted-foreground" : "border-success")} />
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="font-mono font-medium">{e.evidence_id}</span>
+                            <Badge variant="outline">{e.bootstrapped ? "bootstrapped" : "produced by agent"}</Badge>
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {e.bootstrapped ? signatureNote(e) : `${e.produced_by}${signatureNote(e) ? ` · ${signatureNote(e)}` : ""}`}
+                            {" · "}<span className="font-mono text-xs">{e.at}</span>
+                          </p>
+                        </li>
+                      ))}
+                      <li className="relative">
+                        <span aria-hidden="true" className="absolute top-1 -left-[1.9rem] size-3 rounded-full border-2 border-dashed border-warning bg-background" />
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="font-mono font-medium">{gate.step_id}</span>
+                          <Badge variant="outline">waiting for {gate.role ?? "any role"}</Badge>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">Your signature produces this evidence.</p>
+                      </li>
+                    </ol>
                   </div>
-                </form>
-              ) : (
-                <p className="notice"><span aria-hidden="true">⚠</span><span>This decision needs the role {gate.role}. You can read it but not sign it.</span></p>
-              )}
-            </div>
-          </article>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Your decision</CardTitle>
+                <CardDescription>Signed with your name and kept in the audit trail.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {gate.can_decide ? (
+                  <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); decide.mutate("approve"); }}>
+                    <Field id="comment" label="Comment" hint="Required if you reject.">
+                      <Textarea id="comment" name="comment" maxLength={500} value={comment} onChange={(e) => setComment(e.target.value)} />
+                    </Field>
+                    {decide.isError && <ErrorAlert title="Could not record the decision">{decide.error.message}</ErrorAlert>}
+                    <FormActions note={`Signed as ${me}`}>
+                      <Button type="submit" disabled={decide.isPending}><Check /> Approve</Button>
+                      <Button type="button" variant="destructive" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate("reject")}><X /> Reject</Button>
+                    </FormActions>
+                  </form>
+                ) : (
+                  <Alert>
+                    <Inbox />
+                    <AlertTitle>You can read this decision, not sign it</AlertTitle>
+                    <AlertDescription>It needs the role <b>{gate.role}</b>.</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
-    </>
+    </Page>
   );
 }

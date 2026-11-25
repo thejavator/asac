@@ -1,7 +1,11 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { api, unwrap } from "../api/client";
-import { RunChip } from "../components/Chip";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Crumbs, Empty, ErrorAlert, Page, PageHeader, TableCard } from "../components/app/Page";
+import { runState } from "../components/Chip";
 import { Link } from "../components/Link";
+import { StatusBadge } from "../components/StatusBadge";
 
 const PROBLEMS = ["failed", "blocked", "killed"];
 
@@ -21,50 +25,73 @@ export function ErrorsPage({ pid, go }: { pid: string; go: (to: string) => void 
   const events = ev.data?.items ?? [];
   const loading = qs.some((q) => q.isLoading);
   return (
-    <>
-      <p className="crumbs"><Link to="/" go={go}>All projects</Link> / {pid} / Errors</p>
-      <div className="page-head"><div><h1>Errors</h1><p>Runs that failed, were blocked by a policy or hook, or were stopped. Open one to see where it stopped.</p></div></div>
-      {failed?.error && <p role="alert">Could not load errors: {failed.error.message}</p>}
-      {!loading && !failed && items.length === 0 && <p className="soft">No run needs attention.</p>}
+    <Page>
+      <Crumbs go={go} items={[{ label: "All projects", to: "/" }, { label: pid, to: `/p/${pid}/runs` }, { label: "Errors" }]} />
+      <PageHeader title="Errors" description="Runs that failed, were blocked by a policy or hook, or were stopped. Open one to see where it stopped." />
+      {failed?.error && <ErrorAlert title="Could not load errors">{failed.error.message}</ErrorAlert>}
+      {loading && <Skeleton className="h-40" />}
+      {!loading && !failed && items.length === 0 && <Empty>No run needs attention.</Empty>}
       {items.length > 0 && (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead><tr><th>Run</th><th>Pipeline</th><th>Status</th><th>Stopped at</th><th className="hide-sm">Created</th></tr></thead>
-            <tbody>
+        <TableCard title="Runs" description={items.length === 1 ? "1 run needs attention." : `${items.length} runs need attention.`}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6">Run</TableHead><TableHead>Pipeline</TableHead><TableHead>Status</TableHead>
+                <TableHead>Stopped at</TableHead><TableHead className="hidden pr-6 md:table-cell">Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map((r) => {
                 const at = r.steps.find((s) => s.status === "failed" || s.status === "blocked" || s.status === "killed");
+                const [state, text] = runState(r.status);
                 return (
-                  <tr key={r.run_id} data-state="bad">
-                    <td className="mono"><Link to={`/p/${pid}/runs/${r.run_id}`} go={go}>{r.run_id}</Link></td>
-                    <td>{r.pipeline}</td><td><RunChip status={r.status} /></td>
-                    <td className="mono">{at?.id ?? "n/a"}</td><td className="mono hide-sm">{r.created_at}</td>
-                  </tr>
+                  <TableRow key={r.run_id}>
+                    <TableCell className="pl-6 font-mono text-xs">
+                      <Link to={`/p/${pid}/runs/${r.run_id}`} go={go} className="font-medium underline-offset-4 hover:underline">{r.run_id}</Link>
+                    </TableCell>
+                    <TableCell>{r.pipeline}</TableCell>
+                    <TableCell><StatusBadge state={state}>{text}</StatusBadge></TableCell>
+                    <TableCell className="font-mono text-xs">{at?.id ?? "n/a"}</TableCell>
+                    <TableCell className="hidden pr-6 font-mono text-xs text-muted-foreground md:table-cell">{r.created_at}</TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableCard>
       )}
-      <h2>Events</h2>
-      <p className="soft">Denied approvals, failed or blocked steps, hook failures, expired gates, escalations and stopped runs, newest first.</p>
-      {ev.isError && <p role="alert">Could not load events: {ev.error.message}</p>}
-      {ev.data && events.length === 0 && <p className="soft">No event needs attention.</p>}
-      {events.length > 0 && (
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <thead><tr><th className="hide-sm">When</th><th>Event</th><th>Run</th><th>Step</th><th>Detail</th></tr></thead>
-            <tbody>
-              {events.map((a) => (
-                <tr key={a.seq} data-state="bad">
-                  <td className="mono hide-sm">{a.at}</td><td className="mono">{a.action}</td>
-                  <td className="mono">{a.run_id ? <Link to={`/p/${pid}/runs/${a.run_id}`} go={go}>{a.run_id}</Link> : ""}</td>
-                  <td className="mono">{a.step_id ?? ""}</td><td>{a.detail}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+
+      {ev.isError && <ErrorAlert title="Could not load events">{ev.error.message}</ErrorAlert>}
+      {ev.data && (
+        <TableCard
+          title="Events"
+          description="Denied approvals, failed or blocked steps, hook failures, expired gates, escalations and stopped runs, newest first."
+        >
+          {events.length === 0 ? <div className="p-6"><Empty>No event needs attention.</Empty></div> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="hidden pl-6 md:table-cell">When</TableHead><TableHead>Event</TableHead>
+                  <TableHead>Run</TableHead><TableHead>Step</TableHead><TableHead className="pr-6">Detail</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {events.map((a) => (
+                  <TableRow key={a.seq}>
+                    <TableCell className="hidden pl-6 font-mono text-xs text-muted-foreground md:table-cell">{a.at}</TableCell>
+                    <TableCell className="font-mono text-xs text-destructive">{a.action}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {a.run_id ? <Link to={`/p/${pid}/runs/${a.run_id}`} go={go} className="underline-offset-4 hover:underline">{a.run_id}</Link> : ""}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{a.step_id ?? ""}</TableCell>
+                    <TableCell className="max-w-md pr-6 whitespace-normal break-words">{a.detail}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TableCard>
       )}
-    </>
+    </Page>
   );
 }
