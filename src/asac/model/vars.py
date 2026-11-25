@@ -9,7 +9,27 @@ from pydantic import BaseModel, ConfigDict
 # Keys that configure the platform itself. They are not ``var.*`` values,
 # so ``asac vars diff`` must never report them as unused.
 RESERVED_VARS_KEYS: frozenset[str] = frozenset(
-    {"state_backend", "data_residency", "autorun", "autorun_timeout", "notify_targets"}
+    {
+        "state_backend",
+        "data_residency",
+        # What ASAC itself reads from this file (see engine/runtime.py and adapters/):
+        "autorun",
+        "autorun_timeout",
+        "isolate",
+        "notify_targets",
+        "parallel",
+        "retries",
+        "sandbox",
+        "sandbox_domains",
+        "runner_kind",
+        "runner_image",
+        "runner_network",
+        "runner_env",
+        "runner_k8s_context",
+        "runner_k8s_namespace",
+        "runner_k8s_pvc",
+        "runner_k8s_secret",
+    }
 )
 
 
