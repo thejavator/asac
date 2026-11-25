@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+@import "../../../design/theme/minimal-neutral.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+
+}
+
+/* ---------- CodeMirror (YAML editor): the editor builds its own DOM, so it is styled here ---------- */
+.yaml-editor {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+}
+.yaml-editor .cm-editor { height: 30rem; font: 400 0.8125rem / 1.6 var(--font-mono); color: var(--foreground); background: transparent; }
+.yaml-editor .cm-editor.cm-focused { outline: none; box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--ring) 50%, transparent); }
+.yaml-editor .cm-scroller { overflow: auto; font-family: inherit; }
+.yaml-editor .cm-gutters { background: var(--muted); border: 0; border-right: 1px solid var(--border); color: var(--muted-foreground); }
+.yaml-editor .cm-activeLine, .yaml-editor .cm-activeLineGutter { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+.yaml-editor .cm-cursor { border-left-color: var(--foreground); }
+.yaml-editor .cm-selectionBackground, .yaml-editor .cm-editor.cm-focused .cm-selectionBackground { background: color-mix(in oklab, var(--ring) 30%, transparent); }
+.yaml-editor .cm-bad-line { background: color-mix(in oklab, var(--destructive) 10%, transparent); box-shadow: inset 3px 0 0 var(--destructive); }
