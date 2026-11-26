@@ -45,6 +45,8 @@ nav:
       - Delegated steps and the worker: guides/delegate.md
       - Deploying the portal and daemon: guides/deployment.md
       - Serving several projects: guides/multi-project.md
+  - Design:
+      - Enterprise portal, control plane and verification: design/portail-entreprise.md
   - Scenarios:
       - Overview: scenarios/index.md
       - New feature: scenarios/feature.md
