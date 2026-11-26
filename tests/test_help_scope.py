@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from typer.testing import CliRunner
 
 from asac.cli import app
@@ -13,8 +15,17 @@ SUPPORTED = {"init", "validate", "vars", "plan", "apply", "run", "submit", "stat
 UNSUPPORTED = {"portal", "daemon", "project"}
 
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
 def _listed(out: str) -> set[str]:
-    return {line.strip("│ ").split()[0] for line in out.splitlines() if line.startswith("│ ")}
+    """The first word of every row in the help's boxes.
+
+    Typer forces colored output when GITHUB_ACTIONS is set, so strip the escape codes first:
+    otherwise a row starts with a color sequence, not with the box character.
+    """
+    plain = ANSI.sub("", out)
+    return {line.strip("│ ").split()[0] for line in plain.splitlines() if line.startswith("│ ")}
 
 
 def test_help_lists_exactly_the_supported_commands() -> None:
