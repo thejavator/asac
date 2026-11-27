@@ -1,5 +1,6 @@
 import {
-  Braces, ChevronsUpDown, CircleCheckBig, FolderOpen, GitBranch, KeyRound, LogOut, Play, ScrollText, Settings, TriangleAlert,
+  Braces, ChartColumn, ChevronsUpDown, CircleCheckBig, FolderOpen, GitBranch, KeyRound, LogOut, Play, ScrollText, Settings,
+  TriangleAlert,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { api, csrfHeader, type Schema } from "@/api/client";
@@ -67,7 +68,8 @@ export function AppShell({
       ]
     : [];
   const orgItems: Item[] = [
-    { to: "/", label: "All projects", icon: FolderOpen, current: !project && first !== "decisions" && first !== "admin" },
+    { to: "/overview", label: "Overview", icon: ChartColumn, current: first === "overview" },
+    { to: "/", label: "All projects", icon: FolderOpen, current: !project && first !== "decisions" && first !== "admin" && first !== "overview" },
     { to: "/decisions", label: "Decision Room", icon: CircleCheckBig, current: first === "decisions", badge: allMine },
     ...(me.roles.includes("admin") ? [{ to: "/admin", label: "Administration", icon: Settings, current: first === "admin" }] : []),
   ];

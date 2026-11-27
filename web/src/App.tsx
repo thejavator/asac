@@ -17,6 +17,7 @@ import { ProjectsPage } from "./pages/Projects";
 import { RunDetailPage } from "./pages/RunDetail";
 import { RunsPage } from "./pages/Runs";
 import { LoginPage } from "./pages/Login";
+import { OverviewPage } from "./pages/Overview";
 import { useRoute } from "./route";
 
 export function App() {
@@ -50,6 +51,7 @@ export function App() {
   else if (first === "p" && pid && section === "variables") page = <VariablesPage pid={pid} go={go} />;
   else if (first === "p" && pid && section === "access") page = <AccessPage pid={pid} go={go} />;
   else if (first === "decisions") page = <DecisionRoom me={me.data.name} go={go} />;
+  else if (first === "overview") page = <OverviewPage go={go} />;
   else if (first === "admin") page = <AdminPage go={go} />;
   else if (first === "p" && pid && section === "audit") page = <AuditPage pid={pid} go={go} />;
   else if (first === "p" && pid && section === "runs" && id) page = <RunDetailPage pid={pid} runId={id} go={go} />;

@@ -38,6 +38,7 @@ from asac.engine.runtime import recorded_workspace
 from asac.loader.load import load_manifest
 from asac.model import Manifest
 from asac.portal.decision import changed_files, checks_from_audit, started_at, urgency
+from asac.portal.overview import figures_for, unavailable
 from asac.ports.admin import PROJECT_ROLES, AdminStore, Mapping
 from asac.ports.artifacts import ArtifactError, ArtifactStore
 from asac.ports.drafts import Draft, DraftStore
@@ -98,6 +99,36 @@ class ProjectOut(BaseModel):
     pending_gates: int
     my_pending_gates: int
     error: bool = False
+
+
+class ProjectFiguresOut(BaseModel):
+    """One project's figures. Every number is declared: it comes from the project's own runs."""
+
+    project_id: str
+    name: str
+    team: str | None
+    runs: int
+    active: int
+    completed: int
+    problems: int
+    pending_gates: int
+    cost_usd: float
+    tokens: int
+    cost_unknown_runs: int
+    integrity_violations: int
+    sandbox_denials: int
+    hooks_passed: int
+    hooks_failed: int
+    check_pass_rate: float | None
+    unavailable: bool
+
+
+class OverviewOut(BaseModel):
+    """The organisation view. ``assurance`` says how much a number can be trusted."""
+
+    assurance: Literal["declared", "verified"]
+    projects: list[ProjectFiguresOut]
+    totals: dict[str, float]
 
 
 class RunOut(BaseModel):
@@ -594,6 +625,30 @@ def create_api(deps: ApiDeps) -> FastAPI:
                 )
             )
         return out
+
+    @api.get("/overview", response_model=OverviewOut, operation_id="getOverview")
+    def overview(request: Request) -> OverviewOut:
+        """Every project the person can see, summed. All figures are declared (see the design)."""
+        _, data = deps.session(request)
+        d = deps.directory()
+        claims = user_roles(data)
+        rows: list[ProjectFiguresOut] = []
+        for p in d.projects:
+            if not deps.visible(p, d, claims):
+                continue
+            try:
+                with deps.open_store(p) as store:
+                    runs = store.list_runs()
+                    pending = len(store.list_gates("pending"))
+                    audits = [(r.run_id, store.audit(r.run_id)) for r in runs]
+                fig = figures_for(p.id, p.name, p.team, runs, audits, pending)
+            except Exception:  # one broken project must not hide the others
+                fig = unavailable(p.id, p.name, p.team)
+            rows.append(ProjectFiguresOut(**fig.__dict__, check_pass_rate=fig.check_pass_rate))
+        keys = ("runs", "active", "problems", "pending_gates", "cost_usd", "tokens",
+                "integrity_violations", "sandbox_denials")  # fmt: skip
+        totals = {k: round(sum(getattr(r, k) for r in rows if not r.unavailable), 4) for k in keys}
+        return OverviewOut(assurance="declared", projects=rows, totals=totals)
 
     def files_of(p: Project, g: Any, rows: list[Any]) -> list[Any]:
         """Files of the approved commit, read in the run's own worktree (never the main one)."""

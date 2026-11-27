@@ -58,6 +58,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Every project the person can see, summed. All figures are declared (see the design).
+         */
+        get: operations["getOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/decisions": {
         parameters: {
             query?: never;
@@ -824,6 +844,23 @@ export interface components {
             /** Org Roles */
             org_roles?: string[];
         };
+        /**
+         * OverviewOut
+         * @description The organisation view. ``assurance`` says how much a number can be trusted.
+         */
+        OverviewOut: {
+            /**
+             * Assurance
+             * @enum {string}
+             */
+            assurance: "declared" | "verified";
+            /** Projects */
+            projects: components["schemas"]["ProjectFiguresOut"][];
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+        };
         /** PageOut */
         PageOut: {
             /** Id */
@@ -982,6 +1019,46 @@ export interface components {
             access: string[];
             /** Archived */
             archived: boolean;
+        };
+        /**
+         * ProjectFiguresOut
+         * @description One project's figures. Every number is declared: it comes from the project's own runs.
+         */
+        ProjectFiguresOut: {
+            /** Project Id */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Team */
+            team: string | null;
+            /** Runs */
+            runs: number;
+            /** Active */
+            active: number;
+            /** Completed */
+            completed: number;
+            /** Problems */
+            problems: number;
+            /** Pending Gates */
+            pending_gates: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Tokens */
+            tokens: number;
+            /** Cost Unknown Runs */
+            cost_unknown_runs: number;
+            /** Integrity Violations */
+            integrity_violations: number;
+            /** Sandbox Denials */
+            sandbox_denials: number;
+            /** Hooks Passed */
+            hooks_passed: number;
+            /** Hooks Failed */
+            hooks_failed: number;
+            /** Check Pass Rate */
+            check_pass_rate: number | null;
+            /** Unavailable */
+            unavailable: boolean;
         };
         /** ProjectIn */
         ProjectIn: {
@@ -1252,6 +1329,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"][];
+                };
+            };
+        };
+    };
+    getOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
                 };
             };
         };

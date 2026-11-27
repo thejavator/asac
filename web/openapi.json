@@ -64,6 +64,25 @@
         }
       }
     },
+    "/overview": {
+      "get": {
+        "summary": "Overview",
+        "description": "Every project the person can see, summed. All figures are declared (see the design).",
+        "operationId": "getOverview",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/decisions": {
       "get": {
         "summary": "Decisions",
@@ -2599,6 +2618,40 @@
         ],
         "title": "OrganizationIO"
       },
+      "OverviewOut": {
+        "properties": {
+          "assurance": {
+            "type": "string",
+            "enum": [
+              "declared",
+              "verified"
+            ],
+            "title": "Assurance"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectFiguresOut"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Totals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assurance",
+          "projects",
+          "totals"
+        ],
+        "title": "OverviewOut",
+        "description": "The organisation view. ``assurance`` says how much a number can be trusted."
+      },
       "PageOut": {
         "properties": {
           "id": {
@@ -3085,6 +3138,114 @@
           "archived"
         ],
         "title": "ProjectAdminOut"
+      },
+      "ProjectFiguresOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          },
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "problems": {
+            "type": "integer",
+            "title": "Problems"
+          },
+          "pending_gates": {
+            "type": "integer",
+            "title": "Pending Gates"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "cost_unknown_runs": {
+            "type": "integer",
+            "title": "Cost Unknown Runs"
+          },
+          "integrity_violations": {
+            "type": "integer",
+            "title": "Integrity Violations"
+          },
+          "sandbox_denials": {
+            "type": "integer",
+            "title": "Sandbox Denials"
+          },
+          "hooks_passed": {
+            "type": "integer",
+            "title": "Hooks Passed"
+          },
+          "hooks_failed": {
+            "type": "integer",
+            "title": "Hooks Failed"
+          },
+          "check_pass_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Pass Rate"
+          },
+          "unavailable": {
+            "type": "boolean",
+            "title": "Unavailable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "team",
+          "runs",
+          "active",
+          "completed",
+          "problems",
+          "pending_gates",
+          "cost_usd",
+          "tokens",
+          "cost_unknown_runs",
+          "integrity_violations",
+          "sandbox_denials",
+          "hooks_passed",
+          "hooks_failed",
+          "check_pass_rate",
+          "unavailable"
+        ],
+        "title": "ProjectFiguresOut",
+        "description": "One project's figures. Every number is declared: it comes from the project's own runs."
       },
       "ProjectIn": {
         "properties": {
